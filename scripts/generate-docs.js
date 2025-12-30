@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Create docs directory if it doesn't exist
-const docsDir = path.join(__dirname, '..', 'docs');
+const docsDir = path.join(__dirname, '..', 'api-docs');
 if (!fs.existsSync(docsDir)) {
   fs.mkdirSync(docsDir, { recursive: true });
 }

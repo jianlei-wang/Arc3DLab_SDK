@@ -1,12 +1,12 @@
 {
   "name": "arc3dlab",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "main": "dist/arc3dlab.esm.js",
   "module": "dist/arc3dlab.esm.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "rollup -c",
-    "build:copy": "rollup -c && xcopy /E /I /Y \"dist\" \"demo-html\\public\\lib\"",
+    "build:copy": "rollup -c && xcopy /Y \"dist\\arc3dlab.umd.js\" \"demo-html\\public\\lib\"",
     "format": "prettier --write \"src/**/*.ts\"",
     "docs": "node scripts/generate-docs.js",
     "docs:watch": "typedoc --options typedoc.json --watch",

@@ -1,51 +1,32 @@
-import { ScreenSpaceEventType, ScreenSpaceEventHandler, Viewer } from "cesium"
+import { ScreenSpaceEventHandler, Viewer } from "cesium"
+import { Events, EventType } from "src/types"
+import { EventNameMap } from "../utils/DefineObject"
 
-type Events = Map<EventType, Function[]>
-
-/**
- * 事件发射器类，扩展了 Cesium 的 ScreenSpaceEventHandler 以支持多个回调函数。
- * 这允许为同一事件类型注册多个监听器。
- * 
- * @class CesiumEventEmitter
- * @example
- * ```typescript
- * import { CesiumEventEmitter } from "arc3dlab";
- * 
- * const eventEmitter = new CesiumEventEmitter(viewer);
- * eventEmitter.on('click', (movement) => {
- *   console.log('鼠标点击位置:', movement.position);
- * });
- * ```
- */
-export class CesiumEventEmitter {
+class EventEmitter {
   /**
-   * 创建新的 CesiumEventEmitter 实例
-   * 
-   * @param viewer - 要附加事件处理器的 Cesium 查看器实例
+   * 创建事件处理器实例
+   * @param {Viewer} viewer - Cesium 的视图器对象
+   * @description
+   * 基于 Cesium 的屏幕空间事件处理器扩展类，支持多回调函数管理
+   * @example
+   * const emitter = new EventEmitter(viewer);
+   * emitter.on('leftClick', (event) => console.log('Clicked:', event.position));
    */
   constructor(public viewer: Viewer) {}
+
+  /** @private 原生的 Cesium 屏幕空间事件处理器 */
   private handler = new ScreenSpaceEventHandler(this.viewer.canvas)
-  
-  /**
-   * 存储事件类型及其关联的回调函数
-   * @private
-   */
+
+  /** @private 存储事件及其回调函数的映射表 */
   private events: Events = new Map()
 
   /**
-   * 为特定事件类型注册事件监听器
-   * 
-   * @param eventName - 要监听的事件名称
-   * @param callback - 事件发生时要调用的函数
-   * @example
-   * ```typescript
-   * eventEmitter.on('click', (movement) => {
-   *   console.log('鼠标点击位置:', movement.position);
-   * });
-   * ```
+   * 绑定指定事件类型的回调函数
+   * @param {EventType} eventName - 要监听的事件名称（参见 eventNameMap 的键名）
+   * @param {Function} callback - 事件触发时的回调函数
+   * @throws {Error} 当 eventName 不是有效的事件类型时
    */
   on(eventName: EventType, callback: Function): void {
-    // 如果事件不存在，初始化一个空数组
     if (!this.events.has(eventName)) {
       this.events.set(eventName, [])
       this.handler.setInputAction((...args: any[]) => {
@@ -53,81 +34,47 @@ export class CesiumEventEmitter {
         callbacks?.forEach((callback) => {
           callback(...args)
         })
-      }, eventNameMap[eventName])
+      }, EventNameMap[eventName])
     }
-    // 将回调函数添加到事件列表中
     this.events.get(eventName)!.push(callback)
   }
 
   /**
-   * 为特定事件类型移除事件监听器
-   * 
-   * @param eventName - 要移除监听器的事件名称
-   * @param callback - 要移除的特定回调函数（可选，如果不提供，则移除该事件的所有回调）
-   * @example
-   * ```typescript
-   * // 移除特定回调
-   * eventEmitter.off('click', handleClick);
-   * 
-   * // 移除事件的所有回调
-   * eventEmitter.off('click');
-   * ```
+   * 移除指定事件类型的回调函数
+   * @param {EventType} eventName - 要移除的事件名称
+   * @param {Function} [callback] - 要移除的特定回调函数（不传则移除该事件所有回调）
    */
   off(eventName: EventType, callback?: Function): void {
     if (!this.events.has(eventName)) return
 
     if (callback) {
-      // 移除指定的回调函数
       const callbacks = this.events.get(eventName)!
       const index = callbacks.indexOf(callback)
       if (index !== -1) {
         callbacks.splice(index, 1)
       }
     } else {
-      // 移除所有回调函数
       this.events.delete(eventName)
     }
   }
 
   /**
-   * 清除所有已注册的事件监听器
-   * 
-   * @example
-   * ```typescript
-   * eventEmitter.clear(); // 移除所有事件监听器
-   * ```
+   * 移除事件类型集
+   * @param {Array<EventType>} eventNames 要移除的事件名称集合
+   */
+  offEvents(eventNames: EventType[] = []) {
+    for (let index = 0; index < eventNames.length; index++) {
+      const eventName = eventNames[index]
+      this.events.has(eventName) && this.events.delete(eventName)
+    }
+  }
+
+  /**
+   * 清空所有已注册的事件和回调
    */
   clear(): void {
     this.events.clear()
   }
 }
 
-/**
- * 事件名称到 Cesium ScreenSpaceEventType 值的映射
- */
-export const eventNameMap = {
-  leftdown: ScreenSpaceEventType.LEFT_DOWN,
-  leftup: ScreenSpaceEventType.LEFT_UP,
-  click: ScreenSpaceEventType.LEFT_CLICK,
-  dblclick: ScreenSpaceEventType.LEFT_DOUBLE_CLICK,
-
-  rightdown: ScreenSpaceEventType.RIGHT_DOWN,
-  rightup: ScreenSpaceEventType.RIGHT_UP,
-  rightclick: ScreenSpaceEventType.RIGHT_CLICK,
-
-  middledown: ScreenSpaceEventType.MIDDLE_DOWN,
-  middleup: ScreenSpaceEventType.MIDDLE_UP,
-  middleclick: ScreenSpaceEventType.MIDDLE_CLICK,
-
-  mousemove: ScreenSpaceEventType.MOUSE_MOVE,
-  wheel: ScreenSpaceEventType.WHEEL,
-
-  pinchstart: ScreenSpaceEventType.PINCH_START,
-  pinchend: ScreenSpaceEventType.PINCH_END,
-  pinchmove: ScreenSpaceEventType.PINCH_MOVE,
-}
-
-/**
- * 表示所有可用事件类型的类型
- */
-export type EventType = keyof typeof eventNameMap
+export default EventEmitter

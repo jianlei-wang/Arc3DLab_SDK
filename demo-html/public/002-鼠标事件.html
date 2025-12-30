@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>002-鼠标事件</title>
+    <script src="./Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
+    <script src="./lib/arc3dlab.umd.js"></script>
+    <script src="./assests/dat.gui.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #gui-box {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        z-index: 99;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer">
+      <div id="gui-box"></div>
+    </div>
+    <script>
+      const viewer = new Arc3DLab.Viewer("cesiumContainer", {
+        fpsShow: true,
+        mapboxController: true,
+      })
+      function startMouseEvent() {
+        const handler = viewer.EventHandler
+        handler.on("leftDown", (e) => console.log("鼠标左键摁下：", e))
+        handler.on("leftUp", (e) => console.log("鼠标左键抬起：", e))
+        handler.on("leftClick", (e) => console.log("鼠标左键单击：", e))
+        handler.on("leftDblClick", (e) => console.log("鼠标左键双击：", e))
+        handler.on("rightDown", (e) => console.log("鼠标右键摁下：", e))
+        handler.on("rightUp", (e) => console.log("鼠标右键抬起：", e))
+        handler.on("rightClick", (e) => console.log("鼠标右键单击：", e))
+        handler.on("middleDown", (e) => console.log("鼠标中键摁下：", e))
+        handler.on("middleUp", (e) => console.log("鼠标中键抬起：", e))
+        handler.on("middleClick", (e) => console.log("鼠标中键单击：", e))
+        handler.on("mouseMove", (e) => console.log("鼠标移动：", e))
+        handler.on("wheel", (e) => console.log("鼠标滚轮：", e))
+        handler.on("pinchStart", (e) => console.log("两指触摸开始：", e))
+        handler.on("pinchEnd", (e) => console.log("两指触摸结束：", e))
+        handler.on("pinchMove", (e) => console.log("两指移动：", e))
+      }
+      function endMouseEvent() {
+        viewer.EventHandler.clear()
+      }
+
+      initGui()
+      function initGui() {
+        const params = { message: "GUI面板-鼠标事件", bool: false }
+        const gui = new dat.GUI({ autoPlace: false })
+        const customContainer = document.getElementById("gui-box")
+        customContainer.appendChild(gui.domElement)
+        gui.add(params, "message")
+        const boolEvent = gui.add(params, "bool")
+        boolEvent.onFinishChange((val) => {
+          val ? startMouseEvent() : endMouseEvent()
+        })
+      }
+    </script>
+  </body>
+</html>

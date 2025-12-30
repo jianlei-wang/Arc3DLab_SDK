@@ -4,14 +4,14 @@ const treeDatas = [
     label: "地图初始化",
     children: [
       { id: "000", label: "创建场景" },
-      // { id: "001", label: "操作模式" },
+      { id: "001", label: "操作模式" },
     ],
   },
   {
     id: "地图影像",
     label: "地图影像",
     children: [
-      // { id: "003", label: "底图调整" }
+      { id: "003", label: "底图调整" }
     ],
   },
   {
@@ -26,7 +26,7 @@ const treeDatas = [
     id: "地图事件",
     label: "地图事件",
     children: [
-      // { id: "002", label: "鼠标事件" },
+      { id: "002", label: "鼠标事件" },
       // { id: "012", label: "鼠标提示" },
       // { id: "004", label: "对象拾取" },
       // { id: "015", label: "地球自转" },

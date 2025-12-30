@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>000-创建场景</title>
+    <title>000-操作模式</title>
     <script src="./Cesium/Cesium.js"></script>
     <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
     <script src="./lib/arc3dlab.umd.js"></script>
@@ -25,7 +25,10 @@
   <body>
     <div id="cesiumContainer"></div>
     <script>
-      const viewer = new Arc3DLab.Viewer("cesiumContainer")
+      const viewer = new Arc3DLab.Viewer("cesiumContainer", {
+        fpsShow: true,
+        mapboxController: true,
+      })
     </script>
   </body>
 </html>

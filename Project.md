@@ -82,10 +82,11 @@ npm run build
 npm run docs
 ```
 
-### 构建并复制到示例项目
+### 构建并复制 UMD 文件到示例项目
 ```bash
 npm run build:copy
 ```
+此命令会构建项目并将生成的 arc3dlab.umd.js 文件复制到 demo-html/public/lib 目录下，以便在 HTML 示例中使用。
 
 ## 项目特点
 

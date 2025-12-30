@@ -1,6 +1,6 @@
 {
   "entryPoints": ["./src/index.ts"],
-  "out": "docs/api",
+  "out": "api-docs/api",
   "name": "Arc3DLab SDK API 文档",
   "includeVersion": true,
   "plugin": ["typedoc-material-theme"],

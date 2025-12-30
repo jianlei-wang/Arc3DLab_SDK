@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>003-底图调整</title>
+    <script src="./Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
+    <script src="./lib/arc3dlab.umd.js"></script>
+    <script src="./assests/dat.gui.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #gui-box {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        z-index: 99;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer">
+      <div id="gui-box"></div>
+    </div>
+    <script>
+      const viewer = new Arc3DLab.Viewer("cesiumContainer", {
+        fpsShow: true,
+        mapboxController: true,
+      })
+      initGui()
+      function initGui() {
+        const params = { message: "GUI面板-底图调整", "base-imagery": 0 }
+        const gui = new dat.GUI({ autoPlace: false })
+        const customContainer = document.getElementById("gui-box")
+        customContainer.appendChild(gui.domElement)
+        gui.add(params, "message")
+        const baseImg = gui.add(params, "base-imagery", {
+          SingleImage: 0,
+          TDTImagery: 1,
+          TDTVector: 2,
+          ArcgisImagery: 3,
+        })
+        baseImg.onChange((val) => {
+          const baseLayer = Arc3DLab.BaseLayer
+          const option = {
+            0: baseLayer.DefaultSingleImg,
+            1: baseLayer.DefaultTdtImg,
+            2: baseLayer.DefaultTdtVec,
+            3: baseLayer.DefaultArcgisImg,
+          }
+          const imagery = viewer.imageryLayers.add(option[val])
+          viewer.baseImagery = option[val]
+        })
+      }
+    </script>
+  </body>
+</html>
