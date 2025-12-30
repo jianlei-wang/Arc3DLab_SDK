@@ -1,7 +1,10 @@
 import * as Cesium from "cesium"
 import { CesiumEventEmitter } from "./EventEmitter"
 
-//默认相机范围
+/**
+ * 设置 Cesium 应用的默认相机视图矩形。
+ * 这定义了相机重置时显示的默认地理范围。
+ */
 Cesium.Camera.DEFAULT_VIEW_RECTANGLE = new Cesium.Rectangle(
   Cesium.Math.toRadians(70),
   Cesium.Math.toRadians(-15),
@@ -9,12 +12,37 @@ Cesium.Camera.DEFAULT_VIEW_RECTANGLE = new Cesium.Rectangle(
   Cesium.Math.toRadians(80)
 )
 
-interface Option extends Cesium.Viewer.ConstructorOptions {
+/**
+ * Viewer 类的配置选项
+ * @interface Option
+ * @extends Cesium.Viewer.ConstructorOptions
+ */
+export interface Option extends Cesium.Viewer.ConstructorOptions {
+  /** 是否允许相机进入地下 */
   allowCameraUnderground?: boolean
+  /** 是否使用 Mapbox 风格的控件 */
   asMapboxControl?: boolean
 }
 
+/**
+ * 为 WebGIS 应用预配置设置的增强型 Cesium Viewer。
+ * 此类扩展了标准 Cesium Viewer，具有针对 3D 地理空间可视化优化的默认设置。
+ * 
+ * @class Viewer
+ * @extends Cesium.Viewer
+ * @example
+ * ```typescript
+ * import { Viewer } from "arc3dlab";
+ * const viewer = new Viewer("containerId");
+ * ```
+ */
 export class Viewer extends Cesium.Viewer {
+  /**
+   * 创建具有优化默认设置的 Viewer 实例
+   * 
+   * @param container - 将创建查看器的 DOM 元素或 ID
+   * @param options - 可选的配置选项
+   */
   constructor(container: Element | string, public options?: Option) {
     //设置初始化默认参数
     super(container, {

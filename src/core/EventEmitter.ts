@@ -2,17 +2,47 @@ import { ScreenSpaceEventType, ScreenSpaceEventHandler, Viewer } from "cesium"
 
 type Events = Map<EventType, Function[]>
 
-//基于Cesium的ScreenSpaceEventHandler拓展，使其支持回调列表；
+/**
+ * 事件发射器类，扩展了 Cesium 的 ScreenSpaceEventHandler 以支持多个回调函数。
+ * 这允许为同一事件类型注册多个监听器。
+ * 
+ * @class CesiumEventEmitter
+ * @example
+ * ```typescript
+ * import { CesiumEventEmitter } from "arc3dlab";
+ * 
+ * const eventEmitter = new CesiumEventEmitter(viewer);
+ * eventEmitter.on('click', (movement) => {
+ *   console.log('鼠标点击位置:', movement.position);
+ * });
+ * ```
+ */
 export class CesiumEventEmitter {
+  /**
+   * 创建新的 CesiumEventEmitter 实例
+   * 
+   * @param viewer - 要附加事件处理器的 Cesium 查看器实例
+   */
   constructor(public viewer: Viewer) {}
   private handler = new ScreenSpaceEventHandler(this.viewer.canvas)
-  // 用于存储事件及其回调函数的映射
+  
+  /**
+   * 存储事件类型及其关联的回调函数
+   * @private
+   */
   private events: Events = new Map()
 
   /**
-   * 绑定事件
-   * @param eventName 事件名称
-   * @param callback 回调函数
+   * 为特定事件类型注册事件监听器
+   * 
+   * @param eventName - 要监听的事件名称
+   * @param callback - 事件发生时要调用的函数
+   * @example
+   * ```typescript
+   * eventEmitter.on('click', (movement) => {
+   *   console.log('鼠标点击位置:', movement.position);
+   * });
+   * ```
    */
   on(eventName: EventType, callback: Function): void {
     // 如果事件不存在，初始化一个空数组
@@ -30,9 +60,18 @@ export class CesiumEventEmitter {
   }
 
   /**
-   * 取消绑定事件
-   * @param eventName 事件名称
-   * @param callback 要移除的回调函数（可选）
+   * 为特定事件类型移除事件监听器
+   * 
+   * @param eventName - 要移除监听器的事件名称
+   * @param callback - 要移除的特定回调函数（可选，如果不提供，则移除该事件的所有回调）
+   * @example
+   * ```typescript
+   * // 移除特定回调
+   * eventEmitter.off('click', handleClick);
+   * 
+   * // 移除事件的所有回调
+   * eventEmitter.off('click');
+   * ```
    */
   off(eventName: EventType, callback?: Function): void {
     if (!this.events.has(eventName)) return
@@ -51,13 +90,21 @@ export class CesiumEventEmitter {
   }
 
   /**
-   * 清空所有事件
+   * 清除所有已注册的事件监听器
+   * 
+   * @example
+   * ```typescript
+   * eventEmitter.clear(); // 移除所有事件监听器
+   * ```
    */
   clear(): void {
     this.events.clear()
   }
 }
 
+/**
+ * 事件名称到 Cesium ScreenSpaceEventType 值的映射
+ */
 export const eventNameMap = {
   leftdown: ScreenSpaceEventType.LEFT_DOWN,
   leftup: ScreenSpaceEventType.LEFT_UP,
@@ -80,4 +127,7 @@ export const eventNameMap = {
   pinchmove: ScreenSpaceEventType.PINCH_MOVE,
 }
 
+/**
+ * 表示所有可用事件类型的类型
+ */
 export type EventType = keyof typeof eventNameMap

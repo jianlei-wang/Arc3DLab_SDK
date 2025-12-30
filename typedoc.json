@@ -1,0 +1,25 @@
+{
+  "entryPoints": ["./src/index.ts"],
+  "out": "docs/api",
+  "name": "Arc3DLab SDK API 文档",
+  "includeVersion": true,
+  "plugin": ["typedoc-material-theme"],
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "readme": "README.md",
+  "categorizeByGroup": true,
+  "sort": ["source-order"],
+  "exclude": [
+    "**/node_modules/**",
+    "**/demo-html/**",
+    "**/demo-vue3/**",
+    "**/dist/**"
+  ],
+  "tsconfig": "./tsconfig.json",
+  "locales": {
+    "zh-CN": {
+      "name": "Arc3DLab SDK API 文档",
+      "description": "基于 Cesium 构建的 WebGIS 应用框架"
+    }
+  },
+}

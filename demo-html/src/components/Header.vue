@@ -14,7 +14,7 @@ const sdkVersion = () => {
     <img src="/assests/Logo.png" alt="" width="64" />
     <span class="title">Arc3DLab SDK Pro</span>
     <span class="version">{{ versionList[0] }}</span>
-    <span class="version">Demo For Cesium ^1.133.1</span>
+    <span class="version">Demo For Cesium ^1.136.0</span>
     <span class="info">
       <label class="sdk-text" @click="sdkVersion">SDK下载</label>
       <a
