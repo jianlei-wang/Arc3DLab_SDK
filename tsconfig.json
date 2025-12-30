@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "lib": ["DOM", "ESNext"],
+    "target": "ES5",
+    "module": "ESNext",
+    "moduleResolution": "node", // 使用 Node.js 的模块解析
+    "declaration": true,
+    "declarationDir": "./dist/types",
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["src/**/*"], // 包含的源文件
+  "exclude": ["node_modules", "dist"] // 排除 node_modules 文件夹
+}
