@@ -6,6 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "rollup -c",
+    "build:copy": "rollup -c && xcopy /E /I /Y \"dist\" \"demo-html\\public\\lib\"",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "keywords": [
