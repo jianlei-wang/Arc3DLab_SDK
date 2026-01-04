@@ -96,6 +96,7 @@ export class Viewer extends Cesium.Viewer {
       ...options,
     })
     this.initBaseConfig()
+    console.log("Viewer initialized")
   }
   //常见基础设置
   private initBaseConfig() {
@@ -138,7 +139,7 @@ export class Viewer extends Cesium.Viewer {
     // 显示帧率
     this.scene.debugShowFramesPerSecond = this.options?.fpsShow || false
   }
-    /**
+  /**
    * Cesium事件发射器实例
    * @type {EventEmitter}
    */

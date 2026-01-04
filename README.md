@@ -7,7 +7,28 @@
 demo-vue3为测试npm发布包样例项目
 demo-html为静态页面样例项目
 
-## 快速开始
+## 开发
+
+### 本地开发
+
+如果您想为本项目贡献代码或在本地测试修改，可以使用以下开发命令：
+
+```bash
+# 构建项目
+npm run build
+
+# 开发模式 - 构建并准备测试
+npm run dev
+
+# 开发监听模式 - 自动监听文件更改并重新构建
+npm run dev:watch
+
+# 将构建结果复制到 demo-html 项目
+npm run build:copy
+
+# 生成 API 文档
+npm run docs
+```
 
 ### 1.npm引入
 

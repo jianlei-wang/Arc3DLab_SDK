@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>004-场景设置</title>
+    <script src="./Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
+    <script src="./lib/arc3dlab.umd.js"></script>
+    <script src="./assests/dat.gui.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #gui-box {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        z-index: 99;
+        display: flex;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer">
+      <div id="gui-box"></div>
+    </div>
+    <script>
+      const viewer = new Arc3DLab.Viewer("cesiumContainer")
+      initGui()
+      function initGui() {
+        const params = {
+          message: "GUI面板-场景设置",
+          shadow: false,
+          fps: false,
+          mapSize: "width:--,height:--",
+          获取尺寸: function () {
+            const { width, height } = viewer.size
+            params.mapSize = `width:${width},height:${height}`
+            mapSizeController.updateDisplay()
+          },
+          场景截图: function () {
+            const guiBox = document.getElementById("gui-box")
+            const existingScreenshots = guiBox.querySelector("#screenshot")
+            if (existingScreenshots) existingScreenshots.remove()
+            const base64 = viewer.image
+            const img = document.createElement("img")
+            img.id = "screenshot"
+            img.src = base64
+            img.style.width = "300px"
+            img.style.border = "1px solid #ccc"
+
+            guiBox.appendChild(img)
+          },
+        }
+        const gui = new dat.GUI({ autoPlace: false })
+        const customContainer = document.getElementById("gui-box")
+        customContainer.appendChild(gui.domElement)
+        gui.add(params, "message")
+        const boolShadow = gui.add(params, "shadow")
+        boolShadow.onFinishChange((val) => {
+          viewer.lightShadow = val
+        })
+        const boolFps = gui.add(params, "fps")
+        boolFps.onFinishChange((val) => {
+          viewer.fps = val
+        })
+        const mapSizeController = gui.add(params, "mapSize")
+        gui.add(params, "获取尺寸")
+        gui.add(params, "场景截图")
+      }
+    </script>
+  </body>
+</html>

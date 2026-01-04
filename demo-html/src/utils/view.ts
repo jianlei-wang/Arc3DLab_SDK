@@ -5,6 +5,7 @@ const treeDatas = [
     children: [
       { id: "000", label: "创建场景" },
       { id: "001", label: "操作模式" },
+      { id: "004", label: "场景设置" },
     ],
   },
   {

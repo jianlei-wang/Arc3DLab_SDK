@@ -88,6 +88,17 @@ npm run build:copy
 ```
 此命令会构建项目并将生成的 arc3dlab.umd.js 文件复制到 demo-html/public/lib 目录下，以便在 HTML 示例中使用。
 
+### 开发工作流程
+```bash
+npm run dev
+```
+此命令构建 SDK 并提供在 demo-vue3 中测试的说明。开发时可以使用别名配置直接测试本地构建的 SDK。
+
+```bash
+npm run dev:watch
+```
+此命令启动监听模式，当源代码更改时自动重新构建 SDK，便于开发测试。
+
 ## 项目特点
 
 1. **基于 Cesium**: 扩展了 Cesium 的功能，提供了优化的默认配置
