@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, onBeforeMount, onMounted } from "vue"
+import { ref, } from "vue"
 
 defineOptions({ inheritAttrs: false, name: "标题栏" })
 
@@ -12,16 +12,12 @@ const sdkVersion = () => {
 <template>
   <div class="header-main">
     <img src="/assests/Logo.png" alt="" width="64" />
-    <span class="title">Arc3DLab SDK Pro</span>
+    <span class="title">Arc3DLab SDK</span>
     <span class="version">{{ versionList[0] }}</span>
     <span class="version">Demo For Cesium ^1.136.0</span>
     <span class="info">
       <label class="sdk-text" @click="sdkVersion">SDK下载</label>
-      <a
-        href="https://app.larkview.cn/larkexplorersdk/api-docs/"
-        target="_blank"
-        >API文档</a
-      >
+      <a href="https://app.larkview.cn/larkexplorersdk/api-docs/" target="_blank">API文档</a>
       <a href="https://app.larkview.cn/sdk-docs/" target="_blank">开发指南</a>
     </span>
   </div>
@@ -43,7 +39,7 @@ const sdkVersion = () => {
     text-shadow: 0px 1px 0px #888, 0px 2px 0px #777, 0px 3px 0px #666,
       0px 4px 0px #555, 0px 5px 0px #444, 0px 6px 0px #333, 0px 7px 0px #222,
       0px 8px 7px #001135;
-      margin-left: 10px;
+    margin-left: 10px;
   }
 
   .version {
@@ -51,6 +47,7 @@ const sdkVersion = () => {
     font-size: 10px;
     margin: 20px 0 0 10px;
   }
+
   .info {
     font-size: 13px;
     font-weight: bolder;
@@ -61,14 +58,17 @@ const sdkVersion = () => {
     column-gap: 10px;
     letter-spacing: 1px;
     transform: translateY(5px);
+
     .sdk-text {
       &:hover {
         cursor: pointer;
         color: #daa520;
       }
     }
+
     a {
       color: #fff;
+
       &:hover {
         color: #daa520;
       }

@@ -292,6 +292,125 @@
     }
 
     /**
+     * 判断是否已经加载地形数据
+     * @param viewer - 地图场景
+     * @returns 是否已经加载地形
+     */
+    function boolTerrain(viewer) {
+        return viewer.terrainProvider !== undefined && viewer.terrainProvider !== null;
+    }
+
+    var Terrain = /** @class */ (function () {
+        /**
+         * 地形主类
+         * @param viewer
+         */
+        function Terrain(viewer) {
+            this.viewer = viewer;
+            this.viewer = viewer;
+            this._alpha = 1.0;
+            this._updateTranslucency(false);
+        }
+        Object.defineProperty(Terrain.prototype, "provider", {
+            /**
+             * 地形对象，参考Cesium的TerrainProvider类
+             * @readonly
+             * @type {TerrainProvider}
+             */
+            get: function () {
+                return this.viewer.terrainProvider;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(Terrain.prototype, "exaggeration", {
+            /**
+             * 地形夸张系数
+             * @type {Number}
+             */
+            get: function () {
+                return this.viewer.scene.verticalExaggeration;
+            },
+            set: function (scale) {
+                this.viewer.scene.verticalExaggeration = scale;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(Terrain.prototype, "show", {
+            /**
+             * 是否显示地形（借助于地形夸张调整）
+             * @param {boolean} bool
+             */
+            set: function (bool) {
+                var terrain = boolTerrain(this.viewer);
+                if (!terrain)
+                    return;
+                this.exaggeration = bool ? 1 : 0;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(Terrain.prototype, "alpha", {
+            /**
+             * 地表透明度，只有在开启碰撞检测的时候才能生效
+             * @type {Number}
+             */
+            get: function () {
+                return this._alpha;
+            },
+            set: function (val) {
+                this._updateAlpha(val);
+                this._alpha = val;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(Terrain.prototype, "translucency", {
+            /**
+             * 地表碰撞检测
+             * @type {Boolean}
+             */
+            get: function () {
+                return this.viewer.scene.globe.translucency.enabled;
+            },
+            set: function (bool) {
+                this._updateTranslucency(bool);
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(Terrain.prototype, "enableUnderground", {
+            /**
+             * 是否允许进入地下
+             * @type {Boolean}
+             */
+            get: function () {
+                return !this.viewer.scene.screenSpaceCameraController
+                    .enableCollisionDetection;
+            },
+            set: function (bool) {
+                this.viewer.scene.screenSpaceCameraController.enableCollisionDetection =
+                    !bool;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Terrain.prototype._updateAlpha = function (val) {
+            var frontFaceAlphaByDistance = this.viewer.scene.globe.translucency.frontFaceAlphaByDistance;
+            frontFaceAlphaByDistance.nearValue = val;
+            frontFaceAlphaByDistance.farValue = val;
+        };
+        Terrain.prototype._updateTranslucency = function (bool) {
+            this.viewer.scene.globe.translucency.frontFaceAlphaByDistance =
+                new Cesium.NearFarScalar(1.5e2, 0.5, 8.0e6, 1.0);
+            this.viewer.scene.globe.translucency.enabled = bool; //是否开启透明
+            this._updateAlpha(this._alpha);
+        };
+        return Terrain;
+    }());
+
+    /**
      * 设置 Cesium 应用的默认相机视图矩形。
      * 这定义了相机重置时显示的默认地理范围。
      */
@@ -366,7 +485,13 @@
            * @type {EventEmitter}
            */
             _this.EventHandler = new EventEmitter(_this);
+            /**
+             * 地形主类，地形相关方法
+             * @type {Terrain}
+             */
+            _this.Terrain = new Terrain(_this);
             _this.initBaseConfig();
+            console.log("Viewer initialized 20260107-1");
             return _this;
         }
         //常见基础设置

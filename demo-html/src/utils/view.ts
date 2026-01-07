@@ -19,8 +19,8 @@ const treeDatas = [
     id: "DEM地形",
     label: "DEM地形",
     children: [
-      // { id: "005", label: "初始化地形" },
-      // { id: "006", label: "地形设置" },
+      { id: "005", label: "初始化地形" },
+      { id: "006", label: "地形设置" },
     ],
   },
   {

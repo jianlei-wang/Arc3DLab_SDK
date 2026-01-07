@@ -3,6 +3,7 @@ import EventEmitter from "./EventEmitter"
 import BaseLayer from "./layers/BaseLayer"
 import { mapImg, mapSize } from "src/utils/Scene"
 import { CesiumIcon } from "src/utils/def/Default"
+import Terrain from "./Terrain"
 
 /**
  * 设置 Cesium 应用的默认相机视图矩形。
@@ -40,6 +41,18 @@ export interface Option extends Cesium.Viewer.ConstructorOptions {
  * ```
  */
 export class Viewer extends Cesium.Viewer {
+  /**
+ * Cesium事件发射器实例
+ * @type {EventEmitter}
+ */
+  public EventHandler: EventEmitter = new EventEmitter(this)
+
+  /**
+   * 地形主类，地形相关方法
+   * @type {Terrain}
+   */
+  public Terrain: Terrain = new Terrain(this)
+
   /**
    * 创建具有优化默认设置的 Viewer 实例
    *
@@ -96,7 +109,7 @@ export class Viewer extends Cesium.Viewer {
       ...options,
     })
     this.initBaseConfig()
-    console.log("Viewer initialized")
+    console.log("Viewer initialized 20260107-1")
   }
   //常见基础设置
   private initBaseConfig() {
@@ -109,8 +122,8 @@ export class Viewer extends Cesium.Viewer {
     this.clock.multiplier = 1
     //禁止相机进入地下 false允许，true禁止
     this.scene.screenSpaceCameraController.enableCollisionDetection = true
-    //隐藏版本信息
-    ;(this.cesiumWidget.creditContainer as any).style.display = "none"
+      //隐藏版本信息
+      ; (this.cesiumWidget.creditContainer as any).style.display = "none"
 
     this.resolutionScale = window.devicePixelRatio //高分辨率设备适配
     // Mapbox控制模式
@@ -139,11 +152,7 @@ export class Viewer extends Cesium.Viewer {
     // 显示帧率
     this.scene.debugShowFramesPerSecond = this.options?.fpsShow || false
   }
-  /**
-   * Cesium事件发射器实例
-   * @type {EventEmitter}
-   */
-  public EventHandler: EventEmitter = new EventEmitter(this)
+
   /**
    * 控制帧率显示
    * @type {Boolean}
