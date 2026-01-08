@@ -28,7 +28,7 @@ const treeDatas = [
     label: "地图事件",
     children: [
       { id: "002", label: "鼠标事件" },
-      // { id: "012", label: "鼠标提示" },
+      { id: "007", label: "鼠标提示" },
       // { id: "004", label: "对象拾取" },
       // { id: "015", label: "地球自转" },
     ],

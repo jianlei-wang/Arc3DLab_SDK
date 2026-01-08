@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>007-鼠标提示</title>
+    <script src="./Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
+    <script src="./lib/arc3dlab.umd.js"></script>
+    <script src="./assests/dat.gui.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #gui-box {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        z-index: 99;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer">
+      <div id="gui-box"></div>
+    </div>
+    <script>
+      const { DefaultTdtImg } = Arc3DLab.BaseLayer
+      const viewer = new Arc3DLab.Viewer("cesiumContainer", {
+        baseLayer: DefaultTdtImg,
+        fpsShow: true,
+        mapboxController: true,
+      })
+      function startEdit() {}
+      function endEdit() {}
+      initGui()
+      function initGui() {
+        const params = {
+          message: "GUI面板-鼠标提示",
+          开启提示: false,
+          提示内容: "自定义内容",
+        }
+        const gui = new dat.GUI({ autoPlace: false })
+        const customContainer = document.getElementById("gui-box")
+        customContainer.appendChild(gui.domElement)
+        gui.add(params, "message")
+        const boolTip = gui.add(params, "开启提示")
+        boolTip.onFinishChange((bool) => {
+          viewer.ReminderTip.message = params["提示内容"]
+          viewer.ReminderTip.show = bool
+        })
+        const tipStr = gui.add(params, "提示内容")
+        tipStr.onFinishChange((str) => {
+          viewer.ReminderTip.message = str
+        })
+      }
+    </script>
+  </body>
+</html>

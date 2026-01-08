@@ -410,6 +410,103 @@
         return Terrain;
     }());
 
+    var ReminderTip = /** @class */ (function () {
+        /**
+         * 鼠标提示弹窗tip
+         * @param {Viewer} viewer 地图场景
+         * @param {string} [id="sdk-reminder-tip"] 元素对象id
+         */
+        function ReminderTip(viewer, id) {
+            if (id === void 0) { id = "sdk-reminder-tip"; }
+            this.viewer = viewer;
+            this.id = id;
+            this._viewEl =
+                this.viewer.container.getElementsByClassName("cesium-viewer")[0];
+            this._message = "";
+            this._isShow = false;
+            // 绑定事件处理函数，确保在移除时是同一个引用
+            this._tipEvent = this._handleMouseMove.bind(this);
+            var domObj = document.getElementById(this.id);
+            this._tipEl = domObj || this.initTipEl(this.id);
+        }
+        Object.defineProperty(ReminderTip.prototype, "show", {
+            /**
+             * 是否显示提示框
+             * @type {boolean}
+             */
+            get: function () {
+                return this._isShow;
+            },
+            set: function (bool) {
+                bool ? this.showTip() : this.hideTip();
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(ReminderTip.prototype, "message", {
+            /**
+             * 提示内容
+             * @type {string}
+             */
+            get: function () {
+                return this._message;
+            },
+            set: function (str) {
+                this._message = str;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        /**
+         * 初始化元素
+         * @param id
+         * @returns
+         */
+        ReminderTip.prototype.initTipEl = function (id) {
+            var elementbottom = document.createElement("div");
+            this._viewEl.append(elementbottom);
+            var html = "<div id=\"".concat(id, "\" style=\"display: none;pointer-events: none;position: absolute;z-index: 1000;opacity: 0.8;border-radius: 4px;padding: 4px 8px;white-space: nowrap;font-family:\u9ED1\u4F53;color:white;font-weight: bolder;font-size: 14px;background: #000000cc;color: white\"></div>");
+            this._viewEl.insertAdjacentHTML("beforeend", html);
+            var domEl = document.getElementById(id);
+            return domEl;
+        };
+        /**
+         * 显示提示框
+         */
+        ReminderTip.prototype.showTip = function () {
+            this._isShow = true;
+            this._viewEl.addEventListener("mousemove", this._tipEvent);
+        };
+        /**
+         * 清除提示框
+         */
+        ReminderTip.prototype.hideTip = function () {
+            this._isShow = false;
+            this._tipEvent &&
+                this._viewEl.removeEventListener("mousemove", this._tipEvent);
+            this._createTip({ x: 0, y: 0 }, false);
+            this._message = "";
+        };
+        /**
+         * 鼠标移动事件处理
+         */
+        ReminderTip.prototype._handleMouseMove = function (e) {
+            this._createTip({ x: e.clientX, y: e.clientY }, true);
+        };
+        /**
+         * 创建提示
+         * @param position
+         * @param show
+         */
+        ReminderTip.prototype._createTip = function (position, show) {
+            this._tipEl.innerHTML = this._message;
+            this._tipEl.style.left = position.x + 15 + "px";
+            this._tipEl.style.top = position.y + 20 + "px";
+            this._tipEl.style.display = show ? "block" : "none";
+        };
+        return ReminderTip;
+    }());
+
     /**
      * 设置 Cesium 应用的默认相机视图矩形。
      * 这定义了相机重置时显示的默认地理范围。
@@ -481,15 +578,20 @@
                 }, shadows: false }, options)) || this;
             _this.options = options;
             /**
-           * Cesium事件发射器实例
-           * @type {EventEmitter}
-           */
+             * Cesium事件发射器实例
+             * @type {EventEmitter}
+             */
             _this.EventHandler = new EventEmitter(_this);
             /**
              * 地形主类，地形相关方法
              * @type {Terrain}
              */
             _this.Terrain = new Terrain(_this);
+            /**
+             * 鼠标提示主类
+             * @type {ReminderTip}
+             */
+            _this.ReminderTip = new ReminderTip(_this);
             _this.initBaseConfig();
             console.log("Viewer initialized 20260107-1");
             return _this;

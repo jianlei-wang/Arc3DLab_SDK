@@ -4,6 +4,7 @@ import BaseLayer from "./layers/BaseLayer"
 import { mapImg, mapSize } from "src/utils/Scene"
 import { CesiumIcon } from "src/utils/def/Default"
 import Terrain from "./Terrain"
+import ReminderTip from "./PopupTip/ReminderTip"
 
 /**
  * 设置 Cesium 应用的默认相机视图矩形。
@@ -42,9 +43,9 @@ export interface Option extends Cesium.Viewer.ConstructorOptions {
  */
 export class Viewer extends Cesium.Viewer {
   /**
- * Cesium事件发射器实例
- * @type {EventEmitter}
- */
+   * Cesium事件发射器实例
+   * @type {EventEmitter}
+   */
   public EventHandler: EventEmitter = new EventEmitter(this)
 
   /**
@@ -52,6 +53,12 @@ export class Viewer extends Cesium.Viewer {
    * @type {Terrain}
    */
   public Terrain: Terrain = new Terrain(this)
+
+  /**
+   * 鼠标提示主类
+   * @type {ReminderTip}
+   */
+  public ReminderTip: ReminderTip = new ReminderTip(this)
 
   /**
    * 创建具有优化默认设置的 Viewer 实例
@@ -109,7 +116,7 @@ export class Viewer extends Cesium.Viewer {
       ...options,
     })
     this.initBaseConfig()
-    console.log("Viewer initialized 20260107-1")
+    console.log("Viewer initialized 20260108")
   }
   //常见基础设置
   private initBaseConfig() {
@@ -122,8 +129,8 @@ export class Viewer extends Cesium.Viewer {
     this.clock.multiplier = 1
     //禁止相机进入地下 false允许，true禁止
     this.scene.screenSpaceCameraController.enableCollisionDetection = true
-      //隐藏版本信息
-      ; (this.cesiumWidget.creditContainer as any).style.display = "none"
+    //隐藏版本信息
+    ;(this.cesiumWidget.creditContainer as any).style.display = "none"
 
     this.resolutionScale = window.devicePixelRatio //高分辨率设备适配
     // Mapbox控制模式
