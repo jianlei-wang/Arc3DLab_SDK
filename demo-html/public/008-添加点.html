@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>008-添加点</title>
+    <script src="./Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
+    <script src="./lib/arc3dlab.umd.js"></script>
+    <script src="./assests/dat.gui.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #gui-box {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        z-index: 99;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer">
+      <div id="gui-box"></div>
+    </div>
+    <script>
+      const { DefaultTdtImg, DefaultTerrain } = Arc3DLab.BaseLayer
+      const viewer = new Arc3DLab.Viewer("cesiumContainer", {
+        baseLayer: DefaultTdtImg,
+        fpsShow: true,
+        mapboxController: true,
+        terrain: DefaultTerrain,
+      })
+      function startEdit() {}
+      function endEdit() {}
+      initGui()
+      function initGui() {
+        const params = {
+          message: "GUI面板-添加点",
+          color: "#f6df3d",
+        }
+        const gui = new dat.GUI({ autoPlace: false })
+        const customContainer = document.getElementById("gui-box")
+        customContainer.appendChild(gui.domElement)
+        gui.add(params, "message")
+        const color = gui.addColor(params, "color")
+        color.onFinishChange((color) => {
+          console.log(color)
+        })
+      }
+
+      function positionRandom() {
+        const preX = Math.random() > 0.5 ? 1 : -1
+        const x = 120 + Math.random() * preX * 2
+        const preY = Math.random() > 0.5 ? 1 : -1
+        const y = 30 + Math.random() * preY * 2
+        const z = 0
+        return Cesium.Cartesian3.fromDegrees(x, y, z)
+      }
+      const Positions = []
+      const ids = []
+      for (let i = 0; i < 10; i++) {
+        const pos = positionRandom()
+        Positions.push(pos)
+        ids.push(`custom_point_${i}`)
+      }
+      console.log(Positions)
+      viewer.Layers.Add.addPoints(
+        Positions,
+        { ids: ids },
+        false,
+        (entities) => {
+          // 在回调中修改每个实体的属性
+          entities.forEach((entity, index) => {
+            // 设置不同的颜色
+            const hue = (index % 36) / 36
+            entity.point.color = Cesium.Color.fromHsl(hue, 1.0, 0.5)
+          })
+          return entities
+        }
+      )
+    </script>
+  </body>
+</html>

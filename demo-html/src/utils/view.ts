@@ -37,7 +37,7 @@ const treeDatas = [
     id: "地图图层",
     label: "地图图层",
     children: [
-      // { id: "007", label: "添加点" },
+      { id: "008", label: "添加点" },
       // { id: "013", label: "点类对象" },
       // { id: "008", label: "加载3DTiles" },
       // { id: "010", label: "动态水面" },

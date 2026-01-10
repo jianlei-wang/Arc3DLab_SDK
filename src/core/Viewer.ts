@@ -5,6 +5,7 @@ import { mapImg, mapSize } from "src/utils/Scene"
 import { CesiumIcon } from "src/utils/def/Default"
 import Terrain from "./Terrain"
 import ReminderTip from "./PopupTip/ReminderTip"
+import Layers from "./Layers"
 
 /**
  * 设置 Cesium 应用的默认相机视图矩形。
@@ -59,6 +60,12 @@ export class Viewer extends Cesium.Viewer {
    * @type {ReminderTip}
    */
   public ReminderTip: ReminderTip = new ReminderTip(this)
+
+  /**
+   * 图层管理类
+   * @type {Layers}
+   */
+  public Layers: Layers = new Layers(this)
 
   /**
    * 创建具有优化默认设置的 Viewer 实例

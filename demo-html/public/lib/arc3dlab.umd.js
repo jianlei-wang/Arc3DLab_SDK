@@ -507,6 +507,215 @@
         return ReminderTip;
     }());
 
+    var defaultOptions = {
+        pColor: "#ff0000",
+        pOutlineColor: "#ffff00",
+        onGround: true,
+        allowPick: true,
+        pixelSize: 10,
+        outlineWidth: 1,
+        id: "default_point_id",
+        featureAttribute: {},
+    };
+    var PointGraphic = /** @class */ (function (_super) {
+        __extends(PointGraphic, _super);
+        function PointGraphic(options) {
+            if (options === void 0) { options = {}; }
+            var _this = this;
+            // Process custom options before passing to parent
+            var processedOptions = PointGraphic.processOptions(options);
+            _this = _super.call(this, processedOptions) || this;
+            _this.options = processedOptions;
+            return _this;
+        }
+        PointGraphic.processOptions = function (options) {
+            var finalOptions = Object.assign({}, defaultOptions, options);
+            // Convert color strings to Cesium.Color objects
+            if (finalOptions.pColor && typeof finalOptions.pColor === "string") {
+                finalOptions.color = Cesium.Color.fromCssColorString(finalOptions.pColor);
+            }
+            if (finalOptions.pOutlineColor &&
+                typeof finalOptions.pOutlineColor === "string") {
+                finalOptions.outlineColor = Cesium.Color.fromCssColorString(finalOptions.pOutlineColor);
+            }
+            // Set height reference based on onGround option
+            if (finalOptions.onGround) {
+                finalOptions.heightReference = Cesium.HeightReference.CLAMP_TO_GROUND;
+            }
+            return finalOptions;
+        };
+        /**
+         * Create a Cesium Entity with this point graphic
+         * @param position The position of the point
+         * @param properties Additional properties for the entity
+         * @returns Cesium Entity
+         */
+        PointGraphic.prototype.createEntity = function (position, properties) {
+            var entity = new Cesium.Entity({
+                position: position,
+                point: this,
+                properties: properties || this.options.featureAttribute,
+                id: this.options.id,
+            });
+            return entity;
+        };
+        /**
+         * Create a PointPrimitive using PointPrimitiveCollection
+         * @param position The position of the point
+         * @param collection Optional collection to add the primitive to
+         * @returns PointPrimitive
+         */
+        PointGraphic.prototype.createPointPrimitive = function (position, collection) {
+            var _a, _b, _c, _d, _e, _f, _g;
+            var pointPrimitive = {
+                position: position,
+                pixelSize: ((_a = this.pixelSize) === null || _a === void 0 ? void 0 : _a.getValue()) || this.options.pixelSize,
+                color: ((_b = this.color) === null || _b === void 0 ? void 0 : _b.getValue()) || Cesium.Color.RED,
+                outlineColor: ((_c = this.outlineColor) === null || _c === void 0 ? void 0 : _c.getValue()) || Cesium.Color.YELLOW,
+                outlineWidth: ((_d = this.outlineWidth) === null || _d === void 0 ? void 0 : _d.getValue()) || this.options.outlineWidth,
+                heightReference: this.options.onGround
+                    ? Cesium.HeightReference.CLAMP_TO_GROUND
+                    : Cesium.HeightReference.NONE,
+                disableDepthTestDistance: ((_e = this.disableDepthTestDistance) === null || _e === void 0 ? void 0 : _e.getValue()) ||
+                    this.options.disableDepthTestDistance,
+                scaleByDistance: ((_f = this.scaleByDistance) === null || _f === void 0 ? void 0 : _f.getValue()) || this.options.scaleByDistance,
+                pixelOffsetScaleByDistance: this.options.pixelOffsetScaleByDistance,
+                show: ((_g = this.show) === null || _g === void 0 ? void 0 : _g.getValue()) || true,
+                id: this.options.id,
+            };
+            if (collection) {
+                return collection.add(pointPrimitive);
+            }
+            // If no collection provided, return the primitive configuration
+            // In a real implementation, you would typically add to a collection
+            return pointPrimitive;
+        };
+        return PointGraphic;
+    }(Cesium.PointGraphics));
+
+    /**
+     * 生成唯一id
+     * @returns 例：936e0deb-c208-4098-9959-327e519e63e2
+     */
+    function randomId() {
+        var tempUrl = URL.createObjectURL(new Blob());
+        var uuid = tempUrl.toString();
+        URL.revokeObjectURL(tempUrl);
+        return uuid.substring(uuid.lastIndexOf("/") + 1);
+    }
+    /**
+     * 安全执行回调
+     */
+    function safeCallback(callback, data) {
+        if (callback && typeof callback === "function") {
+            var result = callback(data);
+            return result !== undefined ? result : data;
+        }
+        return data;
+    }
+
+    var Add = /** @class */ (function () {
+        /**
+         * 图层-添加对象类
+         * @param  {Viewer} viewer 地图场景对象
+         */
+        function Add(viewer) {
+            this.viewer = viewer;
+        }
+        /**
+         * 添加点-Entity形式
+         * @method
+         * @param {Cartesian3[]} positions 点位置数组，笛卡尔坐标
+         * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
+         * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
+         * @returns {Cesium.Entity[]} 点对象数组，Entity类对象
+         */
+        Add.prototype.addPointsAsEntities = function (positions, option, callback) {
+            var entities = [];
+            // Check if option is an array or single object
+            var isOptionArray = Array.isArray(option);
+            for (var i = 0; i < positions.length; i++) {
+                // Get the option for this specific point
+                var currentOption = isOptionArray
+                    ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
+                var pointGraphic = new PointGraphic(currentOption);
+                var entity = pointGraphic.createEntity(positions[i]);
+                this.viewer.entities.add(entity);
+                entities.push(entity);
+            }
+            // If callback is provided, allow user to modify the entities
+            if (callback) {
+                return safeCallback(callback, entities);
+            }
+            return entities;
+        };
+        /**
+         * 添加点-Primitive形式
+         * @method
+         * @param {Cartesian3[]} positions 点位置，笛卡尔坐标
+         * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
+         * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
+         * @returns {Cesium.PointPrimitive[]} 点对象，PointPrimitive类对象，参照Cesium
+         */
+        Add.prototype.addPointsAsPrimitives = function (positions, option, callback) {
+            var primitives = [];
+            // Check if option is an array or single object
+            var isOptionArray = Array.isArray(option);
+            // Create a point primitive collection to hold all points
+            var pointCollection = this.viewer.scene.primitives.add(new Cesium.PointPrimitiveCollection());
+            for (var i = 0; i < positions.length; i++) {
+                // Get the option for this specific point
+                var currentOption = isOptionArray
+                    ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
+                var pointGraphic = new PointGraphic(currentOption);
+                var primitive = pointGraphic.createPointPrimitive(positions[i], pointCollection);
+                primitives.push(primitive);
+            }
+            // If callback is provided, allow user to modify the primitives
+            if (callback) {
+                return safeCallback(callback, primitives);
+            }
+            return primitives;
+        };
+        /**
+         * 添加点-支持Entity和Primitive两种形式
+         * @method
+         * @param {Cartesian3[]} positions 点位置数组，笛卡尔坐标
+         * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
+         * @param {boolean} usePrimitive 是否使用Primitive方式，默认为false（使用Entity方式）
+         * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
+         * @returns {any} 包含entities或primitives的对象
+         */
+        Add.prototype.addPoints = function (positions, option, usePrimitive, callback) {
+            if (option === void 0) { option = {}; }
+            if (usePrimitive === void 0) { usePrimitive = false; }
+            if (usePrimitive) {
+                var primitives = this.addPointsAsPrimitives(positions, option, callback);
+                return primitives;
+            }
+            else {
+                var entities = this.addPointsAsEntities(positions, option, callback);
+                return entities;
+            }
+        };
+        return Add;
+    }());
+
+    var Layers = /** @class */ (function () {
+        /**
+         * 图层管理类
+         * @param {Viewer} viewer
+         */
+        function Layers(viewer) {
+            this.viewer = viewer;
+            /**
+             * 添加图层
+             */
+            this.Add = new Add(this.viewer);
+        }
+        return Layers;
+    }());
+
     /**
      * 设置 Cesium 应用的默认相机视图矩形。
      * 这定义了相机重置时显示的默认地理范围。
@@ -592,8 +801,13 @@
              * @type {ReminderTip}
              */
             _this.ReminderTip = new ReminderTip(_this);
+            /**
+             * 图层管理类
+             * @type {Layers}
+             */
+            _this.Layers = new Layers(_this);
             _this.initBaseConfig();
-            console.log("Viewer initialized 20260107-1");
+            console.log("Viewer initialized 20260108");
             return _this;
         }
         //常见基础设置
@@ -708,6 +922,22 @@
         return Viewer;
     }(Cesium__namespace.Viewer));
 
+    Object.defineProperty(exports, 'Cartesian2', {
+        enumerable: true,
+        get: function () { return Cesium.Cartesian2; }
+    });
+    Object.defineProperty(exports, 'Cartesian3', {
+        enumerable: true,
+        get: function () { return Cesium.Cartesian3; }
+    });
+    Object.defineProperty(exports, 'Color', {
+        enumerable: true,
+        get: function () { return Cesium.Color; }
+    });
+    Object.defineProperty(exports, 'Math', {
+        enumerable: true,
+        get: function () { return Cesium.Math; }
+    });
     exports.BaseLayer = BaseLayer;
     exports.Viewer = Viewer;
 

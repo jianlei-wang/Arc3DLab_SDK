@@ -3,6 +3,7 @@ import * as Arc3DLab from "arc3dlab"
 import { nextTick, onMounted } from "vue"
 let viewer: Arc3DLab.Viewer
 onMounted(() => {
+  console.log("mounted", Arc3DLab)
   nextTick(() => {
     viewer = new Arc3DLab.Viewer("cus-map")
     window.viewer = viewer
