@@ -67,28 +67,58 @@
         const z = 0
         return Cesium.Cartesian3.fromDegrees(x, y, z)
       }
-      const Positions = []
-      const ids = []
-      for (let i = 0; i < 10; i++) {
-        const pos = positionRandom()
-        Positions.push(pos)
-        ids.push(`custom_point_${i}`)
-      }
-      console.log(Positions)
-      viewer.Layers.Add.addPoints(
-        Positions,
-        { ids: ids },
-        false,
-        (entities) => {
+
+      function initEntities() {
+        const options = {
+          pColor: "#ffff00",
+          pOutlineColor: "#0000ff",
+          onGround: true,
+          allowPick: true,
+          pixelSize: 15,
+          outlineWidth: 5,
+          ids: [],
+        }
+        const positions = []
+        for (let i = 0; i < 360; i++) {
+          const pos = positionRandom()
+          options.ids.push(`custom_point_entity_${i}`)
+          positions.push(pos)
+        }
+        viewer.Layers.Add.addPoints(positions, options, false, (entities) => {
           // 在回调中修改每个实体的属性
           entities.forEach((entity, index) => {
-            // 设置不同的颜色
-            const hue = (index % 36) / 36
+            const hue = (index % 360) / 360
             entity.point.color = Cesium.Color.fromHsl(hue, 1.0, 0.5)
           })
-          return entities
+        })
+      }
+      initEntities()
+
+      function initPrimitives() {
+        const options = {
+          pColor: "#00ffff",
+          pOutlineColor: "#00ff00",
+          onGround: true,
+          allowPick: true,
+          pixelSize: 10,
+          outlineWidth: 3,
+          ids: [],
         }
-      )
+        const positions = []
+        for (let i = 0; i < 360; i++) {
+          const pos = positionRandom()
+          options.ids.push(`custom_point_primitive_${i}`)
+          positions.push(pos)
+        }
+        viewer.Layers.Add.addPoints(positions, options, true, (primitive) => {
+          // 在回调中修改每个实体的属性
+          primitive._pointPrimitives.forEach((item, index) => {
+            const hue = (index % 360) / 360
+            item.color = Cesium.Color.fromHsl(hue, 1.0, 0.5)
+          })
+        })
+      }
+      initPrimitives()
     </script>
   </body>
 </html>

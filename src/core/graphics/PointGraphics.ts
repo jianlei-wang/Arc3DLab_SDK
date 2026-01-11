@@ -97,7 +97,6 @@ class PointGraphic extends PointGraphics {
    */
   createPointPrimitive(
     position: Cartesian3,
-    collection?: PointPrimitiveCollection
   ): PointPrimitive {
     const pointPrimitive = {
       position: position,
@@ -116,10 +115,6 @@ class PointGraphic extends PointGraphics {
       pixelOffsetScaleByDistance: this.options.pixelOffsetScaleByDistance,
       show: this.show?.getValue() || true,
       id: this.options.id,
-    }
-
-    if (collection) {
-      return collection.add(pointPrimitive)
     }
 
     // If no collection provided, return the primitive configuration

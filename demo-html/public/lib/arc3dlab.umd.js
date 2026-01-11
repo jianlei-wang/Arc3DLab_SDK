@@ -507,6 +507,27 @@
         return ReminderTip;
     }());
 
+    /**
+     * 生成唯一id
+     * @returns 例：936e0deb-c208-4098-9959-327e519e63e2
+     */
+    function randomId() {
+        var tempUrl = URL.createObjectURL(new Blob());
+        var uuid = tempUrl.toString();
+        URL.revokeObjectURL(tempUrl);
+        return uuid.substring(uuid.lastIndexOf("/") + 1);
+    }
+    /**
+     * 安全执行回调
+     */
+    function safeCallback(callback, data) {
+        if (callback && typeof callback === "function") {
+            var result = callback(data);
+            return result !== undefined ? result : data;
+        }
+        return data;
+    }
+
     var defaultOptions = {
         pColor: "#ff0000",
         pOutlineColor: "#ffff00",
@@ -565,7 +586,7 @@
          * @param collection Optional collection to add the primitive to
          * @returns PointPrimitive
          */
-        PointGraphic.prototype.createPointPrimitive = function (position, collection) {
+        PointGraphic.prototype.createPointPrimitive = function (position) {
             var _a, _b, _c, _d, _e, _f, _g;
             var pointPrimitive = {
                 position: position,
@@ -583,9 +604,6 @@
                 show: ((_g = this.show) === null || _g === void 0 ? void 0 : _g.getValue()) || true,
                 id: this.options.id,
             };
-            if (collection) {
-                return collection.add(pointPrimitive);
-            }
             // If no collection provided, return the primitive configuration
             // In a real implementation, you would typically add to a collection
             return pointPrimitive;
@@ -594,89 +612,59 @@
     }(Cesium.PointGraphics));
 
     /**
-     * 生成唯一id
-     * @returns 例：936e0deb-c208-4098-9959-327e519e63e2
+     * 添加点-Entity形式
+     * @method
+     * @param {Cartesian3[]} positions 点位置数组，笛卡尔坐标
+     * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
+     * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
+     * @returns {Cesium.Entity[]} 点对象数组，Entity类对象
      */
-    function randomId() {
-        var tempUrl = URL.createObjectURL(new Blob());
-        var uuid = tempUrl.toString();
-        URL.revokeObjectURL(tempUrl);
-        return uuid.substring(uuid.lastIndexOf("/") + 1);
+    function addPointsAsEntities(positions, option) {
+        var entities = [];
+        // Check if option is an array or single object
+        var isOptionArray = Array.isArray(option);
+        for (var i = 0; i < positions.length; i++) {
+            // Get the option for this specific point
+            var currentOption = isOptionArray
+                ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
+            var pointGraphic = new PointGraphic(currentOption);
+            var entity = pointGraphic.createEntity(positions[i]);
+            entities.push(entity);
+        }
+        return entities;
     }
     /**
-     * 安全执行回调
+     * 添加点-Primitive形式
+     * @method
+     * @param {Cartesian3[]} positions 点位置，笛卡尔坐标
+     * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
+     * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
+     * @returns {Cesium.PointPrimitive[]} 点对象，PointPrimitive类对象，参照Cesium
      */
-    function safeCallback(callback, data) {
-        if (callback && typeof callback === "function") {
-            var result = callback(data);
-            return result !== undefined ? result : data;
+    function addPointsAsPrimitives(positions, option) {
+        var pointPrimitiveCollection = new Cesium.PointPrimitiveCollection();
+        // Check if option is an array or single object
+        var isOptionArray = Array.isArray(option);
+        for (var i = 0; i < positions.length; i++) {
+            // Get the option for this specific point
+            var currentOption = isOptionArray
+                ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
+            var pointGraphic = new PointGraphic(currentOption);
+            var primitive = pointGraphic.createPointPrimitive(positions[i]);
+            pointPrimitiveCollection.add(primitive);
         }
-        return data;
+        return pointPrimitiveCollection;
     }
 
     var Add = /** @class */ (function () {
         /**
          * 图层-添加对象类
-         * @param  {Viewer} viewer 地图场景对象
+         * @param  {Layers} Layers 地图场景图层对象
          */
-        function Add(viewer) {
-            this.viewer = viewer;
+        function Add(Layers) {
+            this.Layers = Layers;
+            this.viewer = Layers.viewer;
         }
-        /**
-         * 添加点-Entity形式
-         * @method
-         * @param {Cartesian3[]} positions 点位置数组，笛卡尔坐标
-         * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
-         * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
-         * @returns {Cesium.Entity[]} 点对象数组，Entity类对象
-         */
-        Add.prototype.addPointsAsEntities = function (positions, option, callback) {
-            var entities = [];
-            // Check if option is an array or single object
-            var isOptionArray = Array.isArray(option);
-            for (var i = 0; i < positions.length; i++) {
-                // Get the option for this specific point
-                var currentOption = isOptionArray
-                    ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
-                var pointGraphic = new PointGraphic(currentOption);
-                var entity = pointGraphic.createEntity(positions[i]);
-                this.viewer.entities.add(entity);
-                entities.push(entity);
-            }
-            // If callback is provided, allow user to modify the entities
-            if (callback) {
-                return safeCallback(callback, entities);
-            }
-            return entities;
-        };
-        /**
-         * 添加点-Primitive形式
-         * @method
-         * @param {Cartesian3[]} positions 点位置，笛卡尔坐标
-         * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
-         * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
-         * @returns {Cesium.PointPrimitive[]} 点对象，PointPrimitive类对象，参照Cesium
-         */
-        Add.prototype.addPointsAsPrimitives = function (positions, option, callback) {
-            var primitives = [];
-            // Check if option is an array or single object
-            var isOptionArray = Array.isArray(option);
-            // Create a point primitive collection to hold all points
-            var pointCollection = this.viewer.scene.primitives.add(new Cesium.PointPrimitiveCollection());
-            for (var i = 0; i < positions.length; i++) {
-                // Get the option for this specific point
-                var currentOption = isOptionArray
-                    ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
-                var pointGraphic = new PointGraphic(currentOption);
-                var primitive = pointGraphic.createPointPrimitive(positions[i], pointCollection);
-                primitives.push(primitive);
-            }
-            // If callback is provided, allow user to modify the primitives
-            if (callback) {
-                return safeCallback(callback, primitives);
-            }
-            return primitives;
-        };
         /**
          * 添加点-支持Entity和Primitive两种形式
          * @method
@@ -690,15 +678,126 @@
             if (option === void 0) { option = {}; }
             if (usePrimitive === void 0) { usePrimitive = false; }
             if (usePrimitive) {
-                var primitives = this.addPointsAsPrimitives(positions, option, callback);
-                return primitives;
+                var primitives = addPointsAsPrimitives(positions, option);
+                var addedPrimitives = this.Layers.PrimitiveManager.add(randomId(), primitives);
+                console.log(addedPrimitives);
+                if (callback) {
+                    return safeCallback(callback, addedPrimitives);
+                }
             }
             else {
-                var entities = this.addPointsAsEntities(positions, option, callback);
-                return entities;
+                var entities = addPointsAsEntities(positions, option);
+                var addedEntities = this.Layers.EntityManager.add(randomId(), entities);
+                console.log(addedEntities);
+                if (callback) {
+                    return safeCallback(callback, addedEntities);
+                }
             }
+            // If callback is provided, allow user to modify the entities
         };
         return Add;
+    }());
+
+    var EntityManager = /** @class */ (function () {
+        function EntityManager(viewer) {
+            this.viewer = viewer;
+            this.entities = new Map();
+        }
+        EntityManager.prototype.add = function (id, entity) {
+            var _this = this;
+            if (this.entities.has(id)) {
+                this.remove(id);
+            }
+            entity = Array.isArray(entity) ? entity : [entity];
+            var entities = this.viewer.entities;
+            // 挂起事件，提高性能
+            entities.suspendEvents();
+            try {
+                entity = entity.map(function (e) { return _this.viewer.entities.add(e); });
+                this.entities.set(id, entity);
+            }
+            finally {
+                entities.resumeEvents();
+            }
+            return entity;
+        };
+        EntityManager.prototype.get = function (id) {
+            return this.entities.get(id);
+        };
+        EntityManager.prototype.remove = function (id) {
+            var _this = this;
+            var entity = this.entities.get(id);
+            if (entity) {
+                var _entities = Array.isArray(entity) ? entity : [entity];
+                _entities.forEach(function (e) { return _this.viewer.entities.remove(e); });
+                this.entities.delete(id);
+                return true;
+            }
+            return false;
+        };
+        EntityManager.prototype.show = function (id, visible) {
+            var entity = this.entities.get(id);
+            if (entity) {
+                var _entities = Array.isArray(entity) ? entity : [entity];
+                _entities.forEach(function (e) { return e.show = visible; });
+            }
+        };
+        EntityManager.prototype.clear = function () {
+            var _this = this;
+            this.entities.forEach(function (entity) {
+                var _entities = Array.isArray(entity) ? entity : [entity];
+                _entities.forEach(function (e) { return _this.viewer.entities.remove(e); });
+            });
+            this.entities.clear();
+        };
+        EntityManager.prototype.getIds = function () {
+            return Array.from(this.entities.keys());
+        };
+        return EntityManager;
+    }());
+
+    var PrimitiveManager = /** @class */ (function () {
+        function PrimitiveManager(viewer) {
+            this.viewer = viewer;
+            this.primitives = new Map();
+        }
+        PrimitiveManager.prototype.add = function (id, primitive) {
+            if (this.primitives.has(id)) {
+                this.remove(id);
+            }
+            primitive = this.viewer.scene.primitives.add(primitive);
+            this.primitives.set(id, primitive);
+            return primitive;
+        };
+        PrimitiveManager.prototype.get = function (id) {
+            return this.primitives.get(id);
+        };
+        PrimitiveManager.prototype.remove = function (id) {
+            var primitive = this.primitives.get(id);
+            if (primitive) {
+                this.viewer.scene.primitives.remove(primitive);
+                this.primitives.delete(id);
+                return true;
+            }
+            return false;
+        };
+        PrimitiveManager.prototype.show = function (id, visible) {
+            var primitive = this.primitives.get(id);
+            if (primitive) {
+                primitive.show = visible;
+            }
+        };
+        PrimitiveManager.prototype.clear = function () {
+            var _this = this;
+            this.primitives.forEach(function (primitive, id) {
+                _this.viewer.scene.primitives.remove(primitive);
+            });
+            this.primitives.clear();
+        };
+        PrimitiveManager.prototype.getIds = function () {
+            return Array.from(this.primitives.keys());
+        };
+        return PrimitiveManager;
     }());
 
     var Layers = /** @class */ (function () {
@@ -708,10 +807,12 @@
          */
         function Layers(viewer) {
             this.viewer = viewer;
+            this.EntityManager = new EntityManager(this.viewer);
+            this.PrimitiveManager = new PrimitiveManager(this.viewer);
             /**
              * 添加图层
              */
-            this.Add = new Add(this.viewer);
+            this.Add = new Add(this);
         }
         return Layers;
     }());
