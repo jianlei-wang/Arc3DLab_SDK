@@ -67,6 +67,17 @@ class Terrain {
   }
 
   /**
+   * 是否进行深度检测
+   * @type {Boolean}
+   */
+  get depth() {
+    return this.viewer.scene.globe.depthTestAgainstTerrain
+  }
+  set depth(bool: boolean) {
+    this.viewer.scene.globe.depthTestAgainstTerrain = bool
+  }
+
+  /**
    * 是否允许进入地下
    * @type {Boolean}
    */

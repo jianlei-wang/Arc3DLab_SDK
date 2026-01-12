@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>008-添加点Entity</title>
+    <script src="./Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
+    <script src="./lib/arc3dlab.umd.js"></script>
+    <script src="./assests/dat.gui.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #gui-box {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        z-index: 99;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer">
+      <div id="gui-box"></div>
+    </div>
+    <script>
+      const { DefaultTdtImg, DefaultTerrain } = Arc3DLab.BaseLayer
+      const viewer = new Arc3DLab.Viewer("cesiumContainer", {
+        baseLayer: DefaultTdtImg,
+        fpsShow: true,
+        mapboxController: true,
+        terrain: DefaultTerrain,
+      })
+
+      initGui()
+      function initGui() {
+        const params = {
+          message: "GUI面板-添加点Entity",
+          color: "#f6df3d",
+          outlineColor: "#0000ff",
+          pixelSize: 15,
+          outlineWidth: 5,
+        }
+        const gui = new dat.GUI({ autoPlace: false })
+        const customContainer = document.getElementById("gui-box")
+        customContainer.appendChild(gui.domElement)
+        gui.add(params, "message")
+        const color = gui.addColor(params, "color")
+
+        color.onFinishChange((color) => {
+          pointEntity.forEach((entity, index) => {
+            entity.point.color = Cesium.Color.fromCssColorString(color)
+          })
+        })
+        const outlineColor = gui.addColor(params, "outlineColor")
+        outlineColor.onFinishChange((color) => {
+          pointEntity.forEach((entity, index) => {
+            entity.point.outlineColor = Cesium.Color.fromCssColorString(color)
+          })
+        })
+        const pixelSize = gui.add(params, "pixelSize", 1, 50)
+        pixelSize.onFinishChange((size) => {
+          pointEntity.forEach((entity, index) => {
+            entity.point.pixelSize = size
+          })
+        })
+        const outlineWidth = gui.add(params, "outlineWidth", 1, 10)
+        outlineWidth.onFinishChange((width) => {
+          pointEntity.forEach((entity, index) => {
+            entity.point.outlineWidth = width
+          })
+        })
+      }
+
+      function positionRandom() {
+        const preX = Math.random() > 0.5 ? 1 : -1
+        const x = 95 + Math.random() * preX * 25
+        const preY = Math.random() > 0.5 ? 1 : -1
+        const y = 25 + Math.random() * preY * 20
+        const z = 0
+        return Cesium.Cartesian3.fromDegrees(x, y, z)
+      }
+
+      let pointEntity
+
+      function initEntities() {
+        const options = {
+          pColor: "#ffff00",
+          pOutlineColor: "#0000ff",
+          onGround: true,
+          allowPick: true,
+          pixelSize: 15,
+          outlineWidth: 5,
+          ids: [],
+        }
+        const positions = []
+        for (let i = 0; i < 360; i++) {
+          const pos = positionRandom()
+          options.ids.push(`custom_point_entity_${i}`)
+          positions.push(pos)
+        }
+        viewer.Layers.Add.addPoints(positions, options, false, (entities) => {
+          // 在回调中修改每个实体的属性
+          entities.forEach((entity, index) => {
+            const hue = (index % 360) / 360
+            entity.point.color = Cesium.Color.fromHsl(hue, 1.0, 0.5)
+          })
+          pointEntity = entities
+        })
+      }
+      initEntities()
+    </script>
+  </body>
+</html>

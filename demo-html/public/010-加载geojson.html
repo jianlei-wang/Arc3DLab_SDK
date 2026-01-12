@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>010-加载geojson</title>
+    <script src="./Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
+    <script src="./lib/arc3dlab.umd.js"></script>
+    <script src="./assests/dat.gui.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #gui-box {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        z-index: 99;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer">
+      <div id="gui-box"></div>
+    </div>
+    <script>
+      const { DefaultTdtImg, DefaultTerrain } = Arc3DLab.BaseLayer
+      const viewer = new Arc3DLab.Viewer("cesiumContainer", {
+        baseLayer: DefaultTdtImg,
+        fpsShow: true,
+        mapboxController: true,
+        terrain: DefaultTerrain,
+      })
+
+      viewer.Terrain.depth = false
+
+      initGui()
+      function initGui() {
+        const params = {
+          message: "GUI面板-加载geojson",
+          style: "default",
+        }
+        const gui = new dat.GUI({ autoPlace: false })
+        const customContainer = document.getElementById("gui-box")
+        customContainer.appendChild(gui.domElement)
+        gui.add(params, "message")
+
+        const style = gui.add(params, "style", ["default", "basic", "custom"])
+        style.onFinishChange((val) => {
+          initGeojson(val)
+        })
+      }
+
+      let geojsonLayer
+
+      function initGeojson(type) {
+        geojsonLayer && viewer.Layers.DataSourceManager.clear()
+        const styleOption = {
+          default: {},
+          basic: {
+            stroke: Cesium.Color.HOTPINK,
+            fill: Cesium.Color.PINK.withAlpha(0.5),
+            strokeWidth: 3,
+          },
+          custom: {},
+        }
+
+        const promise = viewer.Layers.DataSourceManager.addGeoJson(
+          "geojson-polygon",
+          "./assests/datas/geojson/polygon.json",
+          styleOption[type]
+        )
+        promise.then((data) => {
+          geojsonLayer = data
+          if (type === "custom") {
+            const entities = geojsonLayer.entities.values
+            const colorHash = {}
+            for (let i = 0; i < entities.length; i++) {
+              const entity = entities[i]
+              const name = entity.name
+              let color = colorHash[name]
+              if (!color) {
+                color = Cesium.Color.fromRandom({
+                  alpha: 1.0,
+                })
+                colorHash[name] = color
+              }
+
+              entity.polygon.material = color
+              entity.polygon.outline = false
+              entity.polygon.extrudedHeight =
+                entity.properties.Population / 50.0
+            }
+          }
+        })
+      }
+      initGeojson("default")
+    </script>
+  </body>
+</html>

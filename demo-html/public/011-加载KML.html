@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>011-加载KML</title>
+    <script src="./Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
+    <script src="./lib/arc3dlab.umd.js"></script>
+    <script src="./assests/dat.gui.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #gui-box {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        z-index: 99;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer">
+      <div id="gui-box"></div>
+    </div>
+    <script>
+      const { DefaultTdtImg } = Arc3DLab.BaseLayer
+      const viewer = new Arc3DLab.Viewer("cesiumContainer", {
+        baseLayer: DefaultTdtImg,
+        fpsShow: true,
+        mapboxController: true,
+      })
+
+      initGui()
+      function initGui() {
+        const params = {
+          message: "GUI面板-加载KML",
+          数据源: "基础设施点.kml",
+        }
+        const gui = new dat.GUI({ autoPlace: false })
+        const customContainer = document.getElementById("gui-box")
+        customContainer.appendChild(gui.domElement)
+        gui.add(params, "message")
+
+        const datas = gui.add(params, "数据源", [
+          "基础设施点.kml",
+          "骑行路线.kml",
+          "全球人均GDP.kmz",
+        ])
+        datas.onFinishChange((val) => {
+          initKml(val)
+        })
+      }
+
+      let kmlLayer
+
+      function initKml(name) {
+        kmlLayer && viewer.Layers.DataSourceManager.clear()
+
+        viewer.clock.shouldAnimate = false
+        viewer.clock.multiplier = 1
+
+        const promise = viewer.Layers.DataSourceManager.addKml(
+          "kml-polygon",
+          "./assests/datas/kml/" + name
+        )
+        promise.then((data) => {
+          kmlLayer = data
+          console.log(data)
+          viewer.flyTo(kmlLayer).then(() => {
+            if (name === "骑行路线.kml") {
+              // const rider = kmlLayer.entities.getById("tour")
+              // viewer.trackedEntity = rider
+              viewer.clock.multiplier = 20
+              viewer.clock.shouldAnimate = true
+            }
+          })
+        })
+      }
+      initKml("基础设施点.kml")
+    </script>
+  </body>
+</html>

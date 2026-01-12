@@ -123,7 +123,7 @@ export class Viewer extends Cesium.Viewer {
       ...options,
     })
     this.initBaseConfig()
-    console.log("Viewer initialized 20260108")
+    console.log("Viewer initialized", new Date())
   }
   //常见基础设置
   private initBaseConfig() {

@@ -66,6 +66,44 @@
         return __assign.apply(this, arguments);
     };
 
+    function __awaiter(thisArg, _arguments, P, generator) {
+        function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+        return new (P || (P = Promise))(function (resolve, reject) {
+            function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+            function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+            function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+            step((generator = generator.apply(thisArg, _arguments || [])).next());
+        });
+    }
+
+    function __generator(thisArg, body) {
+        var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+        return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+        function verb(n) { return function (v) { return step([n, v]); }; }
+        function step(op) {
+            if (f) throw new TypeError("Generator is already executing.");
+            while (g && (g = 0, op[0] && (_ = 0)), _) try {
+                if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+                if (y = 0, t) op = [op[0] & 2, t.value];
+                switch (op[0]) {
+                    case 0: case 1: t = op; break;
+                    case 4: _.label++; return { value: op[1], done: false };
+                    case 5: _.label++; y = op[1]; op = [0]; continue;
+                    case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                    default:
+                        if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                        if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                        if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                        if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                        if (t[2]) _.ops.pop();
+                        _.trys.pop(); continue;
+                }
+                op = body.call(thisArg, _);
+            } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+            if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+        }
+    }
+
     typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
         var e = new Error(message);
         return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
@@ -380,6 +418,20 @@
             enumerable: false,
             configurable: true
         });
+        Object.defineProperty(Terrain.prototype, "depth", {
+            /**
+             * 是否进行深度检测
+             * @type {Boolean}
+             */
+            get: function () {
+                return this.viewer.scene.globe.depthTestAgainstTerrain;
+            },
+            set: function (bool) {
+                this.viewer.scene.globe.depthTestAgainstTerrain = bool;
+            },
+            enumerable: false,
+            configurable: true
+        });
         Object.defineProperty(Terrain.prototype, "enableUnderground", {
             /**
              * 是否允许进入地下
@@ -612,12 +664,14 @@
     }(Cesium.PointGraphics));
 
     /**
+     * @fileoverview 提供创建点要素的功能，支持Entity和Primitive两种形式
+     */
+    /**
      * 添加点-Entity形式
-     * @method
+     * @function addPointsAsEntities
      * @param {Cartesian3[]} positions 点位置数组，笛卡尔坐标
      * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
-     * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
-     * @returns {Cesium.Entity[]} 点对象数组，Entity类对象
+     * @returns {Entity[]} 点对象数组，Entity类对象
      */
     function addPointsAsEntities(positions, option) {
         var entities = [];
@@ -635,11 +689,10 @@
     }
     /**
      * 添加点-Primitive形式
-     * @method
+     * @function addPointsAsPrimitives
      * @param {Cartesian3[]} positions 点位置，笛卡尔坐标
      * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
-     * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
-     * @returns {Cesium.PointPrimitive[]} 点对象，PointPrimitive类对象，参照Cesium
+     * @returns {PointPrimitiveCollection} 点集合对象，PointPrimitiveCollection类对象
      */
     function addPointsAsPrimitives(positions, option) {
         var pointPrimitiveCollection = new Cesium.PointPrimitiveCollection();
@@ -656,10 +709,17 @@
         return pointPrimitiveCollection;
     }
 
+    /**
+     * @fileoverview 添加对象类，提供地图上各种对象的添加功能
+     */
+    /**
+     * 添加对象类
+     * 用于在地图场景中添加各种类型的对象，如点、线、面等
+     */
     var Add = /** @class */ (function () {
         /**
-         * 图层-添加对象类
-         * @param  {Layers} Layers 地图场景图层对象
+         * 构造函数
+         * @param {Layers} Layers 地图场景图层对象
          */
         function Add(Layers) {
             this.Layers = Layers;
@@ -667,7 +727,7 @@
         }
         /**
          * 添加点-支持Entity和Primitive两种形式
-         * @method
+         * @method addPoints
          * @param {Cartesian3[]} positions 点位置数组，笛卡尔坐标
          * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
          * @param {boolean} usePrimitive 是否使用Primitive方式，默认为false（使用Entity方式）
@@ -698,11 +758,181 @@
         return Add;
     }());
 
+    /**
+     * @fileoverview 数据源管理器，负责管理地图上的各种数据源（GeoJSON、CZML、KML等）
+     */
+    /**
+     * 数据源管理器类
+     * 提供对地图上各种数据源的添加、删除、显示控制等功能
+     */
+    var DataSourceManager = /** @class */ (function () {
+        /**
+         * 构造函数
+         * @param {Viewer} viewer 地图查看器实例
+         */
+        function DataSourceManager(viewer) {
+            this.viewer = viewer;
+            this.sources = new Map();
+        }
+        /**
+         * 添加GeoJSON数据源
+         * @param {string} name 数据源名称
+         * @param {string} url GeoJSON文件的URL地址
+         * @param {GeoJsonDataSource.LoadOptions} [options={}] 加载选项
+         * @returns {Promise<GeoJsonDataSource>} 返回加载完成的数据源对象
+         */
+        DataSourceManager.prototype.addGeoJson = function (name, url, options) {
+            return __awaiter(this, void 0, void 0, function () {
+                var ds;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, Cesium.GeoJsonDataSource.load(url, options)];
+                        case 1:
+                            ds = _a.sent();
+                            return [2 /*return*/, this._register(name, "geojson", ds)];
+                    }
+                });
+            });
+        };
+        /**
+         * 添加CZML数据源
+         * @param {string} name 数据源名称
+         * @param {string} url CZML文件的URL地址
+         * @returns {Promise<CzmlDataSource>} 返回加载完成的数据源对象
+         */
+        DataSourceManager.prototype.addCzml = function (name, url) {
+            return __awaiter(this, void 0, void 0, function () {
+                var ds;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, Cesium.CzmlDataSource.load(url)];
+                        case 1:
+                            ds = _a.sent();
+                            return [2 /*return*/, this._register(name, "czml", ds)];
+                    }
+                });
+            });
+        };
+        /**
+         * 添加KML数据源
+         * @param {string} name 数据源名称
+         * @param {string} url KML文件的URL地址
+         * @returns {Promise<KmlDataSource>} 返回加载完成的数据源对象
+         */
+        DataSourceManager.prototype.addKml = function (name, url) {
+            return __awaiter(this, void 0, void 0, function () {
+                var ds;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, Cesium.KmlDataSource.load(url, {
+                                camera: this.viewer.camera,
+                                canvas: this.viewer.canvas,
+                            })];
+                        case 1:
+                            ds = _a.sent();
+                            return [2 /*return*/, this._register(name, "kml", ds)];
+                    }
+                });
+            });
+        };
+        /**
+         * 内部注册逻辑（自动去重 + 添加到 viewer）
+         */
+        DataSourceManager.prototype._register = function (name, type, ds) {
+            // 若已存在，先移除
+            if (this.sources.has(name)) {
+                this.remove(name);
+            }
+            ds.name = name;
+            this.viewer.dataSources.add(ds);
+            this.sources.set(name, { type: type, dataSource: ds });
+            return ds;
+        };
+        /**
+         * 获取指定名称的数据源
+         * @param {string} name 数据源名称
+         * @returns {any} 数据源对象，如果不存在则返回null
+         */
+        DataSourceManager.prototype.get = function (name) {
+            var info = this.sources.get(name);
+            return info ? info.dataSource : null;
+        };
+        /**
+         * 控制指定数据源的显示/隐藏
+         * @param {string} name 数据源名称
+         * @param {boolean} visible 是否显示
+         */
+        DataSourceManager.prototype.show = function (name, visible) {
+            var ds = this.get(name);
+            if (ds)
+                ds.show = visible;
+        };
+        /**
+         * 移除指定名称的数据源
+         * @param {string} name 数据源名称
+         * @returns {boolean} 是否成功移除
+         */
+        DataSourceManager.prototype.remove = function (name) {
+            var info = this.sources.get(name);
+            if (info) {
+                this.viewer.dataSources.remove(info.dataSource, true);
+                this.sources.delete(name);
+                return true;
+            }
+            return false;
+        };
+        /**
+         * 飞行到指定数据源的位置
+         * @param {string} name 数据源名称
+         * @param {number} duration 飞行持续时间（秒）
+         */
+        DataSourceManager.prototype.flyTo = function (name, duration) {
+            var ds = this.get(name);
+            if (ds)
+                this.viewer.flyTo(ds, { duration: duration });
+        };
+        /**
+         * 清空所有数据源
+         */
+        DataSourceManager.prototype.clear = function () {
+            var _this = this;
+            this.sources.forEach(function (info, name) {
+                _this.viewer.dataSources.remove(info.dataSource, true);
+            });
+            this.sources.clear();
+        };
+        /**
+         * 获取所有数据源的名称列表
+         * @returns {string[]} 数据源名称数组
+         */
+        DataSourceManager.prototype.getNames = function () {
+            return Array.from(this.sources.keys());
+        };
+        return DataSourceManager;
+    }());
+
+    /**
+     * @fileoverview 实体管理器，负责管理Cesium中的实体对象
+     */
+    /**
+     * 实体管理器类
+     * 用于管理Cesium中的实体对象，包括添加、获取、删除等操作
+     */
     var EntityManager = /** @class */ (function () {
+        /**
+         * 构造函数
+         * @param {Viewer} viewer Cesium视图对象
+         */
         function EntityManager(viewer) {
             this.viewer = viewer;
             this.entities = new Map();
         }
+        /**
+         * 添加实体
+         * @param {string} id 实体唯一标识符
+         * @param {any} entity 要添加的实体对象，可以是单个实体或实体数组
+         * @returns {any} 添加后的实体对象
+         */
         EntityManager.prototype.add = function (id, entity) {
             var _this = this;
             if (this.entities.has(id)) {
@@ -721,9 +951,19 @@
             }
             return entity;
         };
+        /**
+         * 获取实体
+         * @param {string} id 实体唯一标识符
+         * @returns {any} 对应的实体对象，如果不存在则返回undefined
+         */
         EntityManager.prototype.get = function (id) {
             return this.entities.get(id);
         };
+        /**
+         * 删除实体
+         * @param {string} id 实体唯一标识符
+         * @returns {boolean} 删除成功返回true，否则返回false
+         */
         EntityManager.prototype.remove = function (id) {
             var _this = this;
             var entity = this.entities.get(id);
@@ -735,13 +975,30 @@
             }
             return false;
         };
+        /**
+         * 设置实体显示状态
+         * @param {string} id 实体唯一标识符
+         * @param {boolean} visible 显示状态，true为显示，false为隐藏
+         */
         EntityManager.prototype.show = function (id, visible) {
             var entity = this.entities.get(id);
             if (entity) {
                 var _entities = Array.isArray(entity) ? entity : [entity];
-                _entities.forEach(function (e) { return e.show = visible; });
+                _entities.forEach(function (e) { return (e.show = visible); });
             }
         };
+        /**
+         * 飞行到指定实体
+         * @param {string} id 实体唯一标识符
+         * @param {number} duration 飞行时间，单位为秒
+         */
+        EntityManager.prototype.flyTo = function (id, duration) {
+            var entity = this.entities.get(id);
+            entity && this.viewer.flyTo(entity, { duration: duration });
+        };
+        /**
+         * 清空所有实体
+         */
         EntityManager.prototype.clear = function () {
             var _this = this;
             this.entities.forEach(function (entity) {
@@ -750,17 +1007,38 @@
             });
             this.entities.clear();
         };
+        /**
+         * 获取所有实体的ID列表
+         * @returns {string[]} 所有实体的ID数组
+         */
         EntityManager.prototype.getIds = function () {
             return Array.from(this.entities.keys());
         };
         return EntityManager;
     }());
 
+    /**
+     * @fileoverview 基元管理器，负责管理Cesium中的基元对象
+     */
+    /**
+     * 基元管理器类
+     * 用于管理Cesium中的基元对象，包括添加、获取、删除等操作
+     */
     var PrimitiveManager = /** @class */ (function () {
+        /**
+         * 构造函数
+         * @param {Viewer} viewer Cesium视图对象
+         */
         function PrimitiveManager(viewer) {
             this.viewer = viewer;
             this.primitives = new Map();
         }
+        /**
+         * 添加基元
+         * @param {string} id 基元唯一标识符
+         * @param {any} primitive 要添加的基元对象
+         * @returns {any} 添加后的基元对象
+         */
         PrimitiveManager.prototype.add = function (id, primitive) {
             if (this.primitives.has(id)) {
                 this.remove(id);
@@ -769,9 +1047,19 @@
             this.primitives.set(id, primitive);
             return primitive;
         };
+        /**
+         * 获取基元
+         * @param {string} id 基元唯一标识符
+         * @returns {any} 对应的基元对象，如果不存在则返回undefined
+         */
         PrimitiveManager.prototype.get = function (id) {
             return this.primitives.get(id);
         };
+        /**
+         * 删除基元
+         * @param {string} id 基元唯一标识符
+         * @returns {boolean} 删除成功返回true，否则返回false
+         */
         PrimitiveManager.prototype.remove = function (id) {
             var primitive = this.primitives.get(id);
             if (primitive) {
@@ -781,12 +1069,20 @@
             }
             return false;
         };
+        /**
+         * 设置基元显示状态
+         * @param {string} id 基元唯一标识符
+         * @param {boolean} visible 显示状态，true为显示，false为隐藏
+         */
         PrimitiveManager.prototype.show = function (id, visible) {
             var primitive = this.primitives.get(id);
             if (primitive) {
                 primitive.show = visible;
             }
         };
+        /**
+         * 清空所有基元
+         */
         PrimitiveManager.prototype.clear = function () {
             var _this = this;
             this.primitives.forEach(function (primitive, id) {
@@ -794,6 +1090,10 @@
             });
             this.primitives.clear();
         };
+        /**
+         * 获取所有基元的ID列表
+         * @returns {string[]} 所有基元的ID数组
+         */
         PrimitiveManager.prototype.getIds = function () {
             return Array.from(this.primitives.keys());
         };
@@ -809,6 +1109,7 @@
             this.viewer = viewer;
             this.EntityManager = new EntityManager(this.viewer);
             this.PrimitiveManager = new PrimitiveManager(this.viewer);
+            this.DataSourceManager = new DataSourceManager(this.viewer);
             /**
              * 添加图层
              */
@@ -908,7 +1209,7 @@
              */
             _this.Layers = new Layers(_this);
             _this.initBaseConfig();
-            console.log("Viewer initialized 20260108");
+            console.log("Viewer initialized", new Date());
             return _this;
         }
         //常见基础设置

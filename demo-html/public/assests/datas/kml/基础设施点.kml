@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>中国境内设施</name>
+    <description><![CDATA[中国主要地标和设施示例]]></description>
+    <Style id="GroundStation">
+      <BalloonStyle>
+        <text><![CDATA[<div>$[name]</div>]]></text>
+        <bgColor>#ff673005</bgColor>
+        <textColor>#ffffffff</textColor>
+      </BalloonStyle>
+      <IconStyle>
+        <scale>1.3</scale>
+        <Icon>
+          <href>kml.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+    <Style id="RadarStation">
+      <BalloonStyle>
+        <text><![CDATA[<div>$[name]</div>]]></text>
+        <bgColor>#ff673005</bgColor>
+        <textColor>#ffffffff</textColor>
+      </BalloonStyle>
+      <IconStyle>
+        <scale>1.3</scale>
+        <Icon>
+          <href>kml1.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+    <Style id="LaunchPad">
+      <BalloonStyle>
+        <text><![CDATA[<div>$[name]</div>]]></text>
+        <bgColor>#ff673005</bgColor>
+        <textColor>#ffffffff</textColor>
+      </BalloonStyle>
+      <IconStyle>
+        <scale>1.3</scale>
+        <Icon>
+          <href>kml2.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+    <Style id="OpticalTrackingStation">
+      <BalloonStyle>
+        <text><![CDATA[<div>$[name]</div>]]></text>
+        <bgColor>#ff673005</bgColor>
+        <textColor>#ffffffff</textColor>
+      </BalloonStyle>
+      <IconStyle>
+        <scale>1.3</scale>
+        <Icon>
+          <href>kml3.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+    <Style id="LaunchSite">
+      <BalloonStyle>
+        <text><![CDATA[<div>$[name]</div>]]></text>
+        <bgColor>#ff673005</bgColor>
+        <textColor>#ffffffff</textColor>
+      </BalloonStyle>
+      <IconStyle>
+        <scale>1.3</scale>
+        <Icon>
+          <href>kml4.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+    <Style id="LaserStation">
+      <BalloonStyle>
+        <text><![CDATA[<div>$[name]</div>]]></text>
+        <bgColor>#ff673005</bgColor>
+        <textColor>#ffffffff</textColor>
+      </BalloonStyle>
+      <IconStyle>
+        <scale>1.3</scale>
+        <Icon>
+          <href>kml5.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+    <Placemark>
+      <name>北京故宫</name>
+      <styleUrl>#GroundStation</styleUrl>
+      <Point>
+        <coordinates>116.3972,39.9181</coordinates>
+      </Point>
+      <ExtendedData>
+        <Data name="Role">
+          <value>历史文化地标</value>
+        </Data>
+        <Data name="Country">
+          <value>中国</value>
+        </Data>
+      </ExtendedData>
+    </Placemark>
+    <Placemark>
+      <name>上海东方明珠塔</name>
+      <styleUrl>#RadarStation</styleUrl>
+      <Point>
+        <coordinates>121.4997,31.2397</coordinates>
+      </Point>
+      <ExtendedData>
+        <Data name="Role">
+          <value>地标建筑</value>
+        </Data>
+        <Data name="Country">
+          <value>中国</value>
+        </Data>
+      </ExtendedData>
+    </Placemark>
+    <Placemark>
+      <name>广州塔</name>
+      <styleUrl>#LaunchPad</styleUrl>
+      <Point>
+        <coordinates>113.3309,23.1133</coordinates>
+      </Point>
+      <ExtendedData>
+        <Data name="Role">
+          <value>电视塔</value>
+        </Data>
+        <Data name="Country">
+          <value>中国</value>
+        </Data>
+      </ExtendedData>
+    </Placemark>
+    <Placemark>
+      <name>杭州西湖</name>
+      <styleUrl>#OpticalTrackingStation</styleUrl>
+      <Point>
+        <coordinates>120.1434,30.2422</coordinates>
+      </Point>
+      <ExtendedData>
+        <Data name="Role">
+          <value>自然景观</value>
+        </Data>
+        <Data name="Country">
+          <value>中国</value>
+        </Data>
+      </ExtendedData>
+    </Placemark>
+    <Placemark>
+      <name>西安兵马俑</name>
+      <styleUrl>#LaunchSite</styleUrl>
+      <Point>
+        <coordinates>109.2733,34.3853</coordinates>
+      </Point>
+      <ExtendedData>
+        <Data name="Role">
+          <value>历史遗迹</value>
+        </Data>
+        <Data name="Country">
+          <value>中国</value>
+        </Data>
+      </ExtendedData>
+    </Placemark>
+    <Placemark>
+      <name>成都大熊猫繁育研究基地</name>
+      <styleUrl>#LaserStation</styleUrl>
+      <Point>
+        <coordinates>104.1514,30.7347</coordinates>
+      </Point>
+      <ExtendedData>
+        <Data name="Role">
+          <value>动物保护基地</value>
+        </Data>
+        <Data name="Country">
+          <value>中国</value>
+        </Data>
+      </ExtendedData>
+    </Placemark>
+    <Placemark>
+      <name>桂林漓江</name>
+      <styleUrl>#GroundStation</styleUrl>
+      <Point>
+        <coordinates>110.2897,25.2758</coordinates>
+      </Point>
+      <ExtendedData>
+        <Data name="Role">
+          <value>自然景观</value>
+        </Data>
+        <Data name="Country">
+          <value>中国</value>
+        </Data>
+      </ExtendedData>
+    </Placemark>
+    <Placemark>
+      <name>张家界国家森林公园</name>
+      <styleUrl>#RadarStation</styleUrl>
+      <Point>
+        <coordinates>110.4046,29.3544</coordinates>
+      </Point>
+      <ExtendedData>
+        <Data name="Role">
+          <value>自然保护区</value>
+        </Data>
+        <Data name="Country">
+          <value>中国</value>
+        </Data>
+      </ExtendedData>
+    </Placemark>
+    <Placemark>
+      <name>九寨沟</name>
+      <styleUrl>#LaunchPad</styleUrl>
+      <Point>
+        <coordinates>103.8740,33.1596</coordinates>
+      </Point>
+      <ExtendedData>
+        <Data name="Role">
+          <value>自然景观</value>
+        </Data>
+        <Data name="Country">
+          <value>中国</value>
+        </Data>
+      </ExtendedData>
+    </Placemark>
+    <Placemark>
+      <name>泰山</name>
+      <styleUrl>#OpticalTrackingStation</styleUrl>
+      <Point>
+        <coordinates>117.0942,36.2422</coordinates>
+      </Point>
+      <ExtendedData>
+        <Data name="Role">
+          <value>自然文化双遗产</value>
+        </Data>
+        <Data name="Country">
+          <value>中国</value>
+        </Data>
+      </ExtendedData>
+    </Placemark>
+  </Document>
+</kml>
