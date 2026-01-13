@@ -9,3 +9,5 @@ export { Color, Math, Cartesian3, Cartesian2 }
 export { Viewer } from "./Viewer"
 
 export { default as BaseLayer } from "./layers/BaseLayer"
+
+export * as ImageryProvider from "./layers/ImageryProvider"

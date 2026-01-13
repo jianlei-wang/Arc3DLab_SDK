@@ -839,10 +839,7 @@
          * 内部注册逻辑（自动去重 + 添加到 viewer）
          */
         DataSourceManager.prototype._register = function (name, type, ds) {
-            // 若已存在，先移除
-            if (this.sources.has(name)) {
-                this.remove(name);
-            }
+            this.sources.has(name) && this.remove(name);
             ds.name = name;
             this.viewer.dataSources.add(ds);
             this.sources.set(name, { type: type, dataSource: ds });
@@ -905,7 +902,7 @@
          * 获取所有数据源的名称列表
          * @returns {string[]} 数据源名称数组
          */
-        DataSourceManager.prototype.getNames = function () {
+        DataSourceManager.prototype.getIds = function () {
             return Array.from(this.sources.keys());
         };
         return DataSourceManager;
@@ -1018,6 +1015,136 @@
     }());
 
     /**
+     * @fileoverview 影像图层管理器，负责管理地图上的各种影像图层
+     */
+    /**
+     * 影像图层管理器类
+     * 提供对地图上各种影像图层的添加、删除、显示控制等功能
+     */
+    var ImageryLayerManager = /** @class */ (function () {
+        /**
+         * 构造函数
+         * @param {Viewer} viewer 地图查看器实例
+         */
+        function ImageryLayerManager(viewer) {
+            this.viewer = viewer;
+            this.imageryLayers = new Map();
+        }
+        /**
+         * 添加影像图层
+         * @param {string} name 图层名称
+         * @param {ImageryProvider} provider 影像提供者
+         * @param {ImageryLayerOptions} options 图层选项
+         * @returns {Promise<any>} 返回添加的图层对象
+         */
+        ImageryLayerManager.prototype.add = function (name_1, provider_1) {
+            return __awaiter(this, arguments, void 0, function (name, provider, options) {
+                var index, alpha, brightness, contrast, show, layer;
+                if (options === void 0) { options = {}; }
+                return __generator(this, function (_a) {
+                    index = options.index, alpha = options.alpha, brightness = options.brightness, contrast = options.contrast, show = options.show;
+                    layer = index !== undefined
+                        ? this.viewer.imageryLayers.addImageryProvider(provider, index)
+                        : this.viewer.imageryLayers.addImageryProvider(provider);
+                    if (alpha !== undefined)
+                        layer.alpha = alpha;
+                    if (brightness !== undefined)
+                        layer.brightness = brightness;
+                    if (contrast !== undefined)
+                        layer.contrast = contrast;
+                    if (show !== undefined)
+                        layer.show = show;
+                    this.imageryLayers.set(name, { layer: layer, provider: provider, options: options });
+                    return [2 /*return*/, layer];
+                });
+            });
+        };
+        /**
+         * 获取指定名称的影像图层
+         * @param {string} name 图层名称
+         * @returns {any} 影像图层对象，如果不存在则返回null
+         */
+        ImageryLayerManager.prototype.get = function (name) {
+            var info = this.imageryLayers.get(name);
+            return info ? info.layer : null;
+        };
+        /**
+         * 设置影像图层的可见性
+         * @param {string} name 图层名称
+         * @param {boolean} visible 是否可见
+         */
+        ImageryLayerManager.prototype.show = function (name, visible) {
+            var layer = this.get(name);
+            if (layer)
+                layer.show = visible;
+        };
+        /**
+         * 设置影像图层的透明度
+         * @param {string} name 图层名称
+         * @param {number} alpha 透明度值 (0.0-1.0)
+         */
+        ImageryLayerManager.prototype.setAlpha = function (name, alpha) {
+            var layer = this.get(name);
+            if (layer)
+                layer.alpha = alpha;
+        };
+        /**
+         * 移除指定名称的影像图层
+         * @param {string} name 图层名称
+         * @returns {boolean} 是否成功移除该图层，如果图层不存在则返回false，否则返回true
+         */
+        ImageryLayerManager.prototype.remove = function (name) {
+            var info = this.imageryLayers.get(name);
+            if (info) {
+                this.viewer.imageryLayers.remove(info.layer, true);
+                this.imageryLayers.delete(name);
+                return true;
+            }
+            return false;
+        };
+        /**
+         * 切换底图层
+         * @param {string} name 要激活的底图层名称
+         */
+        ImageryLayerManager.prototype.switchBaseLayer = function (name) {
+            var _this = this;
+            // 检查目标图层是否存在
+            var targetLayer = this.get(name);
+            if (!targetLayer) {
+                console.warn("\u56FE\u5C42 ".concat(name, " \u4E0D\u5B58\u5728"));
+                return;
+            }
+            // 将目标图层移动到底层（索引0），使其成为底图
+            this.viewer.imageryLayers.lowerToBottom(targetLayer);
+            // 确保只有标记为底图的图层处于最底层
+            this.imageryLayers.forEach(function (info, layerName) {
+                if (info.options.isBaseLayer && layerName !== name) {
+                    // 将其他底图层移到目标图层之上
+                    _this.viewer.imageryLayers.raise(info.layer);
+                }
+            });
+        };
+        /**
+         * 清除所有影像图层
+         */
+        ImageryLayerManager.prototype.clear = function () {
+            var _this = this;
+            this.imageryLayers.forEach(function (info) {
+                _this.viewer.imageryLayers.remove(info.layer, true);
+            });
+            this.imageryLayers.clear();
+        };
+        /**
+         * 获取所有影像图层的名称列表
+         * @returns {string[]} 影像图层名称数组
+         */
+        ImageryLayerManager.prototype.getIds = function () {
+            return Array.from(this.imageryLayers.keys());
+        };
+        return ImageryLayerManager;
+    }());
+
+    /**
      * @fileoverview 基元管理器，负责管理Cesium中的基元对象
      */
     /**
@@ -1110,6 +1237,7 @@
             this.EntityManager = new EntityManager(this.viewer);
             this.PrimitiveManager = new PrimitiveManager(this.viewer);
             this.DataSourceManager = new DataSourceManager(this.viewer);
+            this.ImageryLayerManager = new ImageryLayerManager(this.viewer);
             /**
              * 添加图层
              */
@@ -1324,6 +1452,64 @@
         return Viewer;
     }(Cesium__namespace.Viewer));
 
+    /**
+     * 创建基于GeoServer的影像提供者
+     * 支持WMS和WMTS服务
+     *
+     * @param {Object} options 配置选项
+     * @param {string} options.url GeoServer服务地址
+     * @param {string} options.layer 图层名称
+     * @param {string} [options.serviceType='WMS'] 服务类型，'WMS' 或 'WMTS'
+     * @param {string} [options.version='1.3.0'] 服务版本
+     * @param {string} [options.format='image/png'] 图片格式
+     * @param {string} [options.style=''] 图层样式
+     * @param {string} [options.tileMatrixSetID='EPSG:4326'] WMTS瓦片矩阵集
+     * @param {string} [options.parameters={}] WMS请求参数
+     * @param {Object} [options.wmtsOptions] WMTS特有配置
+     * @returns {Promise<Cesium.ImageryProvider>} 影像提供者实例
+     */
+    function GeoserverImageryProvider(options) {
+        var url = options.url, layer = options.layer, _a = options.serviceType, serviceType = _a === void 0 ? "WMS" : _a, _b = options.format, format = _b === void 0 ? "image/png" : _b, _c = options.parameters, parameters = _c === void 0 ? {} : _c, _d = options.wmtsOptions, wmtsOptions = _d === void 0 ? {} : _d, _e = options.style, style = _e === void 0 ? "" : _e, _f = options.tileMatrixSetID, tileMatrixSetID = _f === void 0 ? "EPSG:4326" : _f;
+        if (serviceType.toUpperCase() === "WMS") {
+            return new Cesium.WebMapServiceImageryProvider({
+                url: url,
+                layers: layer,
+                parameters: __assign({ transparent: true, format: format }, parameters),
+                enablePickFeatures: false,
+            });
+        }
+        else if (serviceType.toUpperCase() === "WMTS") {
+            var _url = "".concat(url, "/").concat(layer, "/{style}/{TileMatrixSet}/{TileMatrixSet}:{TileMatrix}/{TileRow}/{TileCol}?format=").concat(format);
+            if (tileMatrixSetID === "EPSG:4326") {
+                wmtsOptions.tilingScheme = new Cesium.GeographicTilingScheme();
+            }
+            return new Cesium.WebMapTileServiceImageryProvider(__assign({ url: _url, layer: layer, style: style, format: format, tileMatrixSetID: tileMatrixSetID }, wmtsOptions));
+        }
+        else {
+            throw new Error("不支持的服务类型，仅支持 WMS 和 WMTS");
+        }
+    }
+
+    var ImageryProvider = /*#__PURE__*/Object.freeze({
+        __proto__: null,
+        ArcGisMapServerImageryProvider: Cesium.ArcGisMapServerImageryProvider,
+        BingMapsImageryProvider: Cesium.BingMapsImageryProvider,
+        OpenStreetMapImageryProvider: Cesium.OpenStreetMapImageryProvider,
+        TileMapServiceImageryProvider: Cesium.TileMapServiceImageryProvider,
+        GoogleEarthEnterpriseImageryProvider: Cesium.GoogleEarthEnterpriseImageryProvider,
+        GoogleEarthEnterpriseMapsProvider: Cesium.GoogleEarthEnterpriseMapsProvider,
+        GridImageryProvider: Cesium.GridImageryProvider,
+        IonImageryProvider: Cesium.IonImageryProvider,
+        MapboxImageryProvider: Cesium.MapboxImageryProvider,
+        MapboxStyleImageryProvider: Cesium.MapboxStyleImageryProvider,
+        SingleTileImageryProvider: Cesium.SingleTileImageryProvider,
+        TileCoordinatesImageryProvider: Cesium.TileCoordinatesImageryProvider,
+        UrlTemplateImageryProvider: Cesium.UrlTemplateImageryProvider,
+        WebMapServiceImageryProvider: Cesium.WebMapServiceImageryProvider,
+        WebMapTileServiceImageryProvider: Cesium.WebMapTileServiceImageryProvider,
+        GeoserverImageryProvider: GeoserverImageryProvider
+    });
+
     Object.defineProperty(exports, 'Cartesian2', {
         enumerable: true,
         get: function () { return Cesium.Cartesian2; }
@@ -1341,6 +1527,7 @@
         get: function () { return Cesium.Math; }
     });
     exports.BaseLayer = BaseLayer;
+    exports.ImageryProvider = ImageryProvider;
     exports.Viewer = Viewer;
 
     Object.defineProperty(exports, '__esModule', { value: true });

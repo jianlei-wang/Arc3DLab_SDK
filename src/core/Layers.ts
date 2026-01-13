@@ -1,6 +1,7 @@
 import Add from "./add-creator/Add"
 import DataSourceManager from "./layers/layer-manager/DataSourceManager"
 import EntityManager from "./layers/layer-manager/EntityManager"
+import ImageryLayerManager from "./layers/layer-manager/ImageryLayerManager"
 import PrimitiveManager from "./layers/layer-manager/PrimitiveManager"
 import { Viewer } from "./Viewer"
 
@@ -10,6 +11,8 @@ class Layers {
   public PrimitiveManager: PrimitiveManager = new PrimitiveManager(this.viewer)
 
   public DataSourceManager: DataSourceManager = new DataSourceManager(this.viewer)
+
+  public ImageryLayerManager: ImageryLayerManager = new ImageryLayerManager(this.viewer)
 
   /**
    * 添加图层

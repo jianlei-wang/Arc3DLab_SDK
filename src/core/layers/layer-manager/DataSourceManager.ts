@@ -132,7 +132,7 @@ class DataSourceManager {
    * 获取所有数据源的名称列表
    * @returns {string[]} 数据源名称数组
    */
-  getNames() {
+  getIds() {
     return Array.from(this.sources.keys())
   }
 }

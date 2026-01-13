@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>012-加载geoserver地图服务</title>
+    <script src="./Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
+    <script src="./lib/arc3dlab.umd.js"></script>
+    <script src="./assests/dat.gui.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #gui-box {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        z-index: 99;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer">
+      <div id="gui-box"></div>
+    </div>
+    <script>
+      const { DefaultTdtImg } = Arc3DLab.BaseLayer
+      const viewer = new Arc3DLab.Viewer("cesiumContainer", {
+        baseLayer: DefaultTdtImg,
+        fpsShow: true,
+        mapboxController: true,
+      })
+
+      initGui()
+      function initGui() {
+        const params = {
+          message: "GUI面板-geoserver地图服务",
+          数据源: "未选择",
+        }
+        const gui = new dat.GUI({ autoPlace: false })
+        const customContainer = document.getElementById("gui-box")
+        customContainer.appendChild(gui.domElement)
+        gui.add(params, "message")
+
+        const datas = gui.add(params, "数据源", ["OpenStreetMap", "天地图影像"])
+        datas.onFinishChange((val) => {
+          initImagery(val)
+        })
+      }
+
+      let kmlLayer
+
+      function initImagery(name) {
+        const provider = Arc3DLab.ImageryProvider.GeoserverImageryProvider({
+          url: "http://192.144.134.75:5500/geoserver/hunan/wms",
+          layer: "hunan:Corazimuth",
+        })
+        console.log(provider)
+        const aa = viewer.Layers.ImageryLayerManager.add(
+          "Geoserver-wms",
+          provider
+        )
+        console.log(aa)
+
+        const provider2 = Arc3DLab.ImageryProvider.GeoserverImageryProvider({
+          url: "https://app.larkview.cn/gwc/service/wmts/rest",
+          layer: "JinNeng:d_insar_5",
+          serviceType: "WMTS",
+        })
+        console.log(provider2)
+        const bb = viewer.Layers.ImageryLayerManager.add(
+          "Geoserver-wmts",
+          provider2
+        )
+        console.log(bb)
+      }
+      initImagery()
+    </script>
+  </body>
+</html>
