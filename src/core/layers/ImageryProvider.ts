@@ -14,7 +14,6 @@ import {
   UrlTemplateImageryProvider,
   WebMapServiceImageryProvider,
   WebMapTileServiceImageryProvider,
-  ImageryProvider,
   GeographicTilingScheme,
 } from "cesium"
 

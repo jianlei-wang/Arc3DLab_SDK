@@ -26,7 +26,15 @@ type PointCallback = (points: any[]) => any[]
  * 添加对象类
  * 用于在地图场景中添加各种类型的对象，如点、线、面等
  */
+/**
+ * 添加对象类
+ * 用于在地图场景中添加各种类型的对象，如点、线、面等
+ */
 class Add {
+  /**
+   * 查看器实例
+   * @type {Viewer}
+   */
   public viewer: Viewer
   
   /**
@@ -54,22 +62,20 @@ class Add {
     callback?: PointCallback
   ): any {
     if (usePrimitive) {
-
+      // 使用Primitive方式添加点
       const primitives = addPointsAsPrimitives(positions, option)
       const addedPrimitives = this.Layers.PrimitiveManager.add(randomId(), primitives)
-      console.log(addedPrimitives)
       if (callback) {
         return safeCallback<any[]>(callback, addedPrimitives)
       }
     } else {
+      // 使用Entity方式添加点
       const entities = addPointsAsEntities(positions, option)
       const addedEntities = this.Layers.EntityManager.add(randomId(), entities)
-      console.log(addedEntities)
       if (callback) {
         return safeCallback<Entity[]>(callback, addedEntities)
       }
     }
-    // If callback is provided, allow user to modify the entities
 
   }
 }

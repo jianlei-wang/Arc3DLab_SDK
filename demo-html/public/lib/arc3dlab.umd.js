@@ -675,10 +675,8 @@
      */
     function addPointsAsEntities(positions, option) {
         var entities = [];
-        // Check if option is an array or single object
         var isOptionArray = Array.isArray(option);
         for (var i = 0; i < positions.length; i++) {
-            // Get the option for this specific point
             var currentOption = isOptionArray
                 ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
             var pointGraphic = new PointGraphic(currentOption);
@@ -696,10 +694,8 @@
      */
     function addPointsAsPrimitives(positions, option) {
         var pointPrimitiveCollection = new Cesium.PointPrimitiveCollection();
-        // Check if option is an array or single object
         var isOptionArray = Array.isArray(option);
         for (var i = 0; i < positions.length; i++) {
-            // Get the option for this specific point
             var currentOption = isOptionArray
                 ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
             var pointGraphic = new PointGraphic(currentOption);
@@ -1227,22 +1223,122 @@
         return PrimitiveManager;
     }());
 
+    /**
+     * @fileoverview 图层管理类，负责管理地图上的各种图层和对象
+     */
+    /**
+     * 图层管理类
+     * 提供对地图上各种图层和对象的统一管理功能
+     */
     var Layers = /** @class */ (function () {
         /**
-         * 图层管理类
-         * @param {Viewer} viewer
+         * 构造函数
+         * @param {Viewer} viewer 地图查看器实例
          */
         function Layers(viewer) {
             this.viewer = viewer;
+            /** 实体管理器，负责管理地图上的实体对象 */
             this.EntityManager = new EntityManager(this.viewer);
+            /** 图元管理器，负责管理地图上的图元对象 */
             this.PrimitiveManager = new PrimitiveManager(this.viewer);
+            /** 数据源管理器，负责管理地图上的各种数据源 */
             this.DataSourceManager = new DataSourceManager(this.viewer);
+            /** 影像图层管理器，负责管理地图上的影像图层 */
             this.ImageryLayerManager = new ImageryLayerManager(this.viewer);
-            /**
-             * 添加图层
-             */
+            /** 添加对象类，提供向地图添加各种对象的方法 */
             this.Add = new Add(this);
         }
+        /**
+         * 获取指定名称的对象
+         * @param {string} name 名称
+         * @returns {any} 对象实例
+         */
+        Layers.prototype.get = function (name) {
+            // 尝试从各个管理器中获取
+            var obj = this.EntityManager.get(name);
+            if (obj)
+                return obj;
+            obj = this.PrimitiveManager.get(name);
+            if (obj)
+                return obj;
+            obj = this.DataSourceManager.get(name);
+            if (obj)
+                return obj;
+            obj = this.ImageryLayerManager.get(name);
+            if (obj)
+                return obj;
+            return null;
+        };
+        /**
+         * 删除指定名称的对象
+         * @param {string} name 名称
+         * @returns {boolean} 是否删除成功
+         */
+        Layers.prototype.remove = function (name) {
+            // 尝试从各个管理器中删除
+            if (this.EntityManager.remove(name))
+                return true;
+            if (this.PrimitiveManager.remove(name))
+                return true;
+            if (this.DataSourceManager.remove(name))
+                return true;
+            if (this.ImageryLayerManager.remove(name))
+                return true;
+            return false;
+        };
+        /**
+         * 获取所有对象的ID列表
+         * @returns {string[]} ID列表
+         */
+        Layers.prototype.getIds = function () {
+            // 合并所有管理器的ID列表
+            var ids = [];
+            ids.push.apply(ids, this.EntityManager.getIds());
+            ids.push.apply(ids, this.PrimitiveManager.getIds());
+            ids.push.apply(ids, this.DataSourceManager.getIds());
+            ids.push.apply(ids, this.ImageryLayerManager.getIds());
+            return ids;
+        };
+        /**
+         * 设置指定对象的可见性
+         * @param {string} name 对象名称
+         * @param {boolean} visible 是否可见
+         * @returns {boolean} 是否设置成功
+         */
+        Layers.prototype.show = function (name, visible) {
+            // 尝试在各个管理器中设置可见性
+            try {
+                this.EntityManager.show(name, visible);
+                return true;
+            }
+            catch (e) { }
+            try {
+                this.PrimitiveManager.show(name, visible);
+                return true;
+            }
+            catch (e) { }
+            try {
+                this.DataSourceManager.show(name, visible);
+                return true;
+            }
+            catch (e) { }
+            try {
+                this.ImageryLayerManager.show(name, visible);
+                return true;
+            }
+            catch (e) { }
+            return false;
+        };
+        /**
+         * 清除所有管理器中的对象
+         * @returns {void}
+         */
+        Layers.prototype.clear = function () {
+            this.EntityManager.clear();
+            this.PrimitiveManager.clear();
+            this.DataSourceManager.clear();
+            this.ImageryLayerManager.clear();
+        };
         return Layers;
     }());
 

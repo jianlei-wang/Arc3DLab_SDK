@@ -45,46 +45,50 @@
       function initGui() {
         const params = {
           message: "GUI面板-geoserver地图服务",
-          数据源: "未选择",
+          wms: false,
+          WMS_URL: "http://192.144.134.75:5500/geoserver/hunan/wms",
+          WMS_LAYERS: "hunan:Corazimuth",
+          wmts: false,
+          WMTS_URL: "https://app.larkview.cn/gwc/service/wmts/rest",
+          WMTS_LAYERS: "JinNeng:d_insar_5",
         }
         const gui = new dat.GUI({ autoPlace: false })
         const customContainer = document.getElementById("gui-box")
         customContainer.appendChild(gui.domElement)
         gui.add(params, "message")
 
-        const datas = gui.add(params, "数据源", ["OpenStreetMap", "天地图影像"])
-        datas.onFinishChange((val) => {
-          initImagery(val)
+        const wms = gui.add(params, "wms")
+        wms.onFinishChange((val) => {
+          val
+            ? initImagery("WMS", params.WMS_URL, params.WMS_LAYERS)
+            : removeImagery("WMS")
         })
+
+        gui.add(params, "WMS_URL")
+        gui.add(params, "WMS_LAYERS")
+
+        const wmts = gui.add(params, "wmts")
+        wmts.onFinishChange((val) => {
+          val
+            ? initImagery("WMTS", params.WMTS_URL, params.WMTS_LAYERS)
+            : removeImagery("WMTS")
+        })
+        gui.add(params, "WMTS_URL")
+        gui.add(params, "WMTS_LAYERS")
       }
 
-      let kmlLayer
+      function removeImagery(name) {
+        viewer.Layers.ImageryLayerManager.remove(name)
+      }
 
-      function initImagery(name) {
+      function initImagery(name, url, layer) {
         const provider = Arc3DLab.ImageryProvider.GeoserverImageryProvider({
-          url: "http://192.144.134.75:5500/geoserver/hunan/wms",
-          layer: "hunan:Corazimuth",
+          url,
+          layer,
+          serviceType: name,
         })
-        console.log(provider)
-        const aa = viewer.Layers.ImageryLayerManager.add(
-          "Geoserver-wms",
-          provider
-        )
-        console.log(aa)
-
-        const provider2 = Arc3DLab.ImageryProvider.GeoserverImageryProvider({
-          url: "https://app.larkview.cn/gwc/service/wmts/rest",
-          layer: "JinNeng:d_insar_5",
-          serviceType: "WMTS",
-        })
-        console.log(provider2)
-        const bb = viewer.Layers.ImageryLayerManager.add(
-          "Geoserver-wmts",
-          provider2
-        )
-        console.log(bb)
+        viewer.Layers.ImageryLayerManager.add(name, provider)
       }
-      initImagery()
     </script>
   </body>
 </html>
