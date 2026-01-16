@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>014-添加线Primitive</title>
+    <script src="./Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
+    <script src="./lib/arc3dlab.umd.js"></script>
+    <script src="./assests/dat.gui.min.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #gui-box {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        z-index: 99;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer">
+      <div id="gui-box"></div>
+    </div>
+    <script>
+      const { DefaultTdtImg, DefaultTerrain } = Arc3DLab.BaseLayer
+      const viewer = new Arc3DLab.Viewer("cesiumContainer", {
+        baseLayer: DefaultTdtImg,
+        fpsShow: true,
+        mapboxController: true,
+        terrain: DefaultTerrain,
+      })
+      initGui()
+      function initGui() {
+        const params = {
+          message: "GUI面板-添加线Primitive",
+          onGround: true,
+        }
+        const gui = new dat.GUI({ autoPlace: false })
+        const customContainer = document.getElementById("gui-box")
+        customContainer.appendChild(gui.domElement)
+        gui.add(params, "message")
+      }
+      const xArr = [
+        119, 119.1, 119.2, 119.3, 119.4, 119.5, 119.6, 119.7, 119.8, 119.9,
+      ]
+      const positionRandom = (x) => {
+        const positions = []
+        for (let i = 35.0; i < 35.9; i += 0.1) {
+          const post = Arc3DLab.PosFromXYZ(x, i, 0)
+          positions.push(post)
+        }
+        return positions
+      }
+
+      let polylinePrimitive
+
+      function initPrimitives() {
+        const options = {
+          color: "#ffff00",
+          width: 5,
+          onGround: true,
+          allowPick: true,
+          ids: [],
+        }
+
+        const lines = []
+        for (let i = 0; i < xArr.length; i++) {
+          const positions = positionRandom(xArr[i])
+          options.ids.push(`custom_polyline_primitive_${i}`)
+          lines.push(positions)
+        }
+        viewer.Layers.Add.addLines(lines, options, true, (items) => {
+          polylinePrimitive = items
+        })
+      }
+      initPrimitives()
+    </script>
+  </body>
+</html>

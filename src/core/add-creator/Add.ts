@@ -5,13 +5,24 @@
 import {
   Cartesian3,
   Entity,
+  GroundPolylinePrimitive,
   PointPrimitive,
   PointPrimitiveCollection,
 } from "cesium"
 import Layers from "../Layers"
 import { PointOption, default as PointGraphic } from "../graphics/PointGraphics"
+import {
+  PolylineOption,
+  default as PolylineGraphic,
+} from "../graphics/PolylineGraphics"
+import {
+  PolygonOption,
+  default as PolygonGraphic,
+} from "../graphics/PolygonGraphics"
 import { Viewer } from "../Viewer"
 import { addPointsAsEntities, addPointsAsPrimitives } from "./AddPoint"
+import { addLinesAsEntities, addLinesAsPrimitives } from "./AddLine"
+import { addPolygonsAsEntities, addPolygonsAsPrimitives } from "./AddPolygon"
 import { randomId, safeCallback } from "src/utils/Generate"
 
 /**
@@ -36,7 +47,7 @@ class Add {
    * @type {Viewer}
    */
   public viewer: Viewer
-  
+
   /**
    * 构造函数
    * @param {Layers} Layers 地图场景图层对象
@@ -44,7 +55,6 @@ class Add {
   constructor(private Layers: Layers) {
     this.viewer = Layers.viewer
   }
-
 
   /**
    * 添加点-支持Entity和Primitive两种形式
@@ -64,7 +74,10 @@ class Add {
     if (usePrimitive) {
       // 使用Primitive方式添加点
       const primitives = addPointsAsPrimitives(positions, option)
-      const addedPrimitives = this.Layers.PrimitiveManager.add(randomId(), primitives)
+      const addedPrimitives = this.Layers.PrimitiveManager.add(
+        randomId(),
+        primitives
+      )
       if (callback) {
         return safeCallback<any[]>(callback, addedPrimitives)
       }
@@ -76,7 +89,84 @@ class Add {
         return safeCallback<Entity[]>(callback, addedEntities)
       }
     }
+  }
 
+  /**
+   * 添加线-支持Entity和Primitive两种形式
+   * @method addLines
+   * @param {Cartesian3[][]} positionsList 线位置数组的数组，每个元素是一个线的位置数组
+   * @param {PolylineOption | PolylineOption[]} option 线参数，可以是单个对象或对象数组
+   * @param {boolean} usePrimitive 是否使用Primitive方式，默认为false（使用Entity方式）
+   * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
+   * @returns {any} 包含entities或primitives的对象
+   */
+  addLines(
+    positionsList: Cartesian3[][],
+    option: PolylineOption | PolylineOption[] = {},
+    usePrimitive: boolean = false,
+    callback?: PointCallback
+  ): any {
+    if (usePrimitive) {
+      const primitives = addLinesAsPrimitives(positionsList, option)
+      let addedPrimitives
+      const id = randomId()
+      if (primitives instanceof GroundPolylinePrimitive) {
+        addedPrimitives = this.Layers.GroundPrimitiveManager.add(id, primitives)
+      } else {
+        addedPrimitives = this.Layers.PrimitiveManager.add(id, primitives)
+      }
+
+      if (callback) {
+        return safeCallback<any[]>(callback, addedPrimitives)
+      }
+      return addedPrimitives
+    } else {
+      const entities = addLinesAsEntities(positionsList, option)
+      const addedEntities = this.Layers.EntityManager.add(randomId(), entities)
+
+      if (callback) {
+        return safeCallback<Entity[]>(callback, addedEntities)
+      }
+
+      return addedEntities
+    }
+  }
+
+  /**
+   * 添加面-支持Entity和Primitive两种形式
+   * @method addPolygons
+   * @param {Cartesian3[][]} positionsList 面位置数组的数组，每个元素是一个面的位置数组
+   * @param {PolygonOption | PolygonOption[]} option 面参数，可以是单个对象或对象数组
+   * @param {boolean} usePrimitive 是否使用Primitive方式，默认为false（使用Entity方式）
+   * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
+   * @returns {any} 包含entities或primitives的对象
+   */
+  addPolygons(
+    positionsList: Cartesian3[][],
+    option: PolygonOption | PolygonOption[] = {},
+    usePrimitive: boolean = false,
+    callback?: PointCallback
+  ): any {
+    if (usePrimitive) {
+      const primitives = addPolygonsAsPrimitives(positionsList, option)
+      const addedPrimitives = this.Layers.PrimitiveManager.add(
+        randomId(),
+        primitives
+      )
+      if (callback) {
+        return safeCallback<any[]>(callback, addedPrimitives)
+      }
+      return addedPrimitives
+    } else {
+      const entities = addPolygonsAsEntities(positionsList, option)
+      const addedEntities = this.Layers.EntityManager.add(randomId(), entities)
+
+      if (callback) {
+        return safeCallback<Entity[]>(callback, addedEntities)
+      }
+
+      return addedEntities
+    }
   }
 }
 

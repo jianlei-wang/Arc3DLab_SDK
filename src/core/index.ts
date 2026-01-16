@@ -11,3 +11,7 @@ export { Viewer } from "./Viewer"
 export { default as BaseLayer } from "./layers/BaseLayer"
 
 export * as ImageryProvider from "./layers/ImageryProvider"
+
+export * from "./Common"
+
+export * as Material from "./material/Material"

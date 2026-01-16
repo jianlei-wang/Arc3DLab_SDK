@@ -5,6 +5,7 @@
 import Add from "./add-creator/Add"
 import DataSourceManager from "./layers/layer-manager/DataSourceManager"
 import EntityManager from "./layers/layer-manager/EntityManager"
+import GroundPrimitiveManager from "./layers/layer-manager/GroundPrimitiveManager"
 import ImageryLayerManager from "./layers/layer-manager/ImageryLayerManager"
 import PrimitiveManager from "./layers/layer-manager/PrimitiveManager"
 import { Viewer } from "./Viewer"
@@ -19,6 +20,10 @@ class Layers {
 
   /** 图元管理器，负责管理地图上的图元对象 */
   public PrimitiveManager: PrimitiveManager = new PrimitiveManager(this.viewer)
+
+  /** 贴地面图元管理器，负责管理地图上的地面图元对象 */
+  public GroundPrimitiveManager: GroundPrimitiveManager =
+    new GroundPrimitiveManager(this.viewer)
 
   /** 数据源管理器，负责管理地图上的各种数据源 */
   public DataSourceManager: DataSourceManager = new DataSourceManager(
@@ -52,6 +57,9 @@ class Layers {
     obj = this.PrimitiveManager.get(name)
     if (obj) return obj
 
+    obj = this.GroundPrimitiveManager.get(name)
+    if (obj) return obj
+
     obj = this.DataSourceManager.get(name)
     if (obj) return obj
 
@@ -70,6 +78,7 @@ class Layers {
     // 尝试从各个管理器中删除
     if (this.EntityManager.remove(name)) return true
     if (this.PrimitiveManager.remove(name)) return true
+    if (this.GroundPrimitiveManager.remove(name)) return true
     if (this.DataSourceManager.remove(name)) return true
     if (this.ImageryLayerManager.remove(name)) return true
 
@@ -85,6 +94,7 @@ class Layers {
     const ids = []
     ids.push(...this.EntityManager.getIds())
     ids.push(...this.PrimitiveManager.getIds())
+    ids.push(...this.GroundPrimitiveManager.getIds())
     ids.push(...this.DataSourceManager.getIds())
     ids.push(...this.ImageryLayerManager.getIds())
 
@@ -110,6 +120,11 @@ class Layers {
     } catch (e) {}
 
     try {
+      this.GroundPrimitiveManager.show(name, visible)
+      return true
+    } catch (e) {}
+
+    try {
       this.DataSourceManager.show(name, visible)
       return true
     } catch (e) {}
@@ -129,6 +144,7 @@ class Layers {
   clear() {
     this.EntityManager.clear()
     this.PrimitiveManager.clear()
+    this.GroundPrimitiveManager.clear()
     this.DataSourceManager.clear()
     this.ImageryLayerManager.clear()
   }

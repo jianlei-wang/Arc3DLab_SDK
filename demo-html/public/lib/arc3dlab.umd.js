@@ -580,7 +580,14 @@
         return data;
     }
 
-    var defaultOptions = {
+    /**
+     * @fileoverview 点图形类，扩展Cesium.PointGraphics，提供简化的参数接口
+     */
+    /**
+     * 默认点选项配置
+     * @constant {PointOption} defaultOptions
+     */
+    var defaultOptions$2 = {
         pColor: "#ff0000",
         pOutlineColor: "#ffff00",
         onGround: true,
@@ -590,20 +597,34 @@
         id: "default_point_id",
         featureAttribute: {},
     };
+    /**
+     * 点图形类
+     * 扩展Cesium的PointGraphics类，提供更简化的参数接口
+     */
     var PointGraphic = /** @class */ (function (_super) {
         __extends(PointGraphic, _super);
+        /**
+         * 构造函数
+         * @param {PointOption} [options={}] 点选项配置
+         */
         function PointGraphic(options) {
             if (options === void 0) { options = {}; }
             var _this = this;
-            // Process custom options before passing to parent
             var processedOptions = PointGraphic.processOptions(options);
             _this = _super.call(this, processedOptions) || this;
             _this.options = processedOptions;
             return _this;
         }
+        /**
+         * 处理点选项配置
+         * 将简化的参数转换为Cesium可识别的格式
+         * @private
+         * @static
+         * @param {PointOption} options 用户提供的点选项
+         * @returns {PointOption} 处理后的点选项
+         */
         PointGraphic.processOptions = function (options) {
-            var finalOptions = Object.assign({}, defaultOptions, options);
-            // Convert color strings to Cesium.Color objects
+            var finalOptions = Object.assign({}, defaultOptions$2, options);
             if (finalOptions.pColor && typeof finalOptions.pColor === "string") {
                 finalOptions.color = Cesium.Color.fromCssColorString(finalOptions.pColor);
             }
@@ -611,17 +632,16 @@
                 typeof finalOptions.pOutlineColor === "string") {
                 finalOptions.outlineColor = Cesium.Color.fromCssColorString(finalOptions.pOutlineColor);
             }
-            // Set height reference based on onGround option
             if (finalOptions.onGround) {
                 finalOptions.heightReference = Cesium.HeightReference.CLAMP_TO_GROUND;
             }
             return finalOptions;
         };
         /**
-         * Create a Cesium Entity with this point graphic
-         * @param position The position of the point
-         * @param properties Additional properties for the entity
-         * @returns Cesium Entity
+         * 创建Cesium实体
+         * @param {Cartesian3} position 点的位置
+         * @param {any} [properties] 实体的附加属性
+         * @returns {Entity} Cesium实体对象
          */
         PointGraphic.prototype.createEntity = function (position, properties) {
             var entity = new Cesium.Entity({
@@ -633,10 +653,9 @@
             return entity;
         };
         /**
-         * Create a PointPrimitive using PointPrimitiveCollection
-         * @param position The position of the point
-         * @param collection Optional collection to add the primitive to
-         * @returns PointPrimitive
+         * 创建点图元
+         * @param {Cartesian3} position 点的位置
+         * @returns {PointPrimitive} 点图元对象
          */
         PointGraphic.prototype.createPointPrimitive = function (position) {
             var _a, _b, _c, _d, _e, _f, _g;
@@ -656,8 +675,6 @@
                 show: ((_g = this.show) === null || _g === void 0 ? void 0 : _g.getValue()) || true,
                 id: this.options.id,
             };
-            // If no collection provided, return the primitive configuration
-            // In a real implementation, you would typically add to a collection
             return pointPrimitive;
         };
         return PointGraphic;
@@ -667,7 +684,14 @@
      * @fileoverview 提供创建点要素的功能，支持Entity和Primitive两种形式
      */
     /**
-     * 添加点-Entity形式
+     * 使用Entity形式添加多个点
+     * @function addPointsAsEntities
+     * @param {Cartesian3[]} positions 点位置数组，笛卡尔坐标
+     * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
+     * @returns {Entity[]} 点对象数组，Entity类对象
+     */
+    /**
+     * 使用Entity形式添加多个点
      * @function addPointsAsEntities
      * @param {Cartesian3[]} positions 点位置数组，笛卡尔坐标
      * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
@@ -677,6 +701,7 @@
         var entities = [];
         var isOptionArray = Array.isArray(option);
         for (var i = 0; i < positions.length; i++) {
+            // 根据option是否为数组来确定当前点的配置
             var currentOption = isOptionArray
                 ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
             var pointGraphic = new PointGraphic(currentOption);
@@ -686,7 +711,14 @@
         return entities;
     }
     /**
-     * 添加点-Primitive形式
+     * 使用Primitive形式添加多个点
+     * @function addPointsAsPrimitives
+     * @param {Cartesian3[]} positions 点位置，笛卡尔坐标
+     * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
+     * @returns {PointPrimitiveCollection} 点集合对象，PointPrimitiveCollection类对象
+     */
+    /**
+     * 使用Primitive形式添加多个点
      * @function addPointsAsPrimitives
      * @param {Cartesian3[]} positions 点位置，笛卡尔坐标
      * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
@@ -696,6 +728,7 @@
         var pointPrimitiveCollection = new Cesium.PointPrimitiveCollection();
         var isOptionArray = Array.isArray(option);
         for (var i = 0; i < positions.length; i++) {
+            // 根据option是否为数组来确定当前点的配置
             var currentOption = isOptionArray
                 ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
             var pointGraphic = new PointGraphic(currentOption);
@@ -705,8 +738,268 @@
         return pointPrimitiveCollection;
     }
 
+    var defaultOptions$1 = {
+        color: "#ff0f40",
+        width: 2,
+        onGround: true,
+        allowPick: true,
+        id: "default_polyline_id",
+        featureAttribute: {},
+        zIndex: 0,
+        material: Cesium.Color.WHITE,
+        ids: [],
+    };
+    var PolylineGraphic = /** @class */ (function (_super) {
+        __extends(PolylineGraphic, _super);
+        function PolylineGraphic(options) {
+            if (options === void 0) { options = {}; }
+            var _this = this;
+            var processedOptions = PolylineGraphic.processOptions(options);
+            _this = _super.call(this, processedOptions) || this;
+            _this.options = processedOptions;
+            return _this;
+        }
+        PolylineGraphic.processOptions = function (options) {
+            var finalOptions = Object.assign({}, defaultOptions$1, options);
+            if (finalOptions.color && typeof finalOptions.color === "string") {
+                finalOptions.material = Cesium.Color.fromCssColorString(finalOptions.color);
+            }
+            finalOptions.clampToGround = finalOptions.onGround;
+            return finalOptions;
+        };
+        PolylineGraphic.prototype.createEntity = function (positions, properties) {
+            var entity = new Cesium.Entity({
+                polyline: __assign({ positions: positions }, this.options),
+                properties: properties || this.options.featureAttribute,
+                id: this.options.id,
+            });
+            return entity;
+        };
+        PolylineGraphic.prototype.createPrimitive = function (positions) {
+            var _a = this.options, onGround = _a.onGround, material = _a.material, width = _a.width, id = _a.id;
+            var geoOtp = {
+                positions: positions,
+                width: width,
+                vertexFormat: Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
+            };
+            var lineGeo = onGround
+                ? new Cesium.GroundPolylineGeometry(geoOtp)
+                : new Cesium.PolylineGeometry(geoOtp);
+            var instance = new Cesium.GeometryInstance({
+                geometry: lineGeo,
+                attributes: {
+                    color: Cesium.ColorGeometryInstanceAttribute.fromColor(material),
+                },
+                id: id,
+            });
+            return instance;
+        };
+        return PolylineGraphic;
+    }(Cesium.PolylineGraphics));
+
+    /**
+     * @fileoverview 提供创建线要素的功能，支持Entity形式
+     */
+    /**
+     * 使用Entity形式添加多条线
+     * @function addLinesAsEntities
+     * @param {Cartesian3[][]} positionsList 线位置数组的数组，每个元素是一个线的位置数组
+     * @param {PolylineOption | PolylineOption[]} option 线参数，可以是单个对象或对象数组
+     * @returns {Entity[]} 线对象数组，Entity类对象
+     */
+    function addLinesAsEntities(positionsList, option) {
+        var entities = [];
+        var isOptionArray = Array.isArray(option);
+        for (var i = 0; i < positionsList.length; i++) {
+            // 根据option是否为数组来确定当前线的配置
+            var currentOption = isOptionArray
+                ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
+            var lineGraphic = new PolylineGraphic(currentOption);
+            var entity = lineGraphic.createEntity(positionsList[i]);
+            entities.push(entity);
+        }
+        return entities;
+    }
+    /**
+     * 使用Primitive形式添加多条线
+     * @function addLinesAsPrimitives
+     * @param {Cartesian3[][]} positionsList 线位置数组的数组，每个元素是一个线的位置数组
+     * @param {PolylineOption | PolylineOption[]} option 线参数，可以是单个对象或对象数组
+     * @returns {GroundPolylinePrimitive | PolylineCollection} 线集合对象，PolylineCollection类对象
+     */
+    function addLinesAsPrimitives(positionsList, option) {
+        var isOptionArray = Array.isArray(option);
+        var onGround = (isOptionArray ? option[0] : option).onGround;
+        var polylineInstance = [];
+        for (var i = 0; i < positionsList.length; i++) {
+            // 根据option是否为数组来确定当前线的配置
+            var currentOption = isOptionArray
+                ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
+            var lineGraphic = new PolylineGraphic(currentOption);
+            var instance = lineGraphic.createPrimitive(positionsList[i]);
+            polylineInstance.push(instance);
+        }
+        var primitiveOpt = {
+            geometryInstances: polylineInstance,
+            appearance: new Cesium.PolylineColorAppearance(),
+        };
+        var primitive = onGround
+            ? new Cesium.GroundPolylinePrimitive(primitiveOpt)
+            : new Cesium.Primitive(primitiveOpt);
+        return primitive;
+    }
+
+    /**
+     * @fileoverview 面图形类，提供简化的参数接口来创建面要素
+     */
+    /**
+     * 默认面选项配置
+     * @constant {PolygonOption} defaultOptions
+     */
+    var defaultOptions = {
+        pColor: "#ff0000",
+        outlineColor: "#ffffff",
+        height: 0,
+        show: true,
+        id: "default_polygon_id",
+        featureAttribute: {},
+    };
+    /**
+     * 面图形类
+     * 提供更简化的参数接口来创建面要素
+     */
+    var PolygonGraphic = /** @class */ (function () {
+        /**
+         * 构造函数
+         * @param {PolygonOption} [options={}] 面选项配置
+         */
+        function PolygonGraphic(options) {
+            if (options === void 0) { options = {}; }
+            var processedOptions = PolygonGraphic.processOptions(options);
+            this.options = processedOptions;
+        }
+        /**
+         * 处理面选项配置
+         * 将简化的参数转换为Cesium可识别的格式
+         * @private
+         * @static
+         * @param {PolygonOption} options 用户提供的面选项
+         * @returns {PolygonOption} 处理后的面选项
+         */
+        PolygonGraphic.processOptions = function (options) {
+            var finalOptions = Object.assign({}, defaultOptions, options);
+            return finalOptions;
+        };
+        /**
+         * 创建Cesium实体
+         * @param {Cartesian3[]} positions 面的位置数组
+         * @param {any} [properties] 实体的附加属性
+         * @returns {Entity} Cesium实体对象
+         */
+        PolygonGraphic.prototype.createEntity = function (positions, properties) {
+            var entity = new Cesium.Entity({
+                polygon: {
+                    hierarchy: positions,
+                    material: Cesium.Color.fromCssColorString(this.options.pColor || '#ff0000'),
+                    outline: true,
+                    outlineColor: Cesium.Color.fromCssColorString(this.options.outlineColor || '#ffffff'),
+                    height: this.options.height,
+                    show: this.options.show,
+                },
+                properties: properties || this.options.featureAttribute,
+                id: this.options.id,
+            });
+            return entity;
+        };
+        /**
+         * 创建面图元
+         * @param {Cartesian3[]} positions 面的位置数组
+         * @returns {any} 面图元对象
+         */
+        PolygonGraphic.prototype.createPolygonPrimitive = function (positions) {
+            // 返回用于创建 GeometryInstance 的配置信息
+            return {
+                hierarchy: new Cesium.PolygonHierarchy(positions),
+                material: Cesium.Color.fromCssColorString(this.options.pColor || '#ff0000'),
+                outline: true,
+                outlineColor: Cesium.Color.fromCssColorString(this.options.outlineColor || '#ffffff'),
+                height: this.options.height,
+                show: this.options.show,
+                id: this.options.id,
+            };
+        };
+        /**
+         * 创建面几何体实例
+         * @param {Cartesian3[]} positions 面的位置数组
+         * @returns {GeometryInstance} 几何体实例
+         */
+        PolygonGraphic.prototype.createPolygonGeometryInstance = function (positions) {
+            return new Cesium.GeometryInstance({
+                geometry: new Cesium.PolygonGeometry({
+                    polygonHierarchy: new Cesium.PolygonHierarchy(positions),
+                    vertexFormat: this.options.height ? Cesium.VertexFormat.POSITION_AND_NORMAL : Cesium.VertexFormat.POSITION_ONLY,
+                }),
+                attributes: {
+                    color: Cesium.Color.fromCssColorString(this.options.pColor || '#ff0000').withAlpha(0.5).toRgba(),
+                },
+                id: this.options.id,
+            });
+        };
+        return PolygonGraphic;
+    }());
+
+    /**
+     * @fileoverview 提供创建面要素的功能，支持Entity形式
+     */
+    /**
+     * 使用Entity形式添加多个面
+     * @function addPolygonsAsEntities
+     * @param {Cartesian3[][]} positionsList 面位置数组的数组，每个元素是一个面的位置数组
+     * @param {PolygonOption | PolygonOption[]} option 面参数，可以是单个对象或对象数组
+     * @returns {Entity[]} 面对象数组，Entity类对象
+     */
+    function addPolygonsAsEntities(positionsList, option) {
+        var entities = [];
+        var isOptionArray = Array.isArray(option);
+        for (var i = 0; i < positionsList.length; i++) {
+            // 根据option是否为数组来确定当前面的配置
+            var currentOption = isOptionArray
+                ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.id || randomId() });
+            var polygonGraphic = new PolygonGraphic(currentOption);
+            var entity = polygonGraphic.createEntity(positionsList[i]);
+            entities.push(entity);
+        }
+        return entities;
+    }
+    /**
+     * 使用Primitive形式添加多个面
+     * @function addPolygonsAsPrimitives
+     * @param {Cartesian3[][]} positionsList 面位置数组的数组，每个元素是一个面的位置数组
+     * @param {PolygonOption | PolygonOption[]} option 面参数，可以是单个对象或对象数组
+     * @returns {any} 面集合对象
+     */
+    function addPolygonsAsPrimitives(positionsList, option) {
+        // 实际上，对于Polygon Primitive，我们通常需要使用Primitive和GeometryInstance
+        // 这里返回一个包含必要信息的对象，供外部使用
+        var primitiveConfigs = [];
+        var isOptionArray = Array.isArray(option);
+        for (var i = 0; i < positionsList.length; i++) {
+            // 根据option是否为数组来确定当前面的配置
+            var currentOption = isOptionArray
+                ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.id || randomId() });
+            var polygonGraphic = new PolygonGraphic(currentOption);
+            var config = polygonGraphic.createPolygonPrimitive(positionsList[i]);
+            primitiveConfigs.push(config);
+        }
+        return primitiveConfigs;
+    }
+
     /**
      * @fileoverview 添加对象类，提供地图上各种对象的添加功能
+     */
+    /**
+     * 添加对象类
+     * 用于在地图场景中添加各种类型的对象，如点、线、面等
      */
     /**
      * 添加对象类
@@ -734,22 +1027,86 @@
             if (option === void 0) { option = {}; }
             if (usePrimitive === void 0) { usePrimitive = false; }
             if (usePrimitive) {
+                // 使用Primitive方式添加点
                 var primitives = addPointsAsPrimitives(positions, option);
                 var addedPrimitives = this.Layers.PrimitiveManager.add(randomId(), primitives);
-                console.log(addedPrimitives);
                 if (callback) {
                     return safeCallback(callback, addedPrimitives);
                 }
             }
             else {
+                // 使用Entity方式添加点
                 var entities = addPointsAsEntities(positions, option);
                 var addedEntities = this.Layers.EntityManager.add(randomId(), entities);
-                console.log(addedEntities);
                 if (callback) {
                     return safeCallback(callback, addedEntities);
                 }
             }
-            // If callback is provided, allow user to modify the entities
+        };
+        /**
+         * 添加线-支持Entity和Primitive两种形式
+         * @method addLines
+         * @param {Cartesian3[][]} positionsList 线位置数组的数组，每个元素是一个线的位置数组
+         * @param {PolylineOption | PolylineOption[]} option 线参数，可以是单个对象或对象数组
+         * @param {boolean} usePrimitive 是否使用Primitive方式，默认为false（使用Entity方式）
+         * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
+         * @returns {any} 包含entities或primitives的对象
+         */
+        Add.prototype.addLines = function (positionsList, option, usePrimitive, callback) {
+            if (option === void 0) { option = {}; }
+            if (usePrimitive === void 0) { usePrimitive = false; }
+            if (usePrimitive) {
+                var primitives = addLinesAsPrimitives(positionsList, option);
+                var addedPrimitives = void 0;
+                var id = randomId();
+                if (primitives instanceof Cesium.GroundPolylinePrimitive) {
+                    addedPrimitives = this.Layers.GroundPrimitiveManager.add(id, primitives);
+                }
+                else {
+                    addedPrimitives = this.Layers.PrimitiveManager.add(id, primitives);
+                }
+                if (callback) {
+                    return safeCallback(callback, addedPrimitives);
+                }
+                return addedPrimitives;
+            }
+            else {
+                var entities = addLinesAsEntities(positionsList, option);
+                var addedEntities = this.Layers.EntityManager.add(randomId(), entities);
+                if (callback) {
+                    return safeCallback(callback, addedEntities);
+                }
+                return addedEntities;
+            }
+        };
+        /**
+         * 添加面-支持Entity和Primitive两种形式
+         * @method addPolygons
+         * @param {Cartesian3[][]} positionsList 面位置数组的数组，每个元素是一个面的位置数组
+         * @param {PolygonOption | PolygonOption[]} option 面参数，可以是单个对象或对象数组
+         * @param {boolean} usePrimitive 是否使用Primitive方式，默认为false（使用Entity方式）
+         * @param {PointCallback} callback 可选回调函数，用于修改创建后的对象
+         * @returns {any} 包含entities或primitives的对象
+         */
+        Add.prototype.addPolygons = function (positionsList, option, usePrimitive, callback) {
+            if (option === void 0) { option = {}; }
+            if (usePrimitive === void 0) { usePrimitive = false; }
+            if (usePrimitive) {
+                var primitives = addPolygonsAsPrimitives(positionsList, option);
+                var addedPrimitives = this.Layers.PrimitiveManager.add(randomId(), primitives);
+                if (callback) {
+                    return safeCallback(callback, addedPrimitives);
+                }
+                return addedPrimitives;
+            }
+            else {
+                var entities = addPolygonsAsEntities(positionsList, option);
+                var addedEntities = this.Layers.EntityManager.add(randomId(), entities);
+                if (callback) {
+                    return safeCallback(callback, addedEntities);
+                }
+                return addedEntities;
+            }
         };
         return Add;
     }());
@@ -932,15 +1289,15 @@
                 this.remove(id);
             }
             entity = Array.isArray(entity) ? entity : [entity];
-            var entities = this.viewer.entities;
+            var vEntities = this.viewer.entities;
             // 挂起事件，提高性能
-            entities.suspendEvents();
+            vEntities.suspendEvents();
             try {
                 entity = entity.map(function (e) { return _this.viewer.entities.add(e); });
                 this.entities.set(id, entity);
             }
             finally {
-                entities.resumeEvents();
+                vEntities.resumeEvents();
             }
             return entity;
         };
@@ -1008,6 +1365,89 @@
             return Array.from(this.entities.keys());
         };
         return EntityManager;
+    }());
+
+    /**
+     * @fileoverview 基元管理器，负责管理Cesium中的基元对象，现阶段只有线的贴地管理用到
+     */
+    /**
+     * 贴地基元管理器类
+     * 用于管理Cesium中的基元对象，包括添加、获取、删除等操作
+     */
+    var GroundPrimitiveManager = /** @class */ (function () {
+        /**
+         * 构造函数
+         * @param {Viewer} viewer Cesium视图对象
+         */
+        function GroundPrimitiveManager(viewer) {
+            this.viewer = viewer;
+            this.primitives = new Map();
+        }
+        /**
+         * 添加基元
+         * @param {string} id 基元唯一标识符
+         * @param {any} primitive 要添加的基元对象
+         * @returns {any} 添加后的基元对象
+         */
+        GroundPrimitiveManager.prototype.add = function (id, primitive) {
+            if (this.primitives.has(id)) {
+                this.remove(id);
+            }
+            primitive = this.viewer.scene.groundPrimitives.add(primitive);
+            this.primitives.set(id, primitive);
+            return primitive;
+        };
+        /**
+         * 获取基元
+         * @param {string} id 基元唯一标识符
+         * @returns {any} 对应的基元对象，如果不存在则返回undefined
+         */
+        GroundPrimitiveManager.prototype.get = function (id) {
+            return this.primitives.get(id);
+        };
+        /**
+         * 删除基元
+         * @param {string} id 基元唯一标识符
+         * @returns {boolean} 删除成功返回true，否则返回false
+         */
+        GroundPrimitiveManager.prototype.remove = function (id) {
+            var primitive = this.primitives.get(id);
+            if (primitive) {
+                this.viewer.scene.groundPrimitives.remove(primitive);
+                this.primitives.delete(id);
+                return true;
+            }
+            return false;
+        };
+        /**
+         * 设置基元显示状态
+         * @param {string} id 基元唯一标识符
+         * @param {boolean} visible 显示状态，true为显示，false为隐藏
+         */
+        GroundPrimitiveManager.prototype.show = function (id, visible) {
+            var primitive = this.primitives.get(id);
+            if (primitive) {
+                primitive.show = visible;
+            }
+        };
+        /**
+         * 清空所有基元
+         */
+        GroundPrimitiveManager.prototype.clear = function () {
+            var _this = this;
+            this.primitives.forEach(function (primitive, id) {
+                _this.viewer.scene.groundPrimitives.remove(primitive);
+            });
+            this.primitives.clear();
+        };
+        /**
+         * 获取所有基元的ID列表
+         * @returns {string[]} 所有基元的ID数组
+         */
+        GroundPrimitiveManager.prototype.getIds = function () {
+            return Array.from(this.primitives.keys());
+        };
+        return GroundPrimitiveManager;
     }());
 
     /**
@@ -1241,6 +1681,8 @@
             this.EntityManager = new EntityManager(this.viewer);
             /** 图元管理器，负责管理地图上的图元对象 */
             this.PrimitiveManager = new PrimitiveManager(this.viewer);
+            /** 贴地面图元管理器，负责管理地图上的地面图元对象 */
+            this.GroundPrimitiveManager = new GroundPrimitiveManager(this.viewer);
             /** 数据源管理器，负责管理地图上的各种数据源 */
             this.DataSourceManager = new DataSourceManager(this.viewer);
             /** 影像图层管理器，负责管理地图上的影像图层 */
@@ -1259,6 +1701,9 @@
             if (obj)
                 return obj;
             obj = this.PrimitiveManager.get(name);
+            if (obj)
+                return obj;
+            obj = this.GroundPrimitiveManager.get(name);
             if (obj)
                 return obj;
             obj = this.DataSourceManager.get(name);
@@ -1280,6 +1725,8 @@
                 return true;
             if (this.PrimitiveManager.remove(name))
                 return true;
+            if (this.GroundPrimitiveManager.remove(name))
+                return true;
             if (this.DataSourceManager.remove(name))
                 return true;
             if (this.ImageryLayerManager.remove(name))
@@ -1295,6 +1742,7 @@
             var ids = [];
             ids.push.apply(ids, this.EntityManager.getIds());
             ids.push.apply(ids, this.PrimitiveManager.getIds());
+            ids.push.apply(ids, this.GroundPrimitiveManager.getIds());
             ids.push.apply(ids, this.DataSourceManager.getIds());
             ids.push.apply(ids, this.ImageryLayerManager.getIds());
             return ids;
@@ -1318,6 +1766,11 @@
             }
             catch (e) { }
             try {
+                this.GroundPrimitiveManager.show(name, visible);
+                return true;
+            }
+            catch (e) { }
+            try {
                 this.DataSourceManager.show(name, visible);
                 return true;
             }
@@ -1336,6 +1789,7 @@
         Layers.prototype.clear = function () {
             this.EntityManager.clear();
             this.PrimitiveManager.clear();
+            this.GroundPrimitiveManager.clear();
             this.DataSourceManager.clear();
             this.ImageryLayerManager.clear();
         };
@@ -1606,6 +2060,41 @@
         GeoserverImageryProvider: GeoserverImageryProvider
     });
 
+    /**
+     * 从XYZ坐标创建位置
+     * @param x X坐标
+     * @param y Y坐标
+     * @param z Z坐标
+     * @returns 创建的位置
+     */
+    var PosFromXYZ = function (x, y, z) {
+        if (z === void 0) { z = 0; }
+        return Cesium.Cartesian3.fromDegrees(x, y, z);
+    };
+
+    /**
+     *
+     * @param color 颜色值
+     * @param cssColor 是否为css颜色字符串，如果为true，则color参数为css颜色字符串，否则为Cesium.Color类型
+     * @returns
+     */
+    var ColorMaterial = function (color, cssColor) {
+        if (cssColor === void 0) { cssColor = true; }
+        return new Cesium.Material({
+            fabric: {
+                type: "Color",
+                uniforms: {
+                    color: cssColor ? Cesium.Color.fromCssColorString(color) : color,
+                },
+            },
+        });
+    };
+
+    var Material = /*#__PURE__*/Object.freeze({
+        __proto__: null,
+        ColorMaterial: ColorMaterial
+    });
+
     Object.defineProperty(exports, 'Cartesian2', {
         enumerable: true,
         get: function () { return Cesium.Cartesian2; }
@@ -1624,6 +2113,8 @@
     });
     exports.BaseLayer = BaseLayer;
     exports.ImageryProvider = ImageryProvider;
+    exports.Material = Material;
+    exports.PosFromXYZ = PosFromXYZ;
     exports.Viewer = Viewer;
 
     Object.defineProperty(exports, '__esModule', { value: true });

@@ -30,16 +30,16 @@ class EntityManager {
       this.remove(id)
     }
     entity = Array.isArray(entity) ? entity : [entity]
-    const entities = this.viewer.entities
+    const vEntities = this.viewer.entities
 
     // 挂起事件，提高性能
-    entities.suspendEvents()
+    vEntities.suspendEvents()
 
     try {
       entity = entity.map((e: any) => this.viewer.entities.add(e))
       this.entities.set(id, entity)
     } finally {
-      entities.resumeEvents()
+      vEntities.resumeEvents()
     }
     return entity
   }

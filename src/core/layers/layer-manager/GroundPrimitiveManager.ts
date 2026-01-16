@@ -1,14 +1,14 @@
 /**
- * @fileoverview 基元管理器，负责管理Cesium中的基元对象
+ * @fileoverview 基元管理器，负责管理Cesium中的基元对象，现阶段只有线的贴地管理用到
  */
 
 import { Viewer } from "src/core/Viewer"
 
 /**
- * 基元管理器类
+ * 贴地基元管理器类
  * 用于管理Cesium中的基元对象，包括添加、获取、删除等操作
  */
-class PrimitiveManager {
+class GroundPrimitiveManager {
   primitives: Map<any, any>
 
   /**
@@ -29,7 +29,7 @@ class PrimitiveManager {
     if (this.primitives.has(id)) {
       this.remove(id)
     }
-    primitive = this.viewer.scene.primitives.add(primitive)
+    primitive = this.viewer.scene.groundPrimitives.add(primitive)
     this.primitives.set(id, primitive)
     return primitive
   }
@@ -51,7 +51,7 @@ class PrimitiveManager {
   remove(id: string) {
     const primitive = this.primitives.get(id)
     if (primitive) {
-      this.viewer.scene.primitives.remove(primitive)
+      this.viewer.scene.groundPrimitives.remove(primitive)
       this.primitives.delete(id)
       return true
     }
@@ -75,7 +75,7 @@ class PrimitiveManager {
    */
   clear() {
     this.primitives.forEach((primitive, id) => {
-      this.viewer.scene.primitives.remove(primitive)
+      this.viewer.scene.groundPrimitives.remove(primitive)
     })
     this.primitives.clear()
   }
@@ -89,4 +89,4 @@ class PrimitiveManager {
   }
 }
 
-export default PrimitiveManager
+export default GroundPrimitiveManager
