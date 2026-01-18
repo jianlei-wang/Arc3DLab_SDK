@@ -849,104 +849,72 @@
         return primitive;
     }
 
-    /**
-     * @fileoverview 面图形类，提供简化的参数接口来创建面要素
-     */
-    /**
-     * 默认面选项配置
-     * @constant {PolygonOption} defaultOptions
-     */
     var defaultOptions = {
-        pColor: "#ff0000",
-        outlineColor: "#ffffff",
-        height: 0,
-        show: true,
+        color: "#ff0000",
+        onGround: true,
+        outline: true,
+        outlineWidth: 1,
+        outlineColor: "#00ff00",
         id: "default_polygon_id",
         featureAttribute: {},
+        zIndex: 0,
+        ids: [],
     };
-    /**
-     * 面图形类
-     * 提供更简化的参数接口来创建面要素
-     */
-    var PolygonGraphic = /** @class */ (function () {
-        /**
-         * 构造函数
-         * @param {PolygonOption} [options={}] 面选项配置
-         */
+    var PolygonGraphic = /** @class */ (function (_super) {
+        __extends(PolygonGraphic, _super);
         function PolygonGraphic(options) {
             if (options === void 0) { options = {}; }
+            var _this = this;
             var processedOptions = PolygonGraphic.processOptions(options);
-            this.options = processedOptions;
+            _this = _super.call(this, processedOptions) || this;
+            //@ts-ignore
+            _this.options = processedOptions;
+            return _this;
         }
-        /**
-         * 处理面选项配置
-         * 将简化的参数转换为Cesium可识别的格式
-         * @private
-         * @static
-         * @param {PolygonOption} options 用户提供的面选项
-         * @returns {PolygonOption} 处理后的面选项
-         */
         PolygonGraphic.processOptions = function (options) {
-            var finalOptions = Object.assign({}, defaultOptions, options);
-            return finalOptions;
+            // First merge with defaults
+            var mergedOptions = Object.assign({}, defaultOptions, options);
+            // Create a new object for Cesium constructor that conforms to ConstructorOptions
+            var cesiumOptions = {};
+            // Copy all properties
+            Object.keys(mergedOptions).forEach(function (key) {
+                if (key !== "color" && key !== "outlineColor" && key !== "onGround") {
+                    cesiumOptions[key] = mergedOptions[key];
+                }
+            });
+            // Convert color from string to material
+            if (mergedOptions.color && typeof mergedOptions.color === "string") {
+                cesiumOptions.material = Cesium.Color.fromCssColorString(mergedOptions.color);
+            }
+            // Convert outlineColor from string to Color
+            if (mergedOptions.outlineColor &&
+                typeof mergedOptions.outlineColor === "string") {
+                cesiumOptions.outlineColor = Cesium.Color.fromCssColorString(mergedOptions.outlineColor);
+            }
+            cesiumOptions.heightReference = mergedOptions.onGround ? 1 : 0; // CLAMP_TO_GROUND = 1, NONE = 0
+            return cesiumOptions;
         };
-        /**
-         * 创建Cesium实体
-         * @param {Cartesian3[]} positions 面的位置数组
-         * @param {any} [properties] 实体的附加属性
-         * @returns {Entity} Cesium实体对象
-         */
         PolygonGraphic.prototype.createEntity = function (positions, properties) {
             var entity = new Cesium.Entity({
-                polygon: {
-                    hierarchy: positions,
-                    material: Cesium.Color.fromCssColorString(this.options.pColor || '#ff0000'),
-                    outline: true,
-                    outlineColor: Cesium.Color.fromCssColorString(this.options.outlineColor || '#ffffff'),
-                    height: this.options.height,
-                    show: this.options.show,
+                //@ts-ignore
+                polygon: __assign({ hierarchy: new Cesium.PolygonHierarchy(positions) }, this.options),
+                polyline: {
+                    show: this.options.outline,
+                    positions: positions,
+                    width: this.options.outlineWidth || 1,
+                    material: this.options.outlineColor || Cesium.Color.RED,
+                    clampToGround: this.options.onGround,
                 },
                 properties: properties || this.options.featureAttribute,
                 id: this.options.id,
             });
             return entity;
         };
-        /**
-         * 创建面图元
-         * @param {Cartesian3[]} positions 面的位置数组
-         * @returns {any} 面图元对象
-         */
         PolygonGraphic.prototype.createPolygonPrimitive = function (positions) {
-            // 返回用于创建 GeometryInstance 的配置信息
-            return {
-                hierarchy: new Cesium.PolygonHierarchy(positions),
-                material: Cesium.Color.fromCssColorString(this.options.pColor || '#ff0000'),
-                outline: true,
-                outlineColor: Cesium.Color.fromCssColorString(this.options.outlineColor || '#ffffff'),
-                height: this.options.height,
-                show: this.options.show,
-                id: this.options.id,
-            };
-        };
-        /**
-         * 创建面几何体实例
-         * @param {Cartesian3[]} positions 面的位置数组
-         * @returns {GeometryInstance} 几何体实例
-         */
-        PolygonGraphic.prototype.createPolygonGeometryInstance = function (positions) {
-            return new Cesium.GeometryInstance({
-                geometry: new Cesium.PolygonGeometry({
-                    polygonHierarchy: new Cesium.PolygonHierarchy(positions),
-                    vertexFormat: this.options.height ? Cesium.VertexFormat.POSITION_AND_NORMAL : Cesium.VertexFormat.POSITION_ONLY,
-                }),
-                attributes: {
-                    color: Cesium.Color.fromCssColorString(this.options.pColor || '#ff0000').withAlpha(0.5).toRgba(),
-                },
-                id: this.options.id,
-            });
+            return false;
         };
         return PolygonGraphic;
-    }());
+    }(Cesium.PolygonGraphics));
 
     /**
      * @fileoverview 提供创建面要素的功能，支持Entity形式
@@ -964,7 +932,7 @@
         for (var i = 0; i < positionsList.length; i++) {
             // 根据option是否为数组来确定当前面的配置
             var currentOption = isOptionArray
-                ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.id || randomId() });
+                ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
             var polygonGraphic = new PolygonGraphic(currentOption);
             var entity = polygonGraphic.createEntity(positionsList[i]);
             entities.push(entity);
@@ -986,7 +954,7 @@
         for (var i = 0; i < positionsList.length; i++) {
             // 根据option是否为数组来确定当前面的配置
             var currentOption = isOptionArray
-                ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.id || randomId() });
+                ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
             var polygonGraphic = new PolygonGraphic(currentOption);
             var config = polygonGraphic.createPolygonPrimitive(positionsList[i]);
             primitiveConfigs.push(config);

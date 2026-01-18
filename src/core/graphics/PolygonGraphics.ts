@@ -13,7 +13,7 @@ export interface PolygonOption
   onGround?: boolean
   outline?: boolean
   outlineWidth?: number
-  outlineColor?: string
+  outlineColor?: string | Color
   id?: string
   featureAttribute?: object
   zIndex?: number
@@ -37,6 +37,7 @@ class PolygonGraphic extends PolygonGraphics {
   constructor(options: PolygonOption = {}) {
     const processedOptions = PolygonGraphic.processOptions(options)
     super(processedOptions)
+    //@ts-ignore
     this.options = processedOptions
   }
 
@@ -52,7 +53,7 @@ class PolygonGraphic extends PolygonGraphics {
     // Copy all properties
     Object.keys(mergedOptions).forEach((key) => {
       if (key !== "color" && key !== "outlineColor" && key !== "onGround") {
-        ;(cesiumOptions as any)[key] = (mergedOptions as any)[key]
+        ; (cesiumOptions as any)[key] = (mergedOptions as any)[key]
       }
     })
 
@@ -76,15 +77,29 @@ class PolygonGraphic extends PolygonGraphics {
     return cesiumOptions
   }
 
-  creatEntity(positions: Cartesian3[], properties?: any) {
+  createEntity(positions: Cartesian3[], properties?: any): Entity {
     const entity = new Entity({
+      //@ts-ignore
       polygon: {
         hierarchy: new PolygonHierarchy(positions),
         ...this.options,
       },
+      polyline: {
+        show: this.options.outline,
+        positions: positions,
+        width: this.options.outlineWidth || 1,
+        material: this.options.outlineColor as Color || Color.RED,
+        clampToGround: this.options.onGround,
+      },
       properties: properties || this.options.featureAttribute,
       id: this.options.id,
     })
+
+    return entity
+  }
+
+  createPolygonPrimitive(positions: Cartesian3[]): any {
+    return false
   }
 }
 export default PolygonGraphic

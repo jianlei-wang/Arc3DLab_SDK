@@ -41,6 +41,8 @@ const treeDatas = [
       { id: "009", label: "添加点Primitive" },
       { id: "013", label: "添加线Entity" },
       { id: "014", label: "添加线Primitive" },
+      { id: "015", label: "添加多边形Entity" },
+      { id: "016", label: "添加多边形Primitive" },
       { id: "010", label: "加载geojson" },
       { id: "011", label: "加载KML" },
       { id: "012", label: "加载geoserver地图服务" },

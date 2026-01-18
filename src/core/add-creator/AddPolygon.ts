@@ -19,12 +19,12 @@ export function addPolygonsAsEntities(
 ): Entity[] {
   const entities: Entity[] = [];
   const isOptionArray = Array.isArray(option);
-  
+
   for (let i = 0; i < positionsList.length; i++) {
     // 根据option是否为数组来确定当前面的配置
     const currentOption = isOptionArray
       ? { ...option[i], id: option[i].id || randomId() }
-      : { ...option, id: option.id || randomId() };
+      : { ...option, id: option.ids ? option.ids[i] : randomId() };
 
     const polygonGraphic = new PolygonGraphic(currentOption);
     const entity = polygonGraphic.createEntity(positionsList[i]);
@@ -49,12 +49,12 @@ export function addPolygonsAsPrimitives(
   // 这里返回一个包含必要信息的对象，供外部使用
   const primitiveConfigs = [];
   const isOptionArray = Array.isArray(option);
-  
+
   for (let i = 0; i < positionsList.length; i++) {
     // 根据option是否为数组来确定当前面的配置
     const currentOption = isOptionArray
       ? { ...option[i], id: option[i].id || randomId() }
-      : { ...option, id: option.id || randomId() };
+      : { ...option, id: option.ids ? option.ids[i] : randomId()  };
 
     const polygonGraphic = new PolygonGraphic(currentOption);
     const config = polygonGraphic.createPolygonPrimitive(positionsList[i]);
