@@ -1,143 +1,90 @@
-/**
- * @fileoverview 面图形类，提供简化的参数接口来创建面要素
- */
-
 import {
-  Color,
   Cartesian3,
+  Color,
   Entity,
+  PolygonGraphics,
   PolygonHierarchy,
-  PolygonGeometry,
-  GeometryInstance,
-  Primitive,
-  PerInstanceColorAppearance,
-  VertexFormat
-} from "cesium";
+  Property,
+} from "cesium"
 
-/**
- * 面选项接口
- * @interface PolygonOption
- * @property {string} [pColor="#ff0000"] - 面的颜色
- * @property {string} [outlineColor="#ffffff"] - 面轮廓颜色
- * @property {number} [height=0] - 高度
- * @property {boolean} [show=true] - 是否显示
- * @property {string} [id] - 面的ID
- * @property {object} [featureAttribute={}] - 要素属性
- */
-export interface PolygonOption {
-  pColor?: string;
-  outlineColor?: string;
-  height?: number;
-  show?: boolean;
-  id?: string;
-  featureAttribute?: object;
+export interface PolygonOption
+  extends Omit<PolygonGraphics.ConstructorOptions, "outlineColor" | "outline"> {
+  color?: string
+  onGround?: boolean
+  outline?: boolean
+  outlineWidth?: number
+  outlineColor?: string
+  id?: string
+  featureAttribute?: object
+  zIndex?: number
+  ids?: string[]
 }
 
-/**
- * 默认面选项配置
- * @constant {PolygonOption} defaultOptions
- */
 const defaultOptions: PolygonOption = {
-  pColor: "#ff0000",
-  outlineColor: "#ffffff",
-  height: 0,
-  show: true,
+  color: "#ff0000",
+  onGround: true,
+  outline: true,
+  outlineWidth: 1,
+  outlineColor: "#00ff00",
   id: "default_polygon_id",
   featureAttribute: {},
-};
+  zIndex: 0,
+  ids: [],
+}
 
-/**
- * 面图形类
- * 提供更简化的参数接口来创建面要素
- */
-class PolygonGraphic {
-  /**
-   * 面选项配置
-   * @type {PolygonOption}
-   */
-  options: PolygonOption;
-
-  /**
-   * 构造函数
-   * @param {PolygonOption} [options={}] 面选项配置
-   */
+class PolygonGraphic extends PolygonGraphics {
+  options: PolygonOption
   constructor(options: PolygonOption = {}) {
-    const processedOptions = PolygonGraphic.processOptions(options);
-    this.options = processedOptions;
+    const processedOptions = PolygonGraphic.processOptions(options)
+    super(processedOptions)
+    this.options = processedOptions
   }
 
-  /**
-   * 处理面选项配置
-   * 将简化的参数转换为Cesium可识别的格式
-   * @private
-   * @static
-   * @param {PolygonOption} options 用户提供的面选项
-   * @returns {PolygonOption} 处理后的面选项
-   */
-  private static processOptions(options: PolygonOption): PolygonOption {
-    const finalOptions = Object.assign({}, defaultOptions, options);
+  private static processOptions(
+    options: PolygonOption
+  ): PolygonGraphics.ConstructorOptions {
+    // First merge with defaults
+    const mergedOptions = Object.assign({}, defaultOptions, options)
 
-    return finalOptions;
+    // Create a new object for Cesium constructor that conforms to ConstructorOptions
+    const cesiumOptions: any = {}
+
+    // Copy all properties
+    Object.keys(mergedOptions).forEach((key) => {
+      if (key !== "color" && key !== "outlineColor" && key !== "onGround") {
+        ;(cesiumOptions as any)[key] = (mergedOptions as any)[key]
+      }
+    })
+
+    // Convert color from string to material
+    if (mergedOptions.color && typeof mergedOptions.color === "string") {
+      cesiumOptions.material = Color.fromCssColorString(mergedOptions.color)
+    }
+
+    // Convert outlineColor from string to Color
+    if (
+      mergedOptions.outlineColor &&
+      typeof mergedOptions.outlineColor === "string"
+    ) {
+      cesiumOptions.outlineColor = Color.fromCssColorString(
+        mergedOptions.outlineColor
+      )
+    }
+
+    cesiumOptions.heightReference = mergedOptions.onGround ? 1 : 0 // CLAMP_TO_GROUND = 1, NONE = 0
+
+    return cesiumOptions
   }
 
-  /**
-   * 创建Cesium实体
-   * @param {Cartesian3[]} positions 面的位置数组
-   * @param {any} [properties] 实体的附加属性
-   * @returns {Entity} Cesium实体对象
-   */
-  createEntity(positions: Cartesian3[], properties?: any): Entity {
+  creatEntity(positions: Cartesian3[], properties?: any) {
     const entity = new Entity({
       polygon: {
-        hierarchy: positions,
-        material: Color.fromCssColorString(this.options.pColor || '#ff0000'),
-        outline: true,
-        outlineColor: Color.fromCssColorString(this.options.outlineColor || '#ffffff'),
-        height: this.options.height,
-        show: this.options.show,
+        hierarchy: new PolygonHierarchy(positions),
+        ...this.options,
       },
       properties: properties || this.options.featureAttribute,
       id: this.options.id,
-    });
-
-    return entity;
-  }
-
-  /**
-   * 创建面图元
-   * @param {Cartesian3[]} positions 面的位置数组
-   * @returns {any} 面图元对象
-   */
-  createPolygonPrimitive(positions: Cartesian3[]) {
-    // 返回用于创建 GeometryInstance 的配置信息
-    return {
-      hierarchy: new PolygonHierarchy(positions),
-      material: Color.fromCssColorString(this.options.pColor || '#ff0000'),
-      outline: true,
-      outlineColor: Color.fromCssColorString(this.options.outlineColor || '#ffffff'),
-      height: this.options.height,
-      show: this.options.show,
-      id: this.options.id,
-    };
-  }
-
-  /**
-   * 创建面几何体实例
-   * @param {Cartesian3[]} positions 面的位置数组
-   * @returns {GeometryInstance} 几何体实例
-   */
-  createPolygonGeometryInstance(positions: Cartesian3[]): GeometryInstance {
-    return new GeometryInstance({
-      geometry: new PolygonGeometry({
-        polygonHierarchy: new PolygonHierarchy(positions),
-        vertexFormat: this.options.height ? VertexFormat.POSITION_AND_NORMAL : VertexFormat.POSITION_ONLY,
-      }),
-      attributes: {
-        color: Color.fromCssColorString(this.options.pColor || '#ff0000').withAlpha(0.5).toRgba(),
-      },
-      id: this.options.id,
-    });
+    })
   }
 }
-
-export default PolygonGraphic;
+export default PolygonGraphic
