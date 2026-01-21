@@ -2,23 +2,11 @@
  * @fileoverview 添加对象类，提供地图上各种对象的添加功能
  */
 
-import {
-  Cartesian3,
-  Entity,
-  GroundPolylinePrimitive,
-  PointPrimitive,
-  PointPrimitiveCollection,
-} from "cesium"
+import { Cartesian3, Entity, GroundPolylinePrimitive } from "cesium"
 import Layers from "../Layers"
-import { PointOption, default as PointGraphic } from "../graphics/PointGraphics"
-import {
-  PolylineOption,
-  default as PolylineGraphic,
-} from "../graphics/PolylineGraphics"
-import {
-  PolygonOption,
-  default as PolygonGraphic,
-} from "../graphics/PolygonGraphics"
+import { PointOption } from "../graphics/PointGraphics"
+import { PolylineOption } from "../graphics/PolylineGraphics"
+import { PolygonOption } from "../graphics/PolygonGraphics"
 import { Viewer } from "../Viewer"
 import { addPointsAsEntities, addPointsAsPrimitives } from "./AddPoint"
 import { addLinesAsEntities, addLinesAsPrimitives } from "./AddLine"
@@ -33,10 +21,6 @@ import { randomId, safeCallback } from "src/utils/Generate"
  */
 type PointCallback = (points: any[]) => any[]
 
-/**
- * 添加对象类
- * 用于在地图场景中添加各种类型的对象，如点、线、面等
- */
 /**
  * 添加对象类
  * 用于在地图场景中添加各种类型的对象，如点、线、面等
@@ -148,15 +132,29 @@ class Add {
     callback?: PointCallback
   ): any {
     if (usePrimitive) {
-      const primitives = addPolygonsAsPrimitives(positionsList, option)
-      const addedPrimitives = this.Layers.PrimitiveManager.add(
-        randomId(),
-        primitives
+      const id = randomId()
+      const { polygonPrimitive, polylinePrimitive } = addPolygonsAsPrimitives(
+        positionsList,
+        option
       )
-      if (callback) {
-        return safeCallback<any[]>(callback, addedPrimitives)
+      const polygonPrimitives = this.Layers.PrimitiveManager.add(
+        id,
+        polygonPrimitive
+      )
+      let polylinePrimitivevs
+      if (polylinePrimitive) {
+        polylinePrimitivevs =
+          polylinePrimitive instanceof GroundPolylinePrimitive
+            ? this.Layers.GroundPrimitiveManager.add(id, polylinePrimitive)
+            : this.Layers.PrimitiveManager.add(id, polylinePrimitive)
       }
-      return addedPrimitives
+      if (callback) {
+        return safeCallback<any[]>(callback, [
+          polygonPrimitives,
+          polylinePrimitivevs,
+        ])
+      }
+      return [polygonPrimitives, polylinePrimitivevs]
     } else {
       const entities = addPolygonsAsEntities(positionsList, option)
       const addedEntities = this.Layers.EntityManager.add(randomId(), entities)

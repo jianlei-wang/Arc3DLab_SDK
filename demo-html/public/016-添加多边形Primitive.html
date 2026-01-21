@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>015-添加多边形Entity</title>
+    <title>016-添加多边形Primitive</title>
     <script src="./Cesium/Cesium.js"></script>
     <link rel="stylesheet" href="./Cesium/Widgets/widgets.css" />
     <script src="./lib/arc3dlab.umd.js"></script>
@@ -41,57 +41,20 @@
         mapboxController: true,
         terrain: DefaultTerrain,
       })
-
       initGui()
       function initGui() {
         const params = {
-          message: "GUI面板-添加多边形Entity",
-          color: "#ffff00",
+          message: "GUI面板-添加多边形Primitive",
+          color: "#ffff0080",
           onGround: true,
           outline: true,
-          outlineWidth: 5,
+          outlineWidth: 2,
           outlineColor: "#000000",
         }
         const gui = new dat.GUI({ autoPlace: false })
         const customContainer = document.getElementById("gui-box")
         customContainer.appendChild(gui.domElement)
         gui.add(params, "message")
-        const color = gui.addColor(params, "color")
-
-        color.onFinishChange((color) => {
-          polygonEntity.forEach((entity, index) => {
-            entity.polygon.material = Cesium.Color.fromCssColorString(color)
-          })
-        })
-
-        const onGround = gui.add(params, "onGround")
-        onGround.onFinishChange((bool) => {
-          polygonEntity.forEach((entity, index) => {
-            entity.polygon.heightReference = bool ? 1 : 0
-            entity.polyline.clampToGround = bool
-          })
-        })
-
-        const outline = gui.add(params, "outline")
-        outline.onFinishChange((bool) => {
-          polygonEntity.forEach((entity, index) => {
-            entity.polyline.show = bool
-          })
-        })
-
-        const outlineWidth = gui.add(params, "outlineWidth", 1, 10)
-        outlineWidth.onFinishChange((width) => {
-          polygonEntity.forEach((entity, index) => {
-            entity.polyline.width = width
-          })
-        })
-
-        const outlineColor = gui.addColor(params, "outlineColor")
-        outlineColor.onFinishChange((color) => {
-          polygonEntity.forEach((entity, index) => {
-            entity.polyline.material = Cesium.Color.fromCssColorString(color)
-          })
-        })
       }
       // 生成随机多边形节点
       const numPolygons = 10
@@ -128,15 +91,15 @@
         polygonsArray.push(polygon)
       }
 
-      let polygonEntity
+      let polygonPrimitive
 
       function initEntities() {
         const options = {
-          color: "#ffff00",
+          color: "#ffff0080",
           onGround: true,
           outline: true,
-          outlineColor: "#000000",
           outlineWidth: 2,
+          outlineColor: "#000000",
           allowPick: true,
           ids: [],
         }
@@ -144,15 +107,10 @@
         // 使用随机生成的多边形数组
         const polygons = polygonsArray
         for (let i = 0; i < polygons.length; i++) {
-          options.ids.push(`custom_polygon_entity_${i}`)
+          options.ids.push(`custom_polygon_primitive_${i}`)
         }
-        viewer.Layers.Add.addPolygons(polygons, options, false, (entities) => {
-          // 在回调中修改每个实体的属性
-          entities.forEach((entity, index) => {
-            const hue = (index % 10) / 10
-            entity.polygon.material = Cesium.Color.fromHsl(hue, 1.0, 0.5)
-          })
-          polygonEntity = entities
+        viewer.Layers.Add.addPolygons(polygons, options, true, (items) => {
+          polygonPrimitive = items
         })
       }
       initEntities()

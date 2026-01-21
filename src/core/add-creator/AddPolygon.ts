@@ -1,10 +1,20 @@
 /**
- * @fileoverview 提供创建面要素的功能，支持Entity形式
+ * @fileoverview 提供创建面要素的功能，支持Entity和Primitive两种形式
  */
 
-import { Cartesian3, Entity } from "cesium";
-import { randomId } from "../../utils/Generate";
-import { PolygonOption, default as PolygonGraphic } from "../graphics/PolygonGraphics";
+import {
+  Cartesian3,
+  Entity,
+  GroundPrimitive,
+  PerInstanceColorAppearance,
+  Primitive,
+} from "cesium"
+import { randomId } from "../../utils/Generate"
+import {
+  PolygonOption,
+  default as PolygonGraphic,
+} from "../graphics/PolygonGraphics"
+import { addLinesAsPrimitives } from "./AddLine"
 
 /**
  * 使用Entity形式添加多个面
@@ -17,21 +27,21 @@ export function addPolygonsAsEntities(
   positionsList: Cartesian3[][],
   option: PolygonOption | PolygonOption[]
 ): Entity[] {
-  const entities: Entity[] = [];
-  const isOptionArray = Array.isArray(option);
+  const entities: Entity[] = []
+  const isOptionArray = Array.isArray(option)
 
   for (let i = 0; i < positionsList.length; i++) {
     // 根据option是否为数组来确定当前面的配置
     const currentOption = isOptionArray
       ? { ...option[i], id: option[i].id || randomId() }
-      : { ...option, id: option.ids ? option.ids[i] : randomId() };
+      : { ...option, id: option.ids ? option.ids[i] : randomId() }
 
-    const polygonGraphic = new PolygonGraphic(currentOption);
-    const entity = polygonGraphic.createEntity(positionsList[i]);
-    entities.push(entity);
+    const polygonGraphic = new PolygonGraphic(currentOption)
+    const entity = polygonGraphic.createEntity(positionsList[i])
+    entities.push(entity)
   }
 
-  return entities;
+  return entities
 }
 
 /**
@@ -47,19 +57,47 @@ export function addPolygonsAsPrimitives(
 ): any {
   // 实际上，对于Polygon Primitive，我们通常需要使用Primitive和GeometryInstance
   // 这里返回一个包含必要信息的对象，供外部使用
-  const primitiveConfigs = [];
-  const isOptionArray = Array.isArray(option);
-
+  const polygonInstance = []
+  // const polylineInstance = []
+  const isOptionArray = Array.isArray(option)
+  const { outline } = isOptionArray ? option[0] : option
+  let boolTerrain = true
   for (let i = 0; i < positionsList.length; i++) {
     // 根据option是否为数组来确定当前面的配置
     const currentOption = isOptionArray
       ? { ...option[i], id: option[i].id || randomId() }
-      : { ...option, id: option.ids ? option.ids[i] : randomId()  };
+      : { ...option, id: option.ids ? option.ids[i] : randomId() }
 
-    const polygonGraphic = new PolygonGraphic(currentOption);
-    const config = polygonGraphic.createPolygonPrimitive(positionsList[i]);
-    primitiveConfigs.push(config);
+    const polygonGraphic = new PolygonGraphic(currentOption)
+    const config = polygonGraphic.createPolygonPrimitive(positionsList[i])
+    polygonInstance.push(config)
+  }
+  const polygonPrimitiveOpt = {
+    geometryInstances: polygonInstance,
+    appearance: new PerInstanceColorAppearance({
+      translucent: true,
+      flat: true,
+    }),
+  }
+  const polygonPrimitive = boolTerrain
+    ? new GroundPrimitive(polygonPrimitiveOpt)
+    : new Primitive(polygonPrimitiveOpt)
+
+  let polylinePrimitive
+  if (outline) {
+    const lineOption = isOptionArray
+      ? option.map((opt) => {
+          return Object.assign({}, opt, {
+            color: opt.outlineColor,
+            width: opt.outlineWidth,
+          })
+        })
+      : Object.assign({}, option, {
+          color: option.outlineColor,
+          width: option.outlineWidth,
+        })
+    polylinePrimitive = addLinesAsPrimitives(positionsList, lineOption)
   }
 
-  return primitiveConfigs;
+  return { polygonPrimitive, polylinePrimitive }
 }

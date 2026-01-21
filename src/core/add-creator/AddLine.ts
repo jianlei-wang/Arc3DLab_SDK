@@ -1,15 +1,11 @@
 /**
- * @fileoverview 提供创建线要素的功能，支持Entity形式
+ * @fileoverview 提供创建线要素的功能，支持Entity和Primitive两种形式
  */
 
 import {
   Cartesian3,
-  Color,
   Entity,
-  GeometryInstance,
   GroundPolylinePrimitive,
-  PerInstanceColorAppearance,
-  PolylineCollection,
   PolylineColorAppearance,
   Primitive,
 } from "cesium"

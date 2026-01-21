@@ -764,6 +764,9 @@
             if (finalOptions.color && typeof finalOptions.color === "string") {
                 finalOptions.material = Cesium.Color.fromCssColorString(finalOptions.color);
             }
+            else {
+                finalOptions.material = finalOptions.color;
+            }
             finalOptions.clampToGround = finalOptions.onGround;
             return finalOptions;
         };
@@ -776,13 +779,13 @@
             return entity;
         };
         PolylineGraphic.prototype.createPrimitive = function (positions) {
-            var _a = this.options, onGround = _a.onGround, material = _a.material, width = _a.width, id = _a.id;
+            var _a = this.options, clampToGround = _a.clampToGround, material = _a.material, width = _a.width, id = _a.id;
             var geoOtp = {
                 positions: positions,
                 width: width,
                 vertexFormat: Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
             };
-            var lineGeo = onGround
+            var lineGeo = clampToGround
                 ? new Cesium.GroundPolylineGeometry(geoOtp)
                 : new Cesium.PolylineGeometry(geoOtp);
             var instance = new Cesium.GeometryInstance({
@@ -891,27 +894,45 @@
                 typeof mergedOptions.outlineColor === "string") {
                 cesiumOptions.outlineColor = Cesium.Color.fromCssColorString(mergedOptions.outlineColor);
             }
-            cesiumOptions.heightReference = mergedOptions.onGround ? 1 : 0; // CLAMP_TO_GROUND = 1, NONE = 0
+            cesiumOptions.heightReference = mergedOptions.onGround
+                ? Cesium.HeightReference.CLAMP_TO_GROUND
+                : Cesium.HeightReference.NONE;
             return cesiumOptions;
         };
         PolygonGraphic.prototype.createEntity = function (positions, properties) {
+            var _a = this.options, outline = _a.outline, material = _a.material, outlineColor = _a.outlineColor, outlineWidth = _a.outlineWidth, featureAttribute = _a.featureAttribute, id = _a.id, heightReference = _a.heightReference;
             var entity = new Cesium.Entity({
-                //@ts-ignore
-                polygon: __assign({ hierarchy: new Cesium.PolygonHierarchy(positions) }, this.options),
-                polyline: {
-                    show: this.options.outline,
-                    positions: positions,
-                    width: this.options.outlineWidth || 1,
-                    material: this.options.outlineColor || Cesium.Color.RED,
-                    clampToGround: this.options.onGround,
+                polygon: {
+                    hierarchy: positions,
+                    material: material,
+                    heightReference: heightReference,
                 },
-                properties: properties || this.options.featureAttribute,
-                id: this.options.id,
+                polyline: {
+                    show: outline,
+                    positions: positions,
+                    width: outlineWidth || 1,
+                    material: outlineColor || Cesium.Color.RED,
+                    clampToGround: heightReference === Cesium.HeightReference.CLAMP_TO_GROUND,
+                },
+                properties: properties || featureAttribute,
+                id: id,
             });
             return entity;
         };
         PolygonGraphic.prototype.createPolygonPrimitive = function (positions) {
-            return false;
+            var _a = this.options, material = _a.material, id = _a.id;
+            var polygonGeo = new Cesium.PolygonGeometry({
+                polygonHierarchy: new Cesium.PolygonHierarchy(positions),
+                vertexFormat: Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
+            });
+            var instance = new Cesium.GeometryInstance({
+                geometry: polygonGeo,
+                attributes: {
+                    color: Cesium.ColorGeometryInstanceAttribute.fromColor(material),
+                },
+                id: id,
+            });
+            return instance;
         };
         return PolygonGraphic;
     }(Cesium.PolygonGraphics));
@@ -949,17 +970,45 @@
     function addPolygonsAsPrimitives(positionsList, option) {
         // 实际上，对于Polygon Primitive，我们通常需要使用Primitive和GeometryInstance
         // 这里返回一个包含必要信息的对象，供外部使用
-        var primitiveConfigs = [];
+        var polygonInstance = [];
+        // const polylineInstance = []
         var isOptionArray = Array.isArray(option);
+        var outline = (isOptionArray ? option[0] : option).outline;
+        var boolTerrain = true;
         for (var i = 0; i < positionsList.length; i++) {
             // 根据option是否为数组来确定当前面的配置
             var currentOption = isOptionArray
                 ? __assign(__assign({}, option[i]), { id: option[i].id || randomId() }) : __assign(__assign({}, option), { id: option.ids ? option.ids[i] : randomId() });
             var polygonGraphic = new PolygonGraphic(currentOption);
             var config = polygonGraphic.createPolygonPrimitive(positionsList[i]);
-            primitiveConfigs.push(config);
+            polygonInstance.push(config);
         }
-        return primitiveConfigs;
+        var polygonPrimitiveOpt = {
+            geometryInstances: polygonInstance,
+            appearance: new Cesium.PerInstanceColorAppearance({
+                translucent: true,
+                flat: true,
+            }),
+        };
+        var polygonPrimitive = boolTerrain
+            ? new Cesium.GroundPrimitive(polygonPrimitiveOpt)
+            : new Cesium.Primitive(polygonPrimitiveOpt);
+        var polylinePrimitive;
+        if (outline) {
+            var lineOption = isOptionArray
+                ? option.map(function (opt) {
+                    return Object.assign({}, opt, {
+                        color: opt.outlineColor,
+                        width: opt.outlineWidth,
+                    });
+                })
+                : Object.assign({}, option, {
+                    color: option.outlineColor,
+                    width: option.outlineWidth,
+                });
+            polylinePrimitive = addLinesAsPrimitives(positionsList, lineOption);
+        }
+        return { polygonPrimitive: polygonPrimitive, polylinePrimitive: polylinePrimitive };
     }
 
     /**
@@ -1060,12 +1109,23 @@
             if (option === void 0) { option = {}; }
             if (usePrimitive === void 0) { usePrimitive = false; }
             if (usePrimitive) {
-                var primitives = addPolygonsAsPrimitives(positionsList, option);
-                var addedPrimitives = this.Layers.PrimitiveManager.add(randomId(), primitives);
-                if (callback) {
-                    return safeCallback(callback, addedPrimitives);
+                var id = randomId();
+                var _a = addPolygonsAsPrimitives(positionsList, option), polygonPrimitive = _a.polygonPrimitive, polylinePrimitive = _a.polylinePrimitive;
+                var polygonPrimitives = this.Layers.PrimitiveManager.add(id, polygonPrimitive);
+                var polylinePrimitivevs = void 0;
+                if (polylinePrimitive) {
+                    polylinePrimitivevs =
+                        polylinePrimitive instanceof Cesium.GroundPolylinePrimitive
+                            ? this.Layers.GroundPrimitiveManager.add(id, polylinePrimitive)
+                            : this.Layers.PrimitiveManager.add(id, polylinePrimitive);
                 }
-                return addedPrimitives;
+                if (callback) {
+                    return safeCallback(callback, [
+                        polygonPrimitives,
+                        polylinePrimitivevs,
+                    ]);
+                }
+                return [polygonPrimitives, polylinePrimitivevs];
             }
             else {
                 var entities = addPolygonsAsEntities(positionsList, option);

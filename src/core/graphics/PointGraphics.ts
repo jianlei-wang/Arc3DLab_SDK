@@ -135,6 +135,11 @@ class PointGraphic extends PointGraphics {
    * @param {Cartesian3} position 点的位置
    * @returns {PointPrimitive} 点图元对象
    */
+  /**
+   * 创建点图元
+   * @param {Cartesian3} position 点的位置
+   * @returns {PointPrimitive} 点图元对象
+   */
   createPointPrimitive(position: Cartesian3): PointPrimitive {
     const pointPrimitive = {
       position: position,

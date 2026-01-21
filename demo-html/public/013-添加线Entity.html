@@ -97,7 +97,6 @@
           lines.push(positions)
         }
         viewer.Layers.Add.addLines(lines, options, false, (entities) => {
-          console.log(entities)
           // 在回调中修改每个实体的属性
           entities.forEach((entity, index) => {
             const hue = (index % 10) / 10

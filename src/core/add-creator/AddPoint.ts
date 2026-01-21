@@ -13,13 +13,6 @@ import { PointOption, default as PointGraphic } from "../graphics/PointGraphics"
  * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
  * @returns {Entity[]} 点对象数组，Entity类对象
  */
-/**
- * 使用Entity形式添加多个点
- * @function addPointsAsEntities
- * @param {Cartesian3[]} positions 点位置数组，笛卡尔坐标
- * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
- * @returns {Entity[]} 点对象数组，Entity类对象
- */
 export function addPointsAsEntities(
   positions: Cartesian3[],
   option: PointOption | PointOption[]
@@ -41,13 +34,6 @@ export function addPointsAsEntities(
   return entities
 }
 
-/**
- * 使用Primitive形式添加多个点
- * @function addPointsAsPrimitives
- * @param {Cartesian3[]} positions 点位置，笛卡尔坐标
- * @param {PointOption | PointOption[]} option 点参数，可以是单个对象或对象数组
- * @returns {PointPrimitiveCollection} 点集合对象，PointPrimitiveCollection类对象
- */
 /**
  * 使用Primitive形式添加多个点
  * @function addPointsAsPrimitives
