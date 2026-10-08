@@ -1,0 +1,12 @@
+{
+  "name": "@arc3dlab/engine-cesium",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "peerDependencies": {
+    "cesium": ">=1.136.0 <1.147.0"
+  }
+}

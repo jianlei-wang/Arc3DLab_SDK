@@ -1,11 +1,10 @@
-# arc3dlab
+# Arc3DLab
 
 [**版本日志**](./CHANGES.md) | [**历史日志**](./LOG.md)
 
-`arc3dlab` 是基于开源项目 `Cesium` 进行二次开发的二三维一体的 `WebGis` 应用框架，该框架优化了部分 `Cesium` 的使用方式并基于业务开发相应功能方法，旨在为开发者快速构建 `WebGis` 应用。
+Arc3DLab 是面向三维 WebGIS 应用的模块化场景运行时 SDK。CesiumJS 是首个渲染引擎。
 
-demo-vue3为测试npm发布包样例项目
-demo-html为静态页面样例项目
+设计文档位于 `docs/architecture/`，迁移指南位于 `docs/guides/migration.md`。
 
 ## 开发
 
@@ -14,53 +13,54 @@ demo-html为静态页面样例项目
 如果您想为本项目贡献代码或在本地测试修改，可以使用以下开发命令：
 
 ```bash
-# 构建项目
+# 构建 ESM
 npm run build
 
-# 开发模式 - 构建并准备测试
-npm run dev
-
-# 开发监听模式 - 自动监听文件更改并重新构建
-npm run dev:watch
-
-# 将构建结果复制到 demo-html 项目
-npm run build:copy
+# 单元测试
+npm test
 
 # 生成 API 文档
 npm run docs
 ```
 
-### 1.npm引入
+### 1. 安装
 
 ```bash
-npm i arc3dlab --save-dev
+npm i arc3dlab cesium
 ```
 
-### 2.创建基础地球——以在vue3中使用为例
+### 2. 创建场景
 
-```vue
-<script setup lang="ts">
-import { Viewer } from 'arc3dlab';
-import { nextTick, onMounted } from 'vue';
-onMounted(() => {
-  nextTick(() => {
-    window.viewer = new Viewer('map');
-    console.log(window.viewer);
-  });
-});
-</script>
+```ts
+import { Arc3D } from "arc3dlab"
 
-<template>
-  <div id="map"></div>
-</template>
+const app = await Arc3D.create({
+  container: "map",
+  tokens: {
+    cesiumIon: import.meta.env.VITE_CESIUM_ION_TOKEN,
+  },
+})
 
-<style scoped lang="scss">
-#map {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-</style>
+app.graphics.addPolygon({
+  positions: [
+    [120.1, 30.2],
+    [120.2, 30.2],
+    [120.2, 30.3],
+    [120.1, 30.3],
+  ],
+  style: {
+    fill: "#2F80ED88",
+    outline: true,
+    outlineColor: "#FFFFFF",
+  },
+})
+```
+
+兼容旧入口：
+
+```ts
+import { Viewer } from "arc3dlab"
+const viewer = new Viewer("map")
 ```
 
 ### 3. 注意：若出现Cesium静态文件访问出错
@@ -82,8 +82,4 @@ export default defineConfig({
 
 ## 版权声明
 
-```warning
-☆ Arc3DLab || ISC License ☆
-```
-
-## 谢谢
+本仓库许可证为 GNU GPL v2.0，详见 `LICENSE` 与 `NOTICE.md`。

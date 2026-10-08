@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import * as Arc3DLab from "arc3dlab"
-import { nextTick, onMounted } from "vue"
-let viewer: Arc3DLab.Viewer
+import { Arc3D, type Arc3DApp } from "arc3dlab"
+import { onMounted, onUnmounted } from "vue"
+
+let app: Arc3DApp | undefined
 onMounted(() => {
-  console.log("mounted", Arc3DLab)
-  nextTick(() => {
-    viewer = new Arc3DLab.Viewer("cus-map")
-    window.viewer = viewer
-    window.Arc3DLab = Arc3DLab
+  Arc3D.create({ container: "cus-map" }).then((instance) => {
+    app = instance
+    window.app = instance
   })
+})
+onUnmounted(() => {
+  app?.destroy()
 })
 </script>
 

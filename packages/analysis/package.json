@@ -1,0 +1,9 @@
+{
+  "name": "@arc3dlab/analysis",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false
+}

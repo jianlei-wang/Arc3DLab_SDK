@@ -80,7 +80,8 @@ class ReminderTip {
    * 鼠标移动事件处理
    */
   private _handleMouseMove(e: MouseEvent) {
-    this._createTip({ x: e.clientX, y: e.clientY }, true)
+    const rect = this.viewer.canvas.getBoundingClientRect()
+    this._createTip({ x: e.clientX - rect.left, y: e.clientY - rect.top }, true)
   }
 
   /**
@@ -89,7 +90,7 @@ class ReminderTip {
    * @param show
    */
   private _createTip(position: WindowPos, show: boolean) {
-    this._tipEl.innerHTML = this._message
+    this._tipEl.textContent = this._message
     this._tipEl.style.left = position.x + 15 + "px"
     this._tipEl.style.top = position.y + 20 + "px"
     this._tipEl.style.display = show ? "block" : "none"

@@ -2,21 +2,9 @@ import * as Cesium from "cesium"
 import EventEmitter from "./EventEmitter"
 import BaseLayer from "./layers/BaseLayer"
 import { mapImg, mapSize } from "src/utils/Scene"
-import { CesiumIcon } from "src/utils/def/Default"
 import Terrain from "./Terrain"
 import ReminderTip from "./PopupTip/ReminderTip"
 import Layers from "./Layers"
-
-/**
- * 设置 Cesium 应用的默认相机视图矩形。
- * 这定义了相机重置时显示的默认地理范围。
- */
-Cesium.Camera.DEFAULT_VIEW_RECTANGLE = new Cesium.Rectangle(
-  Cesium.Math.toRadians(70),
-  Cesium.Math.toRadians(-15),
-  Cesium.Math.toRadians(140),
-  Cesium.Math.toRadians(80)
-)
 
 /**
  * Viewer 类的配置选项
@@ -123,12 +111,12 @@ export class Viewer extends Cesium.Viewer {
       ...options,
     })
     this.initBaseConfig()
-    console.log("Viewer initialized", new Date())
   }
   //常见基础设置
   private initBaseConfig() {
-    // Cesium Icon资源key
-    Cesium.Ion.defaultAccessToken = this.options?.defaultKey || CesiumIcon
+    if (this.options?.defaultKey) {
+      Cesium.Ion.defaultAccessToken = this.options.defaultKey
+    }
 
     //默认打开深度检测，那么在地形以下的对象不可见
     this.scene.globe.depthTestAgainstTerrain = true
@@ -136,8 +124,6 @@ export class Viewer extends Cesium.Viewer {
     this.clock.multiplier = 1
     //禁止相机进入地下 false允许，true禁止
     this.scene.screenSpaceCameraController.enableCollisionDetection = true
-    //隐藏版本信息
-    ;(this.cesiumWidget.creditContainer as any).style.display = "none"
 
     this.resolutionScale = window.devicePixelRatio //高分辨率设备适配
     // Mapbox控制模式

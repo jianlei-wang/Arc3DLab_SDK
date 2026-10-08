@@ -1,23 +1,28 @@
 /**
- * Arc3DLab SDK - 基于 Cesium 构建的综合 WebGIS 框架
- *
- * 此 SDK 提供了增强的 Cesium 功能，具有针对 3D 地理空间可视化应用优化的默认设置。
+ * Arc3DLab SDK - Modular 3D WebGIS Runtime built on CesiumJS.
  *
  * @packageDocumentation
  * @module arc3dlab
  */
 
-/**
- * 导出所有类型定义
- */
-export type * from "./types"
+export {
+  Arc3D,
+  Arc3DApp,
+  Arc3DError,
+  CesiumEngine,
+  createId,
+} from "@arc3dlab/sdk"
+export type {
+  Arc3DConfig,
+  Arc3DContext,
+  Arc3DPlugin,
+  CameraPose,
+  LngLat,
+  LngLatHeight,
+  NativeContext,
+  PickResult,
+  RenderMode,
+} from "@arc3dlab/sdk"
 
-/**
- * 导出核心类和功能
- */
-export * from "./core"
-
-/**
- * 将实用函数作为 Tools 命名空间导出
- */
-export * from "./utils"
+export { Viewer } from "@arc3dlab/legacy"
+export type { LegacyViewerOptions } from "@arc3dlab/legacy"

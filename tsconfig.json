@@ -2,9 +2,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "lib": ["DOM", "ESNext"],
-    "target": "ES5",
+    "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "node", // 使用 Node.js 的模块解析
+    "moduleResolution": "bundler",
     "declaration": true,
     "declarationDir": "./dist/types",
     "outDir": "./dist",
@@ -12,8 +12,22 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "allowJs": true,
-    "checkJs": false
+    "checkJs": false,
+    "paths": {
+      "@arc3dlab/core": ["packages/core/src/index.ts"],
+      "@arc3dlab/engine-cesium": ["packages/engine-cesium/src/index.ts"],
+      "@arc3dlab/scene": ["packages/scene/src/index.ts"],
+      "@arc3dlab/layers": ["packages/layers/src/index.ts"],
+      "@arc3dlab/graphics": ["packages/graphics/src/index.ts"],
+      "@arc3dlab/data": ["packages/data/src/index.ts"],
+      "@arc3dlab/interaction": ["packages/interaction/src/index.ts"],
+      "@arc3dlab/analysis": ["packages/analysis/src/index.ts"],
+      "@arc3dlab/effects": ["packages/effects/src/index.ts"],
+      "@arc3dlab/ui": ["packages/ui/src/index.ts"],
+      "@arc3dlab/sdk": ["packages/sdk/src/index.ts"],
+      "@arc3dlab/legacy": ["packages/legacy/src/index.ts"]
+    }
   },
-  "include": ["src/**/*"], // 包含的源文件
-  "exclude": ["node_modules", "dist"] // 排除 node_modules 文件夹
+  "include": ["src/**/*", "packages/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

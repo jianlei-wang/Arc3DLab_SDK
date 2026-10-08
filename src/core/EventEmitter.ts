@@ -75,6 +75,13 @@ class EventEmitter {
   clear(): void {
     this.events.clear()
   }
+
+  destroy(): void {
+    this.clear()
+    if (this.handler && !this.handler.isDestroyed()) {
+      this.handler.destroy()
+    }
+  }
 }
 
 export default EventEmitter
