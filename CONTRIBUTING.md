@@ -33,3 +33,5 @@ npm test
 # 构建 ESM 与类型声明
 npm run build
 ```
+
+日常命令、即时测试、预览、API 文档和发布步骤见 `docs/guides/sdk-development.md`。

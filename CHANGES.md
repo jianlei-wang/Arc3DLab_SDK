@@ -38,4 +38,6 @@
 ### chore
 
 - 移除旧 `src/core` / `src/utils` / `src/types` 封装实现与 Rollup 构建配置
-
+- 固定 Cesium `1.146.0`
+- Sandcastle playground 编辑器移到地球左侧
+- 移除 `demo-html`，Playground 由 `demo-vue3` 承担

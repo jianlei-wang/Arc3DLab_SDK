@@ -7,6 +7,6 @@
   "types": "./src/index.ts",
   "sideEffects": false,
   "peerDependencies": {
-    "cesium": ">=1.136.0 <1.147.0"
+    "cesium": "1.146.0"
   }
 }

@@ -4,9 +4,11 @@
 
 Arc3DLab 是面向三维 WebGIS 应用的模块化场景运行时 SDK。CesiumJS 是首个渲染引擎。
 
-设计文档位于 `docs/architecture/`，迁移指南位于 `docs/guides/migration.md`。
+设计文档位于 `docs/architecture/`，开发说明位于 `docs/guides/sdk-development.md`，迁移指南位于 `docs/guides/migration.md`。
 
 ## 开发
+
+SDK 迭代、即时测试、预览、API 文档和发布流程见 `docs/guides/sdk-development.md`。
 
 ### 本地开发
 

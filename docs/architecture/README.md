@@ -8,6 +8,7 @@
 2. 每次设计变更在 `CHANGELOG.md` 追加一条记录：日期、变更点、影响模块。
 3. 公共 API 变更同步更新 `11-api.md` 与 `docs/guides/migration.md`。
 4. 原则变更必须同步 `01-principles.md` 与根目录 `CONTRIBUTING.md`。
+5. 开发命令、即时测试、预览、API 文档和发布见 `docs/guides/sdk-development.md`。
 
 ## 文档地图
 
@@ -27,6 +28,7 @@
 - `13-migration.md`：旧目录到新模块映射
 - `14-roadmap.md`：P0-P4 路线
 - `CHANGELOG.md`：设计迭代日志
+- `docs/guides/sdk-development.md`：SDK 开发、测试、预览、发布
 
 ## 代码映射
 

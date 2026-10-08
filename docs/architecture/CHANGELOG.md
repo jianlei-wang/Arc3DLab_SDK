@@ -13,3 +13,16 @@
 - 按最终设计收口源码边界：删除旧 Cesium 封装目录，静态资源迁入 `engine-cesium/assets`。
 - Scene 补齐 Render / Viewport / Clock / Environment 控制器。
 - LayerManager 暴露 `layers.data`，公共 API 导出 `Graphic` / `Layer`。
+
+## 2026-10-08
+
+- 新增 SDK 开发说明：`docs/guides/sdk-development.md`，覆盖即时测试、预览、API 文档和发布。
+
+## 2026-10-08
+
+- Cesium 固定为 `1.146.0`。
+- Sandcastle playground 的 JavaScript 编辑器移到地球左侧。
+
+## 2026-10-08
+
+- 移除 `demo-html`。Playground 由 `demo-vue3` Sandcastle 承担。
