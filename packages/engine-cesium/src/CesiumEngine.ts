@@ -7,7 +7,7 @@ import type {
 } from "@arc3dlab/core"
 import { Arc3DError } from "@arc3dlab/core"
 import * as Cesium from "cesium"
-import globeImg from "../../../src/static/globe-img"
+import globeImg from "./assets/globe-img"
 import { CreditManager } from "./credits"
 
 function resolveContainer(container: string | Element): Element {

@@ -18,3 +18,5 @@ Updated: 2026-10-08
 | `src/static` | `engine-cesium/assets` | 默认底图资源 |
 | `demo-vue3` | `examples/vue3` | 框架示例 |
 | `demo-html` | `examples` 过渡 | 后续升级 Playground |
+
+2026-10-08 起，旧 `src/core`、`src/utils`、`src/types`、`src/static` 已从仓库移除。实现只保留 `packages/*` 与根入口 `src/index.ts`。

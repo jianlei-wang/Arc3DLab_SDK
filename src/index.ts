@@ -17,6 +17,8 @@ export type {
   Arc3DContext,
   Arc3DPlugin,
   CameraPose,
+  Graphic,
+  Layer,
   LngLat,
   LngLatHeight,
   NativeContext,

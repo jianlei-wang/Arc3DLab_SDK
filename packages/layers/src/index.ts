@@ -6,6 +6,7 @@ import {
   type ResourceHandle,
 } from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
+import { DataManager } from "@arc3dlab/data"
 import {
   ArcGisMapServerImageryProvider,
   CesiumTerrainProvider,
@@ -283,9 +284,11 @@ export class TilesetManager {
 export class LayerManager {
   readonly imagery: ImageryOverlayManager
   readonly tilesets: TilesetManager
+  readonly data: DataManager
 
   constructor(context: Arc3DContext) {
     this.imagery = new ImageryOverlayManager(context)
     this.tilesets = new TilesetManager(context)
+    this.data = new DataManager(context)
   }
 }

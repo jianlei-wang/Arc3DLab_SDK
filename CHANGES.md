@@ -34,3 +34,8 @@
 - Imagery 同名添加先移除旧资源
 - EventHandler 完整 destroy
 - Tooltip 使用 textContent 与 canvas 相对坐标
+
+### chore
+
+- 移除旧 `src/core` / `src/utils` / `src/types` 封装实现与 Rollup 构建配置
+

@@ -24,12 +24,11 @@
     "build:watch": "vite build --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "format": "prettier --write \"src/**/*.ts\"",
+    "format": "prettier --write \"packages/**/*.ts\" \"src/index.ts\" \"tests/**/*.ts\"",
     "docs": "node scripts/generate-docs.js",
     "docs:watch": "typedoc --options typedoc.json --watch",
     "docs:build": "typedoc --options typedoc.json",
-    "dev": "node scripts/dev-setup.js",
-    "dev:watch": "node scripts/dev-setup.js --watch"
+    "dev": "npm run build"
   },
   "keywords": [
     "3D",

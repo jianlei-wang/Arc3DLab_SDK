@@ -19,7 +19,7 @@
   "locales": {
     "zh-CN": {
       "name": "Arc3DLab SDK API 文档",
-      "description": "基于 Cesium 构建的 WebGIS 应用框架"
+      "description": "A Modular 3D WebGIS Runtime built on CesiumJS"
     }
   },
 }

@@ -1,6 +1,6 @@
 import type { Arc3DConfig, Arc3DContext, CreditMode, EngineContext, Logger, Unsubscribe } from "@arc3dlab/core"
 import { AnalysisManager } from "@arc3dlab/analysis"
-import { DataManager } from "@arc3dlab/data"
+import type { DataManager } from "@arc3dlab/data"
 import { EffectsManager } from "@arc3dlab/effects"
 import { GraphicManager } from "@arc3dlab/graphics"
 import { InteractionManager } from "@arc3dlab/interaction"
@@ -52,6 +52,10 @@ export class CreditFacade {
   setMode(mode: CreditMode, container?: Element): void {
     this.context.engine.viewer.setCreditMode(mode, container)
   }
+
+  setContainer(element: Element): void {
+    this.setMode("custom", element)
+  }
 }
 
 export class Arc3DApp {
@@ -79,7 +83,7 @@ export class Arc3DApp {
     this.terrain = new TerrainManager(context)
     this.layers = new LayerManager(context)
     this.graphics = new GraphicManager(context)
-    this.data = new DataManager(context)
+    this.data = this.layers.data
     this.interaction = new InteractionManager(context)
     this.analysis = new AnalysisManager(context)
     this.effects = new EffectsManager(context)

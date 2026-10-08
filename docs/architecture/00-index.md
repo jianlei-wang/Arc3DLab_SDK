@@ -61,3 +61,5 @@ sdk
 ```
 
 `core` 只依赖 TypeScript 标准库。Cesium 只允许出现在 `engine-cesium` 及其渲染后端。
+
+源码边界：实现位于 `packages/*`，根目录 `src/index.ts` 只做对外再导出。

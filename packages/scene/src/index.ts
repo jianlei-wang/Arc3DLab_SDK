@@ -70,11 +70,91 @@ export class CameraController {
   }
 }
 
+export class RenderController {
+  constructor(private readonly context: Arc3DContext) {}
+
+  private viewer() {
+    this.context.lifecycle.assertUsable("use render")
+    return getCesiumViewer(this.context.engine.native.viewer)
+  }
+
+  setResolutionScale(value: number): void {
+    this.viewer().resolutionScale = value
+  }
+
+  setRequestRenderMode(enabled: boolean): void {
+    this.viewer().scene.requestRenderMode = enabled
+  }
+}
+
+export class ViewportController {
+  constructor(private readonly context: Arc3DContext) {}
+
+  get size(): { width: number; height: number } {
+    this.context.lifecycle.assertUsable("use viewport")
+    const canvas = getCesiumViewer(this.context.engine.native.viewer).canvas
+    return { width: canvas.width, height: canvas.height }
+  }
+}
+
+export class ClockController {
+  constructor(private readonly context: Arc3DContext) {}
+
+  private viewer() {
+    this.context.lifecycle.assertUsable("use clock")
+    return getCesiumViewer(this.context.engine.native.viewer)
+  }
+
+  set multiplier(value: number) {
+    this.viewer().clock.multiplier = value
+  }
+
+  get multiplier(): number {
+    return this.viewer().clock.multiplier
+  }
+
+  set shouldAnimate(value: boolean) {
+    this.viewer().clock.shouldAnimate = value
+  }
+
+  get shouldAnimate(): boolean {
+    return this.viewer().clock.shouldAnimate
+  }
+}
+
+export class EnvironmentController {
+  constructor(private readonly context: Arc3DContext) {}
+
+  private viewer() {
+    this.context.lifecycle.assertUsable("use environment")
+    return getCesiumViewer(this.context.engine.native.viewer)
+  }
+
+  setLighting(enabled: boolean): void {
+    const viewer = this.viewer()
+    viewer.scene.globe.enableLighting = enabled
+    viewer.shadows = enabled
+  }
+
+  setAtmosphere(enabled: boolean): void {
+    const atmosphere = this.viewer().scene.skyAtmosphere
+    if (atmosphere) atmosphere.show = enabled
+  }
+}
+
 export class SceneController {
   readonly camera: CameraController
+  readonly render: RenderController
+  readonly viewport: ViewportController
+  readonly clock: ClockController
+  readonly environment: EnvironmentController
 
   constructor(private readonly context: Arc3DContext) {
     this.camera = new CameraController(context)
+    this.render = new RenderController(context)
+    this.viewport = new ViewportController(context)
+    this.clock = new ClockController(context)
+    this.environment = new EnvironmentController(context)
   }
 
   private viewer() {

@@ -11,4 +11,6 @@ export {
   type PickResult,
   type RenderMode,
 } from "@arc3dlab/core"
+export type { Graphic } from "@arc3dlab/graphics"
+export type { Layer } from "@arc3dlab/layers"
 export { CesiumEngine } from "@arc3dlab/engine-cesium"
