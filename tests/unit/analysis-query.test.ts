@@ -59,4 +59,52 @@ describe("SpatialQueryService", () => {
     const result = await query.distance({ position: [120, 30], meters: 500 })
     expect(result.graphics.map((item) => item.id)).toEqual(["near"])
   })
+
+  it("selects a polyline that crosses a rectangle", async () => {
+    const query = service([
+      graphic("cross", "polyline", [
+        { longitude: 119.9, latitude: 30.1, height: 0 },
+        { longitude: 120.3, latitude: 30.1, height: 0 },
+      ]),
+    ])
+    const result = await query.rectangle({ west: 120, south: 30, east: 120.2, north: 30.2 })
+    expect(result.graphics.map((item) => item.id)).toEqual(["cross"])
+  })
+
+  it("keeps crossing polylines out of within queries", async () => {
+    const query = service([
+      graphic("cross", "polyline", [
+        { longitude: 119.9, latitude: 30.1, height: 0 },
+        { longitude: 120.3, latitude: 30.1, height: 0 },
+      ]),
+    ])
+    const result = await query.rectangle({
+      west: 120,
+      south: 30,
+      east: 120.2,
+      north: 30.2,
+      relation: "within",
+    })
+    expect(result.graphics).toEqual([])
+  })
+
+  it("selects graphics across the antimeridian", async () => {
+    const query = service([
+      graphic("wrap", "point", [{ longitude: 179, latitude: 0.5, height: 0 }]),
+      graphic("other", "point", [{ longitude: 0, latitude: 0.5, height: 0 }]),
+    ])
+    const result = await query.rectangle({ west: 170, south: 0, east: -170, north: 1 })
+    expect(result.graphics.map((item) => item.id)).toEqual(["wrap"])
+  })
+
+  it("selects a polyline by distance to the segment", async () => {
+    const query = service([
+      graphic("seg", "polyline", [
+        { longitude: 119.9, latitude: 30, height: 0 },
+        { longitude: 120.1, latitude: 30, height: 0 },
+      ]),
+    ])
+    const result = await query.distance({ position: [120, 30.0005], meters: 200 })
+    expect(result.graphics.map((item) => item.id)).toEqual(["seg"])
+  })
 })

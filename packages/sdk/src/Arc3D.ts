@@ -1,9 +1,11 @@
-import { ConsoleLogger, createContext, type Arc3DConfig } from "@arc3dlab/core"
+import { ConsoleLogger, createContext, registerCoreCapabilities, type Arc3DConfig } from "@arc3dlab/core"
 import { createCesiumEngineContext } from "@arc3dlab/engine-cesium"
 import { Arc3DApp, createApp } from "./Arc3DApp"
 
-function buildEngine(config: Arc3DConfig) {
-  return createCesiumEngineContext({
+function buildApp(config: Arc3DConfig): Arc3DApp {
+  const logger = new ConsoleLogger(config.logger?.level ?? "warn")
+  let context: ReturnType<typeof createContext> | undefined
+  const engine = createCesiumEngineContext({
     container: config.container,
     ionToken: config.engine?.cesium?.ionToken ?? config.tokens?.cesiumIon,
     defaultViewRectangle: config.engine?.cesium?.defaultViewRectangle ?? [70, -15, 140, 80],
@@ -13,25 +15,15 @@ function buildEngine(config: Arc3DConfig) {
     controls: config.scene?.controls,
     fpsShow: config.scene?.fpsShow,
     creditMode: config.scene?.creditMode,
+    defaultBaseLayer: config.engine?.cesium?.defaultBaseLayer,
+    onError: (error) => {
+      logger.error(error.message)
+      context?.events.emit("error", error)
+    },
   })
-}
-
-function buildApp(config: Arc3DConfig): Arc3DApp {
-  const logger = new ConsoleLogger(config.logger?.level ?? "warn")
-  const engine = buildEngine(config)
-  const context = createContext(config, engine, logger)
+  context = createContext(config, engine, logger)
   context.lifecycle.transition("initializing")
-  context.capabilities.register("engine:cesium")
-  context.capabilities.register("render:entity")
-  context.capabilities.register("render:primitive")
-  context.capabilities.register("graphic:model")
-  context.capabilities.register("analysis:measure")
-  context.capabilities.register("analysis:terrain")
-  context.capabilities.register("analysis:visibility")
-  context.capabilities.register("effects:postprocess")
-  context.capabilities.register("analysis:query")
-  context.capabilities.register("analysis:clip")
-  context.capabilities.register("analysis:volume")
+  registerCoreCapabilities(context.capabilities)
   return createApp(config, engine, context)
 }
 

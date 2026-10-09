@@ -1,3 +1,6 @@
+import type { LngLatLike, RectQuery } from "./geometry"
+import { geodesicDistanceMeters, pointInPolygon, pointInRect } from "./geometry"
+
 export interface SlopeSample {
   slopeDegrees: number
   aspectDegrees: number
@@ -8,19 +11,10 @@ export interface SightSample {
   terrainHeight: number
 }
 
-export interface LngLatLike {
-  longitude: number
-  latitude: number
-}
-
-export interface RectQuery {
-  west: number
-  south: number
-  east: number
-  north: number
-}
-
 const EARTH_RADIUS = 6378137
+
+export type { LngLatLike, RectQuery } from "./geometry"
+export { pointInRect, pointInPolygon } from "./geometry"
 
 export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
@@ -78,40 +72,8 @@ export function destinationLngLat(
   }
 }
 
-export function pointInRect(point: LngLatLike, rect: RectQuery): boolean {
-  return (
-    point.longitude >= rect.west &&
-    point.longitude <= rect.east &&
-    point.latitude >= rect.south &&
-    point.latitude <= rect.north
-  )
-}
-
-export function pointInPolygon(point: LngLatLike, ring: LngLatLike[]): boolean {
-  if (ring.length < 3) return false
-  let inside = false
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-    const xi = ring[i].longitude
-    const yi = ring[i].latitude
-    const xj = ring[j].longitude
-    const yj = ring[j].latitude
-    const intersect =
-      yi > point.latitude !== yj > point.latitude &&
-      point.longitude < ((xj - xi) * (point.latitude - yi)) / (yj - yi + Number.EPSILON) + xi
-    if (intersect) inside = !inside
-  }
-  return inside
-}
-
 export function haversineMeters(from: LngLatLike, to: LngLatLike): number {
-  const lat1 = (from.latitude * Math.PI) / 180
-  const lat2 = (to.latitude * Math.PI) / 180
-  const dLat = lat2 - lat1
-  const dLon = ((to.longitude - from.longitude) * Math.PI) / 180
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
-  return 2 * EARTH_RADIUS * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return geodesicDistanceMeters(from, to)
 }
 
 export function anyVertexInRect(positions: LngLatLike[], rect: RectQuery): boolean {

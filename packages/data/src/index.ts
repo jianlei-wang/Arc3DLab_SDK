@@ -1,6 +1,20 @@
-import { Arc3DError, createHandle, createId, type Arc3DContext, type ResourceHandle } from "@arc3dlab/core"
+import {
+  Arc3DError,
+  afterAwait,
+  assertNewResourceId,
+  classifyLoadError,
+  createHandle,
+  createId,
+  type Arc3DContext,
+  type ResourceHandle,
+} from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
-import { CzmlDataSource, GeoJsonDataSource, KmlDataSource } from "cesium"
+import {
+  CzmlDataSource,
+  GeoJsonDataSource,
+  KmlDataSource,
+  type DataSource,
+} from "cesium"
 import { createProviderHandle, type ProviderHandle, type ProviderSpec } from "./providers"
 
 export type DataFormat = "geojson" | "kml" | "czml"
@@ -27,15 +41,23 @@ export class DataManager {
     this.context.lifecycle.assertUsable("add data source")
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
     const id = spec.id ?? createId(spec.type)
-    if (this.context.registry.has(id)) this.context.registry.remove(id)
+    assertNewResourceId(this.context.registry, id)
 
-    let source
-    if (spec.type === "geojson") source = await GeoJsonDataSource.load(spec.url)
-    else if (spec.type === "kml") source = await KmlDataSource.load(spec.url)
-    else if (spec.type === "czml") source = await CzmlDataSource.load(spec.url)
-    else throw new Arc3DError("INVALID_ARGUMENT", `Unsupported data type: ${String(spec.type)}`)
+    let source: DataSource
+    try {
+      if (spec.type === "geojson") source = await GeoJsonDataSource.load(spec.url)
+      else if (spec.type === "kml") source = await KmlDataSource.load(spec.url)
+      else if (spec.type === "czml") source = await CzmlDataSource.load(spec.url)
+      else throw new Arc3DError("INVALID_ARGUMENT", `Unsupported data type: ${String(spec.type)}`)
+    } catch (error) {
+      throw classifyLoadError(error)
+    }
 
+    await afterAwait(this.context.lifecycle, "add data source", source)
     await viewer.dataSources.add(source)
+    await afterAwait(this.context.lifecycle, "add data source", source, () => {
+      viewer.dataSources.remove(source, true)
+    })
     const handle = createHandle({
       id,
       type: spec.type,
@@ -49,7 +71,12 @@ export class DataManager {
         this.context.events.emit("layerRemoved", { id, type: spec.type })
       },
     })
-    this.context.registry.add(handle)
+    try {
+      this.context.registry.add(handle)
+    } catch (error) {
+      viewer.dataSources.remove(source, true)
+      throw error
+    }
     this.context.events.emit("layerAdded", { id, type: spec.type })
     return handle
   }

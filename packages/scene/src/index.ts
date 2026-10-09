@@ -1,6 +1,8 @@
 import type { Arc3DContext, CameraPose, CameraState, SceneModeName } from "@arc3dlab/core"
 import { fromCartesian3, getCesiumViewer, toCartesian3, toRadians } from "@arc3dlab/engine-cesium"
 import { HeadingPitchRange, Math as CesiumMath, SceneMode } from "cesium"
+import { createFlyToPromise } from "./fly-to"
+import { scheduleSceneRestore } from "./morph"
 
 export class CameraController {
   private home: CameraState | undefined
@@ -16,7 +18,18 @@ export class CameraController {
     const destination = Array.isArray(position)
       ? toCartesian3(position)
       : toCartesian3(position)
-    return this.viewer().camera.flyTo({ destination, duration }) as unknown as Promise<void>
+    const viewer = this.viewer()
+    return createFlyToPromise(
+      (callbacks) => {
+        viewer.camera.flyTo({
+          destination,
+          duration,
+          complete: callbacks.complete,
+          cancel: callbacks.cancel,
+        })
+      },
+      () => this.context.lifecycle.isTerminating
+    )
   }
 
   setView(pose: CameraPose): void {
@@ -148,6 +161,7 @@ export class SceneController {
   readonly viewport: ViewportController
   readonly clock: ClockController
   readonly environment: EnvironmentController
+  private cancelMorph: (() => void) | undefined
 
   constructor(private readonly context: Arc3DContext) {
     this.camera = new CameraController(context)
@@ -155,6 +169,7 @@ export class SceneController {
     this.viewport = new ViewportController(context)
     this.clock = new ClockController(context)
     this.environment = new EnvironmentController(context)
+    this.context.disposers.push(() => this.destroy())
   }
 
   private viewer() {
@@ -172,10 +187,15 @@ export class SceneController {
   setMode(mode: SceneModeName): void {
     const snapshot = this.camera.capture()
     const viewer = this.viewer()
+    this.cancelMorph?.()
+    this.cancelMorph = scheduleSceneRestore(() => {
+      this.cancelMorph = undefined
+      if (this.context.lifecycle.isTerminating) return
+      this.camera.restore(snapshot)
+    }, viewer.scene.morphComplete)
     if (mode === "2d") viewer.scene.morphTo2D(1)
     else if (mode === "columbus") viewer.scene.morphToColumbusView(1)
     else viewer.scene.morphTo3D(1)
-    window.setTimeout(() => this.camera.restore(snapshot), 1100)
   }
 
   get size(): { width: number; height: number } {
@@ -201,5 +221,10 @@ export class SceneController {
     const viewer = this.viewer()
     viewer.scene.globe.enableLighting = enabled
     viewer.shadows = enabled
+  }
+
+  destroy(): void {
+    this.cancelMorph?.()
+    this.cancelMorph = undefined
   }
 }

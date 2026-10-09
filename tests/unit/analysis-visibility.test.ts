@@ -35,6 +35,7 @@ describe("VisibilityAnalysis", () => {
     })
     expect(result.visible).toBe(true)
     expect(result.samples).toHaveLength(8)
+    expect(result.interpolation).toBe("ecef-chord")
   })
 
   it("detects a ridge that blocks the sight line", async () => {
@@ -58,6 +59,9 @@ describe("VisibilityAnalysis", () => {
     expect(result.rayCount).toBe(8)
     expect(result.visibleCount).toBe(8)
     expect(result.rays.every((ray) => ray.rangeMeters === 500)).toBe(true)
+    expect(result.observerHeight).toBe(2)
+    expect(result.rayIntervalDegrees).toBe(45)
+    expect(result.interpolation).toBe("ecef-chord")
   })
 
   it("shortens rangeMeters when a ridge occludes a ray", async () => {
@@ -113,5 +117,14 @@ describe("VisibilityAnalysis", () => {
     expect(primitives.items).toHaveLength(1)
     analysis.clearOverlay()
     expect(primitives.items).toHaveLength(0)
+  })
+
+  it("drops ECEF chord height below the ellipsoid between distant endpoints", async () => {
+    const result = await visibility(() => 0).lineOfSight({
+      from: [0, 0, 0],
+      to: [1, 0, 0],
+      samples: 5,
+    })
+    expect(result.samples[2].lineHeight).toBeLessThan(0)
   })
 })

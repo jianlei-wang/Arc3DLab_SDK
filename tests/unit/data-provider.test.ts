@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { Arc3DError } from "@arc3dlab/core"
 import { createImageryProvider, tdtUrl } from "@arc3dlab/data"
 
 describe("createImageryProvider", () => {
   it("requires a runtime token for tianditu", async () => {
-    await expect(createImageryProvider({ type: "tdt" })).rejects.toBeInstanceOf(Arc3DError)
+    await expect(createImageryProvider({ type: "tdt" })).rejects.toMatchObject({
+      code: "AUTH_FAILED",
+    })
   })
 
   it("requires assetId for ion imagery", async () => {

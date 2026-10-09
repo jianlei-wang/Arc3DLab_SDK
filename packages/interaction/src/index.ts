@@ -1,9 +1,9 @@
 import type { Arc3DContext, PickResult, ResourceHandle, Unsubscribe, WindowPosition } from "@arc3dlab/core"
 import { fromCartesian3, getCesiumViewer } from "@arc3dlab/engine-cesium"
 import { Cartesian2, Cesium3DTileFeature, ScreenSpaceEventHandler, ScreenSpaceEventType, defined } from "cesium"
+import { HoverGate, normalizeResourceId, pickIdentity, resolvePick } from "./pick"
 
-const GRAPHIC_TYPES = new Set(["point", "polyline", "polygon", "model"])
-const LAYER_TYPES = new Set(["imagery", "tileset", "basemap", "geojson", "kml", "czml"])
+export { HoverGate, classifyPickedId, normalizeResourceId, parentResourceId, pickIdentity, resolvePick } from "./pick"
 
 export interface InteractionPickEvent extends PickResult {
   graphic?: { id: string }
@@ -14,15 +14,6 @@ type InteractionEvents = {
   click: InteractionPickEvent
   hover: InteractionPickEvent
   move: { windowPosition: WindowPosition }
-}
-
-function normalizeResourceId(raw: unknown): string | undefined {
-  if (typeof raw === "string") return raw.split("#")[0]
-  if (raw && typeof raw === "object" && "id" in raw) {
-    const id = (raw as { id: unknown }).id
-    if (typeof id === "string") return id.split("#")[0]
-  }
-  return undefined
 }
 
 export class SelectionController {
@@ -53,9 +44,16 @@ export class InteractionManager {
   private handler: ScreenSpaceEventHandler | undefined
   private listeners = new Map<keyof InteractionEvents, Set<(payload: never) => void>>()
   readonly selection: SelectionController
+  private readonly hoverGate = new HoverGate()
+  private readonly canvas: HTMLCanvasElement
+  private readonly onCanvasLeave = (): void => {
+    if (!this.hoverGate.leave()) return
+    this.emit("hover", this.emptyPick())
+  }
 
   constructor(private readonly context: Arc3DContext) {
     const viewer = getCesiumViewer(context.engine.native.viewer)
+    this.canvas = viewer.canvas
     this.selection = new SelectionController(context)
     this.handler = new ScreenSpaceEventHandler(viewer.canvas)
     this.handler.setInputAction((movement: { position: { x: number; y: number } }) => {
@@ -67,9 +65,11 @@ export class InteractionManager {
     }, ScreenSpaceEventType.LEFT_CLICK)
     this.handler.setInputAction((movement: { endPosition: { x: number; y: number } }) => {
       const windowPosition = { x: movement.endPosition.x, y: movement.endPosition.y }
-      this.emit("hover", this.pick(windowPosition))
+      const event = this.pick(windowPosition)
+      if (this.hoverGate.observe(pickIdentity(event))) this.emit("hover", event)
       this.emit("move", { windowPosition })
     }, ScreenSpaceEventType.MOUSE_MOVE)
+    this.canvas.addEventListener("mouseleave", this.onCanvasLeave)
   }
 
   on<K extends keyof InteractionEvents>(event: K, handler: (payload: InteractionEvents[K]) => void): Unsubscribe {
@@ -103,14 +103,26 @@ export class InteractionManager {
     if (!defined(cartesian)) {
       cartesian = viewer.camera.pickEllipsoid(window, viewer.scene.globe.ellipsoid)
     }
-    const graphicId = this.resolveGraphicId(picked)
-    const layerId = this.resolveLayerId(picked)
+    const hasNative = defined(picked) && typeof picked === "object" && picked !== null
+    const rawId = hasNative ? normalizeResourceId((picked as { id?: unknown }).id) : undefined
+    let tilesetId: string | undefined
+    if (picked instanceof Cesium3DTileFeature) {
+      tilesetId = this.context.registry.values().find((item) => item.native === picked.tileset)?.id
+    }
+    const resolved = resolvePick({
+      rawId,
+      lookup: (resourceId) => this.context.registry.get(resourceId),
+      tilesetId,
+      isTerrain: !hasNative && defined(cartesian),
+      hasNative,
+    })
     return {
+      kind: resolved.kind,
       windowPosition,
-      graphicId,
-      layerId,
-      graphic: graphicId ? { id: graphicId } : undefined,
-      layer: layerId ? { id: layerId } : undefined,
+      graphicId: resolved.graphicId,
+      layerId: resolved.layerId,
+      graphic: resolved.graphicId ? { id: resolved.graphicId } : undefined,
+      layer: resolved.layerId ? { id: resolved.layerId } : undefined,
       lngLat: defined(cartesian) ? fromCartesian3(cartesian) : undefined,
       native: picked,
     }
@@ -125,6 +137,7 @@ export class InteractionManager {
   }
 
   destroy(): void {
+    this.canvas.removeEventListener("mouseleave", this.onCanvasLeave)
     if (this.handler && !this.handler.isDestroyed()) {
       this.handler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK)
       this.handler.removeInputAction(ScreenSpaceEventType.MOUSE_MOVE)
@@ -133,28 +146,7 @@ export class InteractionManager {
     this.handler = undefined
     this.listeners.clear()
     this.selection.clear()
-  }
-
-  private resolveGraphicId(picked: unknown): string | undefined {
-    if (!defined(picked) || typeof picked !== "object" || picked === null) return undefined
-    const id = normalizeResourceId((picked as { id?: unknown }).id)
-    if (!id) return undefined
-    const resource = this.context.registry.get(id)
-    if (resource && GRAPHIC_TYPES.has(resource.type)) return id
-    return id
-  }
-
-  private resolveLayerId(picked: unknown): string | undefined {
-    if (!defined(picked) || typeof picked !== "object" || picked === null) return undefined
-    if (picked instanceof Cesium3DTileFeature) {
-      const match = this.context.registry.values().find((item) => item.native === picked.tileset)
-      return match?.id
-    }
-    const id = normalizeResourceId((picked as { id?: unknown }).id)
-    if (!id) return undefined
-    const resource = this.context.registry.get(id)
-    if (resource && LAYER_TYPES.has(resource.type)) return id
-    return undefined
+    this.hoverGate.reset()
   }
 
   private emit<K extends keyof InteractionEvents>(event: K, payload: InteractionEvents[K]): void {
@@ -162,4 +154,9 @@ export class InteractionManager {
     if (!set) return
     for (const handler of Array.from(set)) handler(payload as never)
   }
+
+  private emptyPick(): InteractionPickEvent {
+    return { kind: "empty", windowPosition: { x: -1, y: -1 } }
+  }
+
 }

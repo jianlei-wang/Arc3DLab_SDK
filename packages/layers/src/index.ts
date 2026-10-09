@@ -1,11 +1,13 @@
 import {
   Arc3DError,
+  assertAlive,
+  assertNewResourceId,
   createHandle,
   createId,
   type Arc3DContext,
   type ResourceHandle,
 } from "@arc3dlab/core"
-import { getCesiumViewer } from "@arc3dlab/engine-cesium"
+import { getCesiumViewer, readIonToken, withIonAccessToken } from "@arc3dlab/engine-cesium"
 import { createImageryProvider, DataManager, type ProviderSpec } from "@arc3dlab/data"
 import {
   CesiumTerrainProvider,
@@ -37,16 +39,22 @@ export class BasemapManager {
     this.context.lifecycle.assertUsable("set basemap")
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
     const provider = await createImageryProvider(spec, this.context.config.tokens?.tdt)
+    assertAlive(this.context.lifecycle, "set basemap")
     if (this.current) {
       this.current.destroy()
       this.current = undefined
     }
     const imagery = viewer.imageryLayers.addImageryProvider(provider, 0)
     viewer.imageryLayers.lowerToBottom(imagery)
-    const layer = this.wrap("basemap", imagery)
-    this.current = layer
-    this.context.events.emit("layerAdded", { id: layer.id, type: "basemap" })
-    return layer
+    try {
+      const layer = this.wrap("basemap", imagery)
+      this.current = layer
+      this.context.events.emit("layerAdded", { id: layer.id, type: "basemap" })
+      return layer
+    } catch (error) {
+      viewer.imageryLayers.remove(imagery, true)
+      throw error
+    }
   }
 
   get(): Layer | undefined {
@@ -80,11 +88,10 @@ export class ImageryOverlayManager {
   async add(spec: BasemapSpec & { id?: string; name?: string }): Promise<Layer> {
     this.context.lifecycle.assertUsable("add imagery")
     const id = spec.id ?? createId("imagery")
-    if (this.context.registry.has(id)) {
-      this.context.registry.remove(id)
-    }
+    assertNewResourceId(this.context.registry, id)
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
     const provider = await createImageryProvider(spec, this.context.config.tokens?.tdt)
+    assertAlive(this.context.lifecycle, "add imagery")
     const imagery = viewer.imageryLayers.addImageryProvider(provider)
     const handle = createHandle({
       id,
@@ -99,7 +106,12 @@ export class ImageryOverlayManager {
         this.context.events.emit("layerRemoved", { id, type: "imagery" })
       },
     })
-    this.context.registry.add(handle)
+    try {
+      this.context.registry.add(handle)
+    } catch (error) {
+      viewer.imageryLayers.remove(imagery, true)
+      throw error
+    }
     this.context.events.emit("layerAdded", { id, type: "imagery" })
     return Object.assign(handle, { name: spec.name })
   }
@@ -136,10 +148,27 @@ export class TerrainManager {
     }
     if (spec.type === "url") {
       if (!spec.url) throw new Arc3DError("INVALID_ARGUMENT", "Terrain url is required")
-      viewer.terrainProvider = await CesiumTerrainProvider.fromUrl(spec.url)
+      const provider = await CesiumTerrainProvider.fromUrl(spec.url)
+      assertAlive(this.context.lifecycle, "set terrain")
+      viewer.terrainProvider = provider
       return
     }
-    throw new Arc3DError("INVALID_ARGUMENT", "Ion terrain requires a runtime ion token and assetId")
+    if (spec.type === "ion") {
+      if (spec.assetId === undefined) {
+        throw new Arc3DError("INVALID_ARGUMENT", "Ion terrain requires assetId")
+      }
+      const token = readIonToken(this.context.config)
+      if (!token) {
+        throw new Arc3DError("AUTH_FAILED", "Ion terrain requires a runtime ion token")
+      }
+      const provider = await withIonAccessToken(token, () =>
+        CesiumTerrainProvider.fromIonAssetId(spec.assetId as number)
+      )
+      assertAlive(this.context.lifecycle, "set terrain")
+      viewer.terrainProvider = provider
+      return
+    }
+    throw new Arc3DError("INVALID_ARGUMENT", `Unsupported terrain type: ${String(spec.type)}`)
   }
 
   get exaggeration(): number {
@@ -186,18 +215,24 @@ export class TilesetManager {
 
   async add(options: { id?: string; url?: string; assetId?: number }): Promise<Layer> {
     this.context.lifecycle.assertUsable("add tileset")
+    const id = options.id ?? createId("tileset")
+    assertNewResourceId(this.context.registry, id)
     const { Cesium3DTileset } = await import("cesium")
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
     let tileset
     if (options.assetId !== undefined) {
-      tileset = await Cesium3DTileset.fromIonAssetId(options.assetId)
+      tileset = await withIonAccessToken(readIonToken(this.context.config), () =>
+        Cesium3DTileset.fromIonAssetId(options.assetId as number)
+      )
     } else if (options.url) {
       tileset = await Cesium3DTileset.fromUrl(options.url)
     } else {
       throw new Arc3DError("INVALID_ARGUMENT", "Tileset requires url or assetId")
     }
+    assertAlive(this.context.lifecycle, "add tileset", () => {
+      tileset.destroy()
+    })
     viewer.scene.primitives.add(tileset)
-    const id = options.id ?? createId("tileset")
     const handle = createHandle({
       id,
       type: "tileset",
@@ -211,7 +246,12 @@ export class TilesetManager {
         this.context.events.emit("layerRemoved", { id, type: "tileset" })
       },
     })
-    this.context.registry.add(handle)
+    try {
+      this.context.registry.add(handle)
+    } catch (error) {
+      viewer.scene.primitives.remove(tileset)
+      throw error
+    }
     this.context.events.emit("layerAdded", { id, type: "tileset" })
     return handle
   }

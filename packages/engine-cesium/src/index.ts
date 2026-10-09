@@ -6,3 +6,4 @@ export {
 } from "./CesiumEngine"
 export { CreditManager } from "./credits"
 export { toCartesian3, toCartesian3Array, fromCartesian3, toRadians, toDegrees } from "./coords"
+export { withIonAccessToken, readIonToken } from "./ion"

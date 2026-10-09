@@ -1,5 +1,7 @@
 export { Arc3D } from "./Arc3D"
-export { Arc3DApp, type Arc3DPlugin, type NativeContext } from "./Arc3DApp"
+export { Arc3DApp, PluginManager, type Arc3DPlugin, type NativeContext } from "./Arc3DApp"
+export { createPluginHarness, type PluginHarness } from "./plugin-harness"
+export { createMiningPlugin, type MiningPlugin, type MiningStatus } from "./mining-plugin"
 export {
   Arc3DError,
   createId,

@@ -47,6 +47,8 @@ describe("VolumeAnalysis", () => {
     expect(result.cutCubicMeters).toBeGreaterThan(0)
     expect(result.fillCubicMeters).toBe(0)
     expect(result.designHeight).toBe(90)
+    expect(result.resolutionMeters).toBeGreaterThan(0)
+    expect(result.estimatedErrorCubicMeters).toBeGreaterThanOrEqual(0)
   })
 
   it("reports fill when terrain sits below the design height", async () => {
@@ -68,5 +70,13 @@ describe("VolumeAnalysis", () => {
     expect(globe.clippingPolygons.enabled).toBe(true)
     analysis.clear()
     expect(clip.list()).toEqual([])
+  })
+
+  it("treats zero-depth excavation as surface clip", async () => {
+    const { analysis, globe } = volume(() => 0)
+    const result = await analysis.excavate({ positions: pit, depth: 0 })
+    expect(result.volumetric).toBe(false)
+    expect(result.method).toBe("clipping-polygon-and-floor-plane")
+    expect(globe.clippingPolygons.enabled).toBe(true)
   })
 })

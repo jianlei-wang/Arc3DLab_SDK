@@ -6,6 +6,10 @@ export type Arc3DErrorCode =
   | "DUPLICATE_RESOURCE"
   | "ENGINE_FAILURE"
   | "UNSUPPORTED_CAPABILITY"
+  | "CANCELLED"
+  | "AUTH_FAILED"
+  | "NETWORK_FAILURE"
+  | "INVALID_FORMAT"
 
 export class Arc3DError extends Error {
   readonly code: Arc3DErrorCode

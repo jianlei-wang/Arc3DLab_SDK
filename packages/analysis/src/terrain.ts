@@ -1,11 +1,13 @@
 import type { Arc3DContext, LngLatHeight, PositionInput } from "@arc3dlab/core"
-import { EllipsoidGeodesic, Math as CesiumMath } from "cesium"
+import { EllipsoidGeodesic } from "cesium"
 import { destinationLngLat, slopeFromHeights } from "./math"
-import { sampleCartographics, sampleSource, toCartographic } from "./sampler"
+import { sampleCartographics, toCartographic, type TerrainHeightSource, type TerrainSampleStatus } from "./sampler"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
+import { clampSampleCount, throwIfCancelled, type AnalysisTaskOptions } from "./scheduler"
 
 export interface HeightSample extends LngLatHeight {
-  source: "sampleHeight" | "globe"
+  source: TerrainHeightSource
+  status: TerrainSampleStatus
 }
 
 export interface SlopeResult extends HeightSample {
@@ -21,38 +23,51 @@ export interface ProfilePoint extends LngLatHeight {
 export class TerrainAnalysis {
   constructor(private readonly context: Arc3DContext) {}
 
-  async sampleHeight(options: { position: PositionInput }): Promise<HeightSample> {
+  async sampleHeight(options: { position: PositionInput; signal?: AbortSignal }): Promise<HeightSample> {
     this.context.lifecycle.assertUsable("sample terrain height")
+    throwIfCancelled(this.context, options.signal, "sample terrain height")
     const carto = toCartographic(options.position)
     carto.height = 0
-    const [sampled] = await sampleCartographics(this.context, [carto])
+    const [sampled] = await sampleCartographics(this.context, [carto], options, "sample terrain height")
     return {
-      longitude: CesiumMath.toDegrees(sampled.longitude),
-      latitude: CesiumMath.toDegrees(sampled.latitude),
+      longitude: sampled.longitude,
+      latitude: sampled.latitude,
       height: sampled.height,
-      source: sampleSource(this.context),
+      source: sampled.source,
+      status: sampled.status,
     }
   }
 
-  async slope(options: { position: PositionInput; sampleMeters?: number }): Promise<SlopeResult> {
+  async slope(options: {
+    position: PositionInput
+    sampleMeters?: number
+    signal?: AbortSignal
+  }): Promise<SlopeResult> {
     this.context.lifecycle.assertUsable("sample terrain slope")
     const sampleMeters = options.sampleMeters ?? 20
-    const center = await this.sampleHeight({ position: options.position })
+    const center = await this.sampleHeight({ position: options.position, signal: options.signal })
     const east = destinationLngLat(center.longitude, center.latitude, 90, sampleMeters)
     const north = destinationLngLat(center.longitude, center.latitude, 0, sampleMeters)
     const [eastH, northH] = await Promise.all([
-      this.sampleHeight({ position: [east.longitude, east.latitude] }),
-      this.sampleHeight({ position: [north.longitude, north.latitude] }),
+      this.sampleHeight({ position: [east.longitude, east.latitude], signal: options.signal }),
+      this.sampleHeight({ position: [north.longitude, north.latitude], signal: options.signal }),
     ])
     const grade = slopeFromHeights(center.height, eastH.height, northH.height, sampleMeters)
     return { ...center, ...grade, sampleMeters }
   }
 
-  async profile(options: { positions: PositionInput[]; samples?: number }): Promise<{
+  async profile(options: {
+    positions: PositionInput[]
+    samples?: number
+    signal?: AbortSignal
+    onProgress?: AnalysisTaskOptions["onProgress"]
+    maxSamples?: number
+  }): Promise<{
     points: ProfilePoint[]
   }> {
     this.context.lifecycle.assertUsable("sample terrain profile")
-    const samples = Math.max(2, options.samples ?? 32)
+    throwIfCancelled(this.context, options.signal, "sample terrain profile")
+    const samples = Math.max(2, clampSampleCount(options.samples ?? 32, options.maxSamples))
     const inputs = options.positions
     if (inputs.length < 2) {
       const only = inputs[0] ? await this.sampleHeight({ position: inputs[0] }) : undefined
@@ -83,11 +98,11 @@ export class TerrainAnalysis {
       distances.push(along)
     }
 
-    const sampled = await sampleCartographics(this.context, cartos)
+    const sampled = await sampleCartographics(this.context, cartos, options, "sample terrain profile")
     return {
       points: sampled.map((item, index) => ({
-        longitude: CesiumMath.toDegrees(item.longitude),
-        latitude: CesiumMath.toDegrees(item.latitude),
+        longitude: item.longitude,
+        latitude: item.latitude,
         height: item.height,
         distance: distances[index],
       })),

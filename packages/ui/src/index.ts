@@ -1,21 +1,34 @@
-import type { Arc3DContext, WindowPosition } from "@arc3dlab/core"
+import { createId, type Arc3DContext } from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
+import {
+  createOwnedTooltipElement,
+  hostRelativePosition,
+  removeOwnedTooltip,
+  tooltipOffsetStyle,
+} from "./tooltip-dom"
+
+export {
+  TOOLTIP_OWNED_ATTR,
+  createOwnedTooltipElement,
+  hostRelativePosition,
+  removeOwnedTooltip,
+  tooltipOffsetStyle,
+} from "./tooltip-dom"
 
 export class TooltipService {
   private element: HTMLDivElement
   private message = ""
   private visible = false
   private onMove: (event: MouseEvent) => void
+  private listening = false
+  private readonly owned: boolean
 
   constructor(private readonly context: Arc3DContext) {
     const viewer = getCesiumViewer(context.engine.native.viewer)
     const host = viewer.container as HTMLElement
-    const existing = host.querySelector("#arc3d-tooltip") as HTMLDivElement | null
-    this.element = existing ?? document.createElement("div")
-    this.element.id = "arc3d-tooltip"
-    this.element.style.cssText =
-      "display:none;pointer-events:none;position:absolute;z-index:1000;opacity:0.8;border-radius:4px;padding:4px 8px;white-space:nowrap;color:#fff;font-size:14px;background:#000000cc;"
-    if (!existing) host.appendChild(this.element)
+    this.element = createOwnedTooltipElement(`arc3d-tooltip-${createId("tooltip")}`)
+    this.owned = true
+    host.appendChild(this.element)
     this.onMove = (event) => this.place(event)
   }
 
@@ -31,34 +44,39 @@ export class TooltipService {
   show(text?: string): void {
     if (text !== undefined) this.text = text
     this.visible = true
-    const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    viewer.canvas.addEventListener("mousemove", this.onMove)
+    if (!this.listening) {
+      const viewer = getCesiumViewer(this.context.engine.native.viewer)
+      viewer.canvas.addEventListener("mousemove", this.onMove)
+      this.listening = true
+    }
+    this.context.engine.viewer.requestRender?.("tooltip")
   }
 
   hide(): void {
     this.visible = false
-    const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    viewer.canvas.removeEventListener("mousemove", this.onMove)
+    if (this.listening) {
+      const viewer = getCesiumViewer(this.context.engine.native.viewer)
+      viewer.canvas.removeEventListener("mousemove", this.onMove)
+      this.listening = false
+    }
     this.element.style.display = "none"
     this.text = ""
   }
 
   destroy(): void {
     this.hide()
-    this.element.remove()
+    if (this.owned) removeOwnedTooltip(this.element)
   }
 
   private place(event: MouseEvent): void {
     if (!this.visible) return
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    const rect = viewer.canvas.getBoundingClientRect()
-    const position: WindowPosition = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    }
+    const host = viewer.container as HTMLElement
+    const position = hostRelativePosition(event.clientX, event.clientY, host.getBoundingClientRect())
     this.element.textContent = this.message
-    this.element.style.left = `${position.x + 15}px`
-    this.element.style.top = `${position.y + 20}px`
+    const offset = tooltipOffsetStyle(position)
+    this.element.style.left = offset.left
+    this.element.style.top = offset.top
     this.element.style.display = "block"
   }
 }

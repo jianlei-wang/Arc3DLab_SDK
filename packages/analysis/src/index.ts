@@ -1,79 +1,110 @@
 import type { Arc3DContext, PositionInput } from "@arc3dlab/core"
-import { toCartesian3, toCartesian3Array } from "@arc3dlab/engine-cesium"
-import { Cartesian3, Cartographic, EllipsoidGeodesic, Math as CesiumMath } from "cesium"
 import { TerrainAnalysis } from "./terrain"
 import { VisibilityAnalysis } from "./visibility"
 import { SpatialQueryService } from "./query"
 import { ClipAnalysis } from "./clip"
 import { VolumeAnalysis } from "./volume"
+import {
+  ellipsoidHeightDelta,
+  headingDegrees,
+  pathLengthMeters,
+  polygonAreaSquareMeters,
+  spaceAngleDegrees,
+  toMeasurePoint,
+} from "./geometry"
+import {
+  ANALYSIS_UNITS,
+  type AngleResult,
+  type AreaMode,
+  type AreaResult,
+  type HeightResult,
+  type LengthResult,
+} from "./units"
 
 export class MeasurementService {
   constructor(private readonly context: Arc3DContext) {}
 
-  async distance(options: { positions: PositionInput[] }): Promise<{ meters: number }> {
+  async distance(options: { positions: PositionInput[] }): Promise<LengthResult> {
     this.context.lifecycle.assertUsable("measure distance")
-    const points = toCartesian3Array(options.positions)
-    let meters = 0
-    for (let i = 1; i < points.length; i += 1) {
-      meters += Cartesian3.distance(points[i - 1], points[i])
+    const points = options.positions.map(toMeasurePoint)
+    return {
+      meters: pathLengthMeters(points, "cartesian"),
+      units: ANALYSIS_UNITS.length,
+      mode: "cartesian",
+      heightDatum: "ellipsoid",
     }
-    return { meters }
   }
 
-  async area(options: { positions: PositionInput[] }): Promise<{ squareMeters: number }> {
+  async area(options: {
+    positions: PositionInput[]
+    holes?: PositionInput[][]
+    mode?: AreaMode
+  }): Promise<AreaResult> {
     this.context.lifecycle.assertUsable("measure area")
-    const points = toCartesian3Array(options.positions)
-    if (points.length < 3) return { squareMeters: 0 }
-    const origin = points[0]
-    let area = 0
-    for (let i = 1; i < points.length - 1; i += 1) {
-      const v1 = Cartesian3.subtract(points[i], origin, new Cartesian3())
-      const v2 = Cartesian3.subtract(points[i + 1], origin, new Cartesian3())
-      const cross = Cartesian3.cross(v1, v2, new Cartesian3())
-      area += Cartesian3.magnitude(cross) / 2
+    const mode = options.mode ?? "geodesic"
+    const outer = options.positions.map(toMeasurePoint)
+    const holes = (options.holes ?? []).map((ring) => ring.map(toMeasurePoint))
+    return {
+      squareMeters: polygonAreaSquareMeters(outer, holes, mode),
+      units: ANALYSIS_UNITS.area,
+      mode,
     }
-    return { squareMeters: area }
   }
 
-  async height(options: { from: PositionInput; to: PositionInput }): Promise<{ meters: number }> {
+  async height(options: { from: PositionInput; to: PositionInput }): Promise<HeightResult> {
     this.context.lifecycle.assertUsable("measure height")
-    const from = Cartographic.fromCartesian(toCartesian3(options.from))
-    const to = Cartographic.fromCartesian(toCartesian3(options.to))
-    return { meters: Math.abs(to.height - from.height) }
+    return {
+      meters: ellipsoidHeightDelta(toMeasurePoint(options.from), toMeasurePoint(options.to)),
+      units: ANALYSIS_UNITS.length,
+      heightDatum: "ellipsoid",
+    }
   }
 
-  async verticalDistance(options: { from: PositionInput; to: PositionInput }): Promise<{ meters: number }> {
+  async verticalDistance(options: { from: PositionInput; to: PositionInput }): Promise<HeightResult> {
     return this.height(options)
   }
 
-  async horizontalDistance(options: { from: PositionInput; to: PositionInput }): Promise<{ meters: number }> {
+  async horizontalDistance(options: { from: PositionInput; to: PositionInput }): Promise<LengthResult> {
     this.context.lifecycle.assertUsable("measure horizontal distance")
-    const start = Cartographic.fromCartesian(toCartesian3(options.from))
-    const end = Cartographic.fromCartesian(toCartesian3(options.to))
-    start.height = 0
-    end.height = 0
-    const geodesic = new EllipsoidGeodesic(start, end)
-    return { meters: geodesic.surfaceDistance }
+    const from = toMeasurePoint(options.from)
+    const to = toMeasurePoint(options.to)
+    return {
+      meters: pathLengthMeters(
+        [
+          { ...from, height: 0 },
+          { ...to, height: 0 },
+        ],
+        "geodesic"
+      ),
+      units: ANALYSIS_UNITS.length,
+      mode: "geodesic",
+      heightDatum: "ellipsoid",
+    }
   }
 
-  async heading(options: { from: PositionInput; to: PositionInput }): Promise<{ degrees: number }> {
+  async heading(options: { from: PositionInput; to: PositionInput }): Promise<AngleResult> {
     this.context.lifecycle.assertUsable("measure heading")
-    const start = Cartographic.fromCartesian(toCartesian3(options.from))
-    const end = Cartographic.fromCartesian(toCartesian3(options.to))
-    const geodesic = new EllipsoidGeodesic(start, end)
-    return { degrees: CesiumMath.toDegrees(geodesic.startHeading) }
+    return {
+      degrees: headingDegrees(toMeasurePoint(options.from), toMeasurePoint(options.to)),
+      units: ANALYSIS_UNITS.angle,
+      reference: "north-clockwise",
+    }
   }
 
   async spaceAngle(options: {
     from: PositionInput
     via: PositionInput
     to: PositionInput
-  }): Promise<{ degrees: number }> {
+  }): Promise<AngleResult> {
     this.context.lifecycle.assertUsable("measure space angle")
-    const via = toCartesian3(options.via)
-    const from = Cartesian3.subtract(toCartesian3(options.from), via, new Cartesian3())
-    const to = Cartesian3.subtract(toCartesian3(options.to), via, new Cartesian3())
-    return { degrees: CesiumMath.toDegrees(Cartesian3.angleBetween(from, to)) }
+    return {
+      degrees: spaceAngleDegrees(
+        toMeasurePoint(options.from),
+        toMeasurePoint(options.via),
+        toMeasurePoint(options.to)
+      ),
+      units: ANALYSIS_UNITS.angle,
+    }
   }
 }
 
@@ -104,8 +135,8 @@ export class AnalysisManager {
 export { TerrainAnalysis } from "./terrain"
 export { VisibilityAnalysis } from "./visibility"
 export { SpatialQueryService } from "./query"
-export { ClipAnalysis } from "./clip"
-export { VolumeAnalysis } from "./volume"
+export { ClipAnalysis, type ExcavationResult } from "./clip"
+export { VolumeAnalysis, type CutFillResult } from "./volume"
 export {
   slopeFromHeights,
   lineOfSightFromSamples,
@@ -117,3 +148,47 @@ export {
   accumulateCutFill,
   viewshedEnvelope,
 } from "./math"
+export {
+  ANALYSIS_UNITS,
+  MISSING_HEIGHT,
+  type LengthResult,
+  type AreaResult,
+  type AngleResult,
+  type HeightResult,
+  type DistanceMode,
+  type AreaMode,
+  type HeightDatum,
+} from "./units"
+export {
+  cartesianDistanceMeters,
+  geodesicDistanceMeters,
+  headingDegrees,
+  polygonAreaSquareMeters,
+  splitRectAtAntimeridian,
+  unwrapRing,
+  geometryMatchesRect,
+  geometryMatchesPolygon,
+  geometryMatchesDistance,
+  type QueryRelation,
+  type RectQuery,
+  type LngLatLike,
+} from "./geometry"
+export {
+  resolveTerrainSample,
+  type SampledHeight,
+  type TerrainHeightSource,
+  type TerrainSampleStatus,
+} from "./sampler"
+export {
+  DEFAULT_MAX_SAMPLES,
+  clampSampleCount,
+  type AnalysisTaskOptions,
+  type AnalysisProgress,
+} from "./scheduler"
+export { buildCutFillGrid, accumulateCutFillWeighted } from "./cutfill"
+export { executeAnalysisJob, type AnalysisJob, type AnalysisJobResult } from "./jobs"
+export {
+  AnalysisWorkerHost,
+  serializeAnalysisError,
+  restoreAnalysisError,
+} from "./worker-host"

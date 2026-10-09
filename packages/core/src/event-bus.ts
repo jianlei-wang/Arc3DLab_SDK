@@ -3,6 +3,12 @@ export type Unsubscribe = () => void
 export class EventBus<TEvents extends object> {
   private handlers = new Map<keyof TEvents, Set<(payload: never) => void>>()
 
+  constructor(
+    private readonly options?: {
+      onHandlerError?: (error: unknown, event: PropertyKey) => void
+    }
+  ) {}
+
   on<K extends keyof TEvents>(
     event: K,
     handler: (payload: TEvents[K]) => void
@@ -33,11 +39,37 @@ export class EventBus<TEvents extends object> {
     const set = this.handlers.get(event)
     if (!set) return
     for (const handler of Array.from(set)) {
-      handler(payload as never)
+      try {
+        handler(payload as never)
+      } catch (error) {
+        this.options?.onHandlerError?.(error, event)
+        if (event !== "error") this.emitError(error)
+      }
     }
   }
 
   clear(): void {
     this.handlers.clear()
+  }
+
+  get listenerCount(): number {
+    let count = 0
+    for (const set of this.handlers.values()) count += set.size
+    return count
+  }
+
+  private emitError(error: unknown): void {
+    const set = this.handlers.get("error" as keyof TEvents)
+    if (!set) return
+    const payload = {
+      message: error instanceof Error ? error.message : String(error),
+    }
+    for (const handler of Array.from(set)) {
+      try {
+        handler(payload as never)
+      } catch (nested) {
+        this.options?.onHandlerError?.(nested, "error")
+      }
+    }
   }
 }

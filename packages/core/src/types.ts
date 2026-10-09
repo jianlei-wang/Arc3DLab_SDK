@@ -51,7 +51,10 @@ export interface GraphicEvent {
   type: string
 }
 
+export type PickKind = "graphic" | "layer" | "tiles-feature" | "terrain" | "native" | "empty"
+
 export interface PickResult {
+  kind?: PickKind
   graphicId?: string
   layerId?: string
   lngLat?: LngLatHeight
@@ -85,6 +88,8 @@ export interface EngineViewerOptions {
   controls?: "default" | "mapbox"
   fpsShow?: boolean
   creditMode?: CreditMode
+  defaultBaseLayer?: boolean
+  onError?: (error: { message: string; code?: string }) => void
 }
 
 export interface EngineViewer {
@@ -92,12 +97,15 @@ export interface EngineViewer {
   readonly container: Element
   readonly native: unknown
   setCreditMode(mode: CreditMode, element?: Element): void
+  requestRender(reason?: string): void
   destroy(): void
 }
 
 export interface Engine {
   readonly type: string
   createViewer(options: EngineViewerOptions): EngineViewer
+  hasCapability(name: string): boolean
+  mapError(error: unknown): { message: string; code?: string }
   destroy(): void
 }
 
@@ -116,6 +124,7 @@ export interface Arc3DConfig {
     cesium?: {
       ionToken?: string
       defaultViewRectangle?: [number, number, number, number]
+      defaultBaseLayer?: boolean
     }
   }
   scene?: {

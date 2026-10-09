@@ -10,10 +10,16 @@ export default defineConfig({
       "@arc3dlab/analysis": resolve(__dirname, "packages/analysis/src/index.ts"),
       "@arc3dlab/effects": resolve(__dirname, "packages/effects/src/index.ts"),
       "@arc3dlab/interaction": resolve(__dirname, "packages/interaction/src/index.ts"),
+      "@arc3dlab/graphics": resolve(__dirname, "packages/graphics/src/index.ts"),
+      "@arc3dlab/scene": resolve(__dirname, "packages/scene/src/index.ts"),
+      "@arc3dlab/layers": resolve(__dirname, "packages/layers/src/index.ts"),
+      "@arc3dlab/ui": resolve(__dirname, "packages/ui/src/index.ts"),
+      "@arc3dlab/sdk": resolve(__dirname, "packages/sdk/src/index.ts"),
+      "@arc3dlab/legacy": resolve(__dirname, "packages/legacy/src/index.ts"),
     },
   },
   test: {
     environment: "node",
-    include: ["tests/unit/**/*.test.ts"],
+    include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
   },
 })

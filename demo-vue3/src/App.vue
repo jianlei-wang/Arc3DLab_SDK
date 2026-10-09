@@ -2,6 +2,7 @@
 import type { Arc3DApp } from "arc3dlab"
 import { computed, onMounted, onUnmounted, ref } from "vue"
 import CodePanel from "./components/CodePanel.vue"
+import ConsolePanel, { type ConsoleLine } from "./components/ConsolePanel.vue"
 import ExampleGallery from "./components/ExampleGallery.vue"
 import SandcastleHeader from "./components/SandcastleHeader.vue"
 import StatusToast from "./components/StatusToast.vue"
@@ -18,10 +19,17 @@ const galleryOpen = ref(false)
 const running = ref(false)
 const error = ref("")
 const editorWidth = ref(420)
+const consoleHeight = ref(160)
+const consoleCollapsed = ref(false)
+const consoleLines = ref<ConsoleLine[]>([])
+const guiHost = ref<HTMLElement | null>(null)
 let app: Arc3DApp | undefined
 let dragStart = 0
 let dragWidth = 0
+let consoleDragStart = 0
+let consoleDragHeight = 0
 let toastTimer = 0
+let consoleSeq = 0
 const toast = ref("")
 
 const notify = (message: string) => {
@@ -44,15 +52,24 @@ const run = async () => {
   running.value = true
   error.value = ""
   galleryOpen.value = false
+  consoleLines.value = []
   try {
     app = await runSandcastleCode({
       container: GLOBE_ID,
       previous: app,
       code: code.value,
+      guiHost: guiHost.value,
+      onConsole: (level, text) => {
+        consoleSeq += 1
+        consoleLines.value.push({ id: consoleSeq, level, text })
+      },
     })
     resizeGlobe()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : String(cause)
+    const message = cause instanceof Error ? cause.message : String(cause)
+    error.value = message
+    consoleSeq += 1
+    consoleLines.value.push({ id: consoleSeq, level: "error", text: message })
   } finally {
     running.value = false
   }
@@ -60,7 +77,8 @@ const run = async () => {
 
 const selectExample = async (id: string) => {
   currentId.value = id
-  code.value = findExample(id).code
+  const example = findExample(id)
+  code.value = example.code
   galleryOpen.value = false
   await run()
 }
@@ -99,6 +117,28 @@ const stopResize = () => {
   resizeGlobe()
 }
 
+const startConsoleResize = (event: PointerEvent) => {
+  consoleDragStart = event.clientY
+  consoleDragHeight = consoleHeight.value
+  consoleCollapsed.value = false
+  window.addEventListener("pointermove", onConsoleResize)
+  window.addEventListener("pointerup", stopConsoleResize)
+}
+
+const onConsoleResize = (event: PointerEvent) => {
+  const max = Math.max(120, window.innerHeight - 220)
+  consoleHeight.value = Math.min(
+    Math.max(consoleDragHeight + (consoleDragStart - event.clientY), 80),
+    max
+  )
+}
+
+const stopConsoleResize = () => {
+  window.removeEventListener("pointermove", onConsoleResize)
+  window.removeEventListener("pointerup", stopConsoleResize)
+  resizeGlobe()
+}
+
 onMounted(() => {
   window.addEventListener("resize", resizeGlobe)
   void run()
@@ -107,6 +147,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener("resize", resizeGlobe)
   stopResize()
+  stopConsoleResize()
   window.clearTimeout(toastTimer)
   void app?.destroy()
 })
@@ -126,22 +167,37 @@ onUnmounted(() => {
 
     <div class="workspace">
       <div class="dock" :style="{ width: `${editorWidth}px` }">
-        <CodePanel
-          :code="code"
-          :title="current.title"
-          :error="error"
-          :running="running"
-          @update:code="code = $event"
-          @run="run"
-          @restore="restoreExample"
-          @copied="notify('已复制到剪贴板')"
-        />
+        <div class="code-wrap">
+          <CodePanel
+            :code="code"
+            :title="current.title"
+            :error="error"
+            :running="running"
+            @update:code="code = $event"
+            @run="run"
+            @restore="restoreExample"
+            @copied="notify('已复制到剪贴板')"
+          />
+        </div>
+        <div class="vsplit" @pointerdown="startConsoleResize" />
+        <div
+          class="console-wrap"
+          :style="{ height: consoleCollapsed ? '28px' : `${consoleHeight}px` }"
+        >
+          <ConsolePanel
+            :lines="consoleLines"
+            :collapsed="consoleCollapsed"
+            @clear="consoleLines = []"
+            @toggle="consoleCollapsed = !consoleCollapsed"
+          />
+        </div>
       </div>
 
       <div class="split" @pointerdown="startResize" />
 
       <main class="stage">
         <div :id="GLOBE_ID" class="globe" />
+        <div ref="guiHost" class="gui-host" />
         <ExampleGallery
           v-if="galleryOpen"
           :examples="examples"
@@ -172,9 +228,37 @@ onUnmounted(() => {
 }
 
 .dock {
+  display: flex;
+  flex-direction: column;
   flex: 0 0 auto;
   min-width: 280px;
   height: 100%;
+}
+
+.code-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.vsplit {
+  height: 6px;
+  flex: 0 0 6px;
+  cursor: ns-resize;
+  background: #1a1c1e;
+  border-top: 1px solid #4a4e53;
+  border-bottom: 1px solid #111;
+}
+
+.vsplit:hover {
+  background: #e8c547;
+}
+
+.console-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-height: 28px;
+  overflow: hidden;
 }
 
 .split {
@@ -199,5 +283,59 @@ onUnmounted(() => {
 .globe {
   width: 100%;
   height: 100%;
+}
+
+.gui-host {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  pointer-events: auto;
+  max-width: min(420px, 52%);
+  color: #fff;
+  font: 13px/1.4 "Trebuchet MS", "Segoe UI", sans-serif;
+  text-shadow: 0 1px 2px #000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(36, 37, 38, 0.86);
+  border: 1px solid #4a4e53;
+  border-radius: 4px;
+}
+
+.gui-host:empty {
+  display: none;
+}
+
+.gui-host :deep(*) {
+  pointer-events: auto;
+}
+
+.gui-host :deep(button),
+.gui-host :deep(select) {
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid #4a4e53;
+  background: #3a3e42;
+  color: #fff;
+  border-radius: 3px;
+  font: 12px "Trebuchet MS", "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.gui-host :deep(.gui-toggle) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid #4a4e53;
+  background: #3a3e42;
+  border-radius: 3px;
+  color: #fff;
+  font: 12px "Trebuchet MS", "Segoe UI", sans-serif;
+  cursor: pointer;
 }
 </style>

@@ -1,4 +1,13 @@
-import type { Arc3DConfig, Arc3DContext, CreditMode, EngineContext, Logger, Unsubscribe } from "@arc3dlab/core"
+import {
+  getRuntimeDiagnostics,
+  type Arc3DConfig,
+  type Arc3DContext,
+  type CreditMode,
+  type EngineContext,
+  type Logger,
+  type RuntimeDiagnostics,
+  type Unsubscribe,
+} from "@arc3dlab/core"
 import { AnalysisManager } from "@arc3dlab/analysis"
 import type { DataManager } from "@arc3dlab/data"
 import { EffectsManager } from "@arc3dlab/effects"
@@ -7,31 +16,14 @@ import { InteractionManager } from "@arc3dlab/interaction"
 import { BasemapManager, LayerManager, TerrainManager } from "@arc3dlab/layers"
 import { CameraController, SceneController } from "@arc3dlab/scene"
 import { UIManager } from "@arc3dlab/ui"
+import { PluginManager, type Arc3DPlugin } from "./plugins"
 
 export interface NativeContext {
   viewer: unknown
 }
 
-export interface Arc3DPlugin {
-  name: string
-  install(app: Arc3DApp, context: Arc3DContext): void | Promise<void>
-}
-
-export class PluginManager {
-  private plugins: Arc3DPlugin[] = []
-
-  constructor(private readonly app: Arc3DApp, private readonly context: Arc3DContext) {}
-
-  async use(plugin: Arc3DPlugin): Promise<void> {
-    this.context.lifecycle.assertUsable("install plugin")
-    await plugin.install(this.app, this.context)
-    this.plugins.push(plugin)
-  }
-
-  list(): string[] {
-    return this.plugins.map((plugin) => plugin.name)
-  }
-}
+export type { Arc3DPlugin }
+export { PluginManager }
 
 export class PerformanceManager {
   constructor(private readonly context: Arc3DContext) {}
@@ -70,11 +62,12 @@ export class Arc3DApp {
   readonly analysis: AnalysisManager
   readonly effects: EffectsManager
   readonly ui: UIManager
-  readonly plugins: PluginManager
+  readonly plugins: PluginManager<Arc3DApp>
   readonly performance: PerformanceManager
   readonly credits: CreditFacade
   readonly logger: Logger
   readonly native: NativeContext
+  private destroyTask: Promise<void> | undefined
 
   constructor(readonly context: Arc3DContext) {
     this.scene = new SceneController(context)
@@ -98,24 +91,53 @@ export class Arc3DApp {
 
   on: Arc3DContext["events"]["on"] = (event, handler) => this.context.events.on(event, handler)
 
-  async use(plugin: Arc3DPlugin): Promise<void> {
+  async use(plugin: Arc3DPlugin<Arc3DApp>): Promise<void> {
     await this.plugins.use(plugin)
   }
 
+  getDiagnostics(): RuntimeDiagnostics & { postprocess: number; plugins: string[] } {
+    return {
+      ...getRuntimeDiagnostics(this.context),
+      postprocess: this.effects.postprocess.list().length,
+      plugins: this.plugins.list(),
+    }
+  }
+
   async destroy(): Promise<void> {
-    if (this.context.lifecycle.isDestroyed) return
-    this.context.lifecycle.transition("destroying")
-    this.ui.destroy()
-    this.interaction.destroy()
-    this.effects.destroy()
-    this.analysis.destroy()
-    this.graphics.clear()
-    this.context.registry.clear()
-    this.context.tracker.clear()
-    this.context.engine.viewer.destroy()
+    if (this.context.lifecycle.current === "destroyed") return
+    if (this.destroyTask) return this.destroyTask
+    this.destroyTask = this.performDestroy()
+    return this.destroyTask
+  }
+
+  private async performDestroy(): Promise<void> {
+    if (this.context.lifecycle.current !== "destroying") {
+      this.context.lifecycle.transition("destroying")
+    }
+    await this.plugins.destroy()
+    await this.context.disposers.disposeAll((error) => {
+      this.logger.error("Disposer failed during destroy", error)
+    })
+    await this.runDestroyStep("ui", () => this.ui.destroy())
+    await this.runDestroyStep("interaction", () => this.interaction.destroy())
+    await this.runDestroyStep("effects", () => this.effects.destroy())
+    await this.runDestroyStep("analysis", () => this.analysis.destroy())
+    await this.runDestroyStep("scene", () => this.scene.destroy())
+    await this.runDestroyStep("graphics", () => this.graphics.clear())
+    await this.runDestroyStep("registry", () => this.context.registry.clear(this.context.tracker))
+    await this.runDestroyStep("tracker", () => this.context.tracker.clear())
+    await this.runDestroyStep("engine", () => this.context.engine.viewer.destroy())
     this.context.events.emit("destroy", {})
     this.context.events.clear()
     this.context.lifecycle.transition("destroyed")
+  }
+
+  private async runDestroyStep(label: string, step: () => void | Promise<void>): Promise<void> {
+    try {
+      await step()
+    } catch (error) {
+      this.logger.error(`Destroy step failed: ${label}`, error)
+    }
   }
 }
 
@@ -123,6 +145,9 @@ export function createApp(config: Arc3DConfig, engine: EngineContext, context: A
   void config
   void engine
   const app = new Arc3DApp(context)
+  if (context.lifecycle.current === "created") {
+    context.lifecycle.transition("initializing")
+  }
   context.lifecycle.transition("ready")
   context.events.emit("ready", {})
   return app

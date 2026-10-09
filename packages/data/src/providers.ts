@@ -1,4 +1,4 @@
-import { Arc3DError, createId } from "@arc3dlab/core"
+import { Arc3DError, classifyLoadError, createId } from "@arc3dlab/core"
 import {
   ArcGisMapServerImageryProvider,
   Credit,
@@ -43,6 +43,17 @@ export async function createImageryProvider(
   spec: ProviderSpec,
   fallbackToken?: string
 ): Promise<ImageryProvider> {
+  try {
+    return await createImageryProviderUnchecked(spec, fallbackToken)
+  } catch (error) {
+    throw classifyLoadError(error)
+  }
+}
+
+async function createImageryProviderUnchecked(
+  spec: ProviderSpec,
+  fallbackToken?: string
+): Promise<ImageryProvider> {
   const credit = spec.credit ? new Credit(spec.credit) : undefined
   if (spec.type === "xyz") {
     return new UrlTemplateImageryProvider({ url: spec.urlTemplate ?? spec.url ?? "", credit })
@@ -71,7 +82,7 @@ export async function createImageryProvider(
   if (spec.type === "tdt") {
     const token = spec.token ?? fallbackToken ?? ""
     if (!token) {
-      throw new Arc3DError("INVALID_ARGUMENT", "Tianditu basemap requires a runtime token")
+      throw new Arc3DError("AUTH_FAILED", "Tianditu basemap requires a runtime token")
     }
     return new WebMapTileServiceImageryProvider({
       url: tdtUrl(spec.mode ?? "img", token),

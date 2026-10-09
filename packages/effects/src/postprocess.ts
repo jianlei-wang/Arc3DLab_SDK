@@ -22,6 +22,7 @@ export interface ColorCorrectionOptions {
 
 export interface StageLike {
   uniforms?: Record<string, number>
+  enabled?: boolean
 }
 
 export interface PostProcessStageFactory {
@@ -77,6 +78,21 @@ export class PostProcessManager {
   }
 
   setBloom(enabled: boolean, options?: BloomOptions): void {
+    this.context.lifecycle.assertUsable("toggle bloom")
+    const bloom = getCesiumViewer(this.context.engine.native.viewer).scene.postProcessStages.bloom as
+      | (StageLike & { enabled?: boolean })
+      | undefined
+    if (bloom && typeof bloom === "object" && "enabled" in bloom) {
+      bloom.enabled = enabled
+      applyUniforms(bloom, {
+        sigma: options?.sigma,
+        delta: options?.delta,
+        stepSize: options?.stepSize,
+      })
+      if (enabled) this.active.add("bloom")
+      else this.active.delete("bloom")
+      return
+    }
     this.setStage("bloom", enabled, () => this.factory.createBloom(options))
   }
 
@@ -132,6 +148,10 @@ export class PostProcessManager {
 
   private removeAll(): void {
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
+    const bloom = viewer.scene.postProcessStages.bloom as (StageLike & { enabled?: boolean }) | undefined
+    if (bloom && typeof bloom === "object" && "enabled" in bloom) {
+      bloom.enabled = false
+    }
     for (const stage of this.stages.values()) {
       viewer.scene.postProcessStages.remove(stage as never)
     }

@@ -1,0 +1,275 @@
+# 需求实施计划
+
+- [x] 1. 修正 Graphic 公共 API 合同
+  - [x] 1.1 实现 Entity/Primitive 的 `Graphic.setStyle`
+    - 修改 `packages/graphics/src/index.ts`，替换 `register()` 中 `applyStyle = () => undefined`
+    - 为 point / polyline / polygon / model 分别实现颜色、轮廓、宽度、点大小更新
+    - 可变字段就地合并；不可变字段抛出带 `code` 的 `Arc3DError`
+    - 对应 M0-01、Requirement 4
+  - [x] 1.2 处理 `RenderMode.buffer` 未实现合同
+    - 修改 `packages/core/src/types.ts`、`packages/graphics/src/index.ts`
+    - 显式请求 `buffer` 时抛出 `UNSUPPORTED_CAPABILITY`，`graphic.renderMode` 与请求结果保持一致
+    - 对应 M0-04、Requirement 4
+  - [x] 1.3 统一 Graphic ID 冲突策略
+    - 在创建 native 资源前检查 App 级 `ResourceRegistry`
+    - 跨 Graphic / Layer / DataSource 同 ID 一律拒绝并保持原资源可用
+    - 失败路径无残留 native 对象
+    - 对应 M0-05、Requirement 4、Correctness: owned 资源可追踪
+  - [x] 1.4 统一 Graphic 参数校验器
+    - 为空 positions、长度不足的线/面、非法经纬度、非有限数值、负半径、无效颜色建立校验
+    - 错误统一为 `Arc3DError` + `INVALID_ARGUMENT`
+    - 对应 M0-06、Requirement 4
+  - [x] 1.5 为 setStyle / buffer / ID 冲突 / 参数校验编写单元测试
+    - 覆盖每个 Graphic 类型的样式更新、不支持字段报错、重复 ID 回滚
+
+- [x] 2. 修正 Camera 与拾取合同
+  - [x] 2.1 将 `CameraController.flyTo` 包装为真实 Promise
+    - 修改 `packages/scene/src/index.ts`，使用 Cesium complete/cancel 回调 settle
+    - 定义完成、取消、异常、App destroy 四种语义
+    - 对应 M0-02、Requirement 1
+  - [x] 2.2 修复 Graphic/Layer 拾取分类
+    - 修改 `packages/interaction/src/index.ts` 的 `resolveGraphicId` / `resolveLayerId`
+    - 未登记 ID 不得作为 Graphic；Layer ID 不得写入 `graphicId`
+    - Primitive 子对象映射回父 Graphic
+    - 对应 M0-03、Requirement 5
+  - [x] 2.3 为 flyTo 与 picking 编写单元测试
+    - 覆盖完成/取消/destroy、Entity/Primitive/Tileset/未知 native 分类
+
+- [x] 3. 修复异步创建、销毁竞态与凭据隔离
+  - [x] 3.1 为异步资源操作增加取消与后置状态检查
+    - 覆盖 `DataManager.add`、`BasemapManager.set`、`ImageryOverlayManager.add`、`TilesetManager.add`、`TerrainManager.set`
+    - 每个 `await` 之后在提交资源前检查 App 生命周期
+    - 对应 M0-07、Requirement 1
+  - [x] 3.2 补齐默认底图错误处理
+    - 修改 `packages/engine-cesium/src/CesiumEngine.ts`，为默认底图 Promise 增加拒绝处理
+    - 通过 logger / `error` 事件报告，支持禁用或替换默认底图
+    - 对应 M0-08、Requirement 3
+  - [x] 3.3 为异步创建建立 pending/ready/failed/cancelled 回滚
+    - 对 Provider、DataSource、Terrain、Tileset 采用统一状态
+    - 加载成功但注册失败时释放 native 对象
+    - 对应 M0-09、Requirement 1 / 4
+  - [x] 3.4 明确 Cesium Ion Token 作用域
+    - 评估 Cesium 1.146.0 的实例级授权方式
+    - 同页多 Viewer 凭据行为可预测，避免把全局静态变量包装成实例隔离
+    - 对应 M0-10、Requirement 3
+  - [x] 3.5 补齐或收缩 Ion Terrain 类型
+    - 实现 `type: "ion"` + `assetId` 创建与错误处理，或从公开类型移除该承诺
+    - 类型、运行结果保持一致
+    - 对应 M0-11、Requirement 4
+  - [x] 3.6 纠正 Bloom / Blur 语义
+    - 修改 `packages/effects/src/postprocess.ts`，实现真正 Bloom stage 或将 API 改为 `setBlur`
+    - 叠加、关闭、改参数、销毁后能复原场景
+    - 对应 M0-12
+  - [x] 3.7 为异步 destroy、Ion Token、默认底图拒绝、Terrain Ion 编写回归测试
+
+ - [x] 4. 检查点 - 确保 M0 测试通过
+  - 运行 `npm test`、`npm run build` 与类型检查
+  - 确保所有测试通过,如有疑问请询问用户
+
+ - [x] 5. 统一 Runtime 生命周期
+   - [x] 5.1 把 `LifecycleManager` 改为有限状态机
+    - 修改 `packages/core/src/lifecycle.ts`
+    - 只允许 `created → initializing → ready → destroying → destroyed`
+    - 重复 destroy 幂等
+    - 对应 M1-01、Requirement 1、Correctness: `APP_DESTROYED`
+   - [x] 5.2 建立 Disposable / disposer 栈
+    - Manager、Event Handler、Tooltip、定时器、后处理、DataSource、Graphic、Layer 创建时登记清理函数
+    - 逆序释放；单项失败继续释放其余资源
+    - 对应 M1-02、Requirement 1 / 5
+   - [x] 5.3 统一 `Arc3DApp.destroy` 顺序
+    - 修改 `packages/sdk/src/Arc3DApp.ts`
+    - 先阻止新操作并取消异步任务，再停 UI/交互，释放效果与分析，释放 Graphic/Layer/DataSource，最后销毁 Engine/Viewer
+    - 固定 Viewer 销毁前后事件语义
+    - 对应 M1-03、Requirement 1
+   - [x] 5.4 定义所有权与借用资源语义
+    - 明确 `owned=true/false`、`remove()`、`destroy()` 合同
+    - 外部借用资源在 App destroy 时只取消注册
+    - 对应 M1-04、Requirement 1、Correctness: owned 资源全部释放
+   - [x] 5.5 补齐 Plugin 生命周期
+    - 修改 `packages/sdk/src/Arc3DApp.ts` 的 `PluginManager`
+    - 支持重复安装策略、安装失败回滚、`uninstall`/`dispose`、App 销毁时卸载
+    - 对应 M1-05、M6-01
+   - [x] 5.6 隔离 EventBus 订阅异常
+    - 修改 `packages/core/src/event-bus.ts`
+    - 单个 handler 抛错后继续调用其余 handler，记录错误并避免递归触发 error 事件
+    - 对应 M1-06、Requirement 1
+   - [x] 5.7 将定时器和帧任务纳入生命周期
+    - 修复 `SceneController.setMode()` 的固定 `setTimeout`
+    - 改为可取消的场景变换完成机制
+    - 对应 M1-07、Requirement 1
+   - [x] 5.8 为生命周期状态机、destroy 幂等、插件回滚、EventBus 异常隔离编写单元测试
+    - 对应 Correctness Properties
+
+ - [x] 6. 统一资源注册与诊断
+   - [x] 6.1 确定 ResourceRegistry / ResourceTracker 分工
+    - 让资源图支持父子依赖和逆序级联释放，或删除未被消费的重复跟踪
+    - Polygon fill/outline、点集合、Tileset 与父 Graphic 只保留一套销毁来源
+    - 对应 M1-08、Requirement 4、Correctness: Polygon outline 与 fill 绑定
+   - [x] 6.2 确保资源注册原子性
+    - 将 native create、Registry add、Manager index、事件派发封装成可回滚流程
+    - 对应 M1-09、Requirement 4
+   - [x] 6.3 增加只读资源诊断快照
+    - 暴露 `getDiagnostics()`：按类型计数、pending tasks、监听器数量、后处理 stage 数、销毁状态
+    - 对应 M1-10
+   - [x] 6.4 为复合资源销毁、注册回滚、诊断快照编写单元测试
+
+ - [x] 7. 检查点 - 确保 M1 测试通过
+  - 确保所有测试通过,如有疑问请询问用户
+
+ - [x] 8. 明确 Engine Adapter 与能力边界
+   - [x] 8.1 固化 Cesium-first 引擎策略到代码合同
+    - 完善 `packages/core/src/types.ts` 的 Engine 接口：场景/相机、输入、渲染请求、资源 Backend、坐标转换、能力查询、错误映射、销毁
+    - `@arc3dlab/core` 保持对 `cesium` 零导入
+    - 对应 M2-01、M2-02、Requirement 2
+   - [x] 8.2 规范 Capability 注册
+    - 扩展 `packages/core/src/capabilities.ts`
+    - 为 `engine:cesium`、`graphic:model`、`analysis:*`、`effects:*` 定义提供者、版本、可用状态
+    - 未注册能力抛出 `UNSUPPORTED_CAPABILITY`
+    - 对应 M2-03、Requirement 2
+   - [x] 8.3 用 Fake Engine 对 Runtime/Manager 非渲染逻辑编写集成测试
+    - 对应 Requirement 2、Requirement 7
+
+ - [x] 9. 升级 RenderPolicy 与 Graphic 可编辑合同
+   - [x] 9.1 把渲染策略升级为可解释 Policy
+    - 输入：图形类型、数量、动态编辑、地形贴地、样式限制、设备能力
+    - 输出 backend 与原因；用户显式模式保持有效
+    - 对应 M2-04、Requirement 4
+   - [x] 9.2 补齐 Primitive 子对象到 Graphic 的 ID 映射
+    - 覆盖 `PointPrimitiveCollection` 成员、复合 Polygon fill/outline、模型拾取
+    - 对应 M2-05、Requirement 4 / 5
+   - [x] 9.3 规范 Graphic 可编辑能力
+    - 定义位置/样式/属性修改、可见性、选择态、批量创建和移除合同
+    - Primitive 低成本不可编辑的能力显式报错或切换 backend
+    - 对应 M2-06、Requirement 4
+   - [x] 9.4 提供批量资源 API 与差量更新
+    - 批量点、线、面避免逐个 Entity；增量变化替代整批重建
+    - 对应 M2-07
+   - [x] 9.5 建立按需渲染协调器
+    - 资源变更、Camera、模式、动画、Tooltip/选择、后处理触发 render invalidation
+    - 对应 M2-08
+   - [x] 9.6 改善 WebGL 初始化兼容性
+    - 评估 `failIfMajorPerformanceCaveat`、抗锯齿、DPR、`resolutionScale` 默认值
+    - 初始化失败给出可操作错误与受控降级
+    - 对应 M2-09、Requirement 1
+   - [x] 9.7 为 RenderPolicy 决策稳定性、子对象 ID 映射、批量更新编写测试
+
+ - [x] 10. 统一 Picking Resolver 与 Tooltip 所有权
+   - [x] 10.1 建立统一 Picking Resolver
+    - 对 Graphic、Layer、3D Tiles Feature、Terrain、外部 Cesium primitive 严格分类
+    - unknown/native 保留，禁止伪造 Graphic ID
+    - 对应 M2-10、Requirement 5
+   - [x] 10.2 优化 hover 热路径
+    - 命中结果去重、可选节流、鼠标离开场景处理
+    - 对应 M2-11、Requirement 5
+   - [x] 10.3 治理 Tooltip DOM 所有权与坐标
+    - 处理多 Viewer、容器滚动、canvas 偏移、CSS transform、重复 show/hide、外部同 ID 节点
+    - App destroy 后只清理 SDK 自己创建的节点
+    - 对应 M2-12、Requirement 5
+   - [x] 10.4 为 picking 分类、hover 去重、Tooltip 销毁编写单元测试
+
+ - [x] 11. 检查点 - 确保 M2 测试通过
+  - 确保所有测试通过,如有疑问请询问用户
+
+ - [x] 12. 明确测量与空间查询语义
+   - [x] 12.1 定义坐标与单位规范并落到分析 API
+    - 统一输入坐标、椭球高/地形高、角度、坡向、长度、面积、体积单位、缺失高程处理
+    - 对应 M3-01
+   - [x] 12.2 替换/校验 Area 算法
+    - 覆盖凹凸多边形、近共线点、多环/洞、跨日期变更线
+    - 对应 M3-02
+   - [x] 12.3 明确 Distance / Heading 定义
+    - 区分三维直线、椭球面、地形表面、垂直高差与方位角参考
+    - 对应 M3-03
+   - [x] 12.4 把空间查询扩展为几何关系
+    - 点在范围、线段相交、面相交/包含、距离到线段或面、跨日期变更线拆分
+    - 对应 M3-04
+   - [x] 12.5 为面积、距离、查询边界用例编写基准测试
+
+ - [x] 13. 校验地形、视域、体积与剖切
+   - [x] 13.1 加强地形采样状态机
+    - 区分真实采样、ellipsoid fallback、无数据、取消
+    - 对应 M3-05
+   - [x] 13.2 校验坡度与坡向
+    - 增加人工平面/斜坡基准；水平面坡度趋近零
+    - 对应 M3-06
+   - [x] 13.3 校验 Line of Sight / Viewshed
+    - 定义观察点高、地形插值、射线间隔、地球曲率语义
+    - 对应 M3-07
+   - [x] 13.4 重构 CutFill 网格面积算法
+    - 引入局部投影、边界单元裁剪/加权或三角网
+    - 输出分辨率与误差提示
+    - 对应 M3-08
+   - [x] 13.5 完善 Excavation 可视化合同
+    - 检查 clipping plane / polygon 是否形成有深度开挖体
+    - 若仅表面裁切，则能力命名与实现保持一致
+    - 对应 M3-09
+   - [x] 13.6 为大规模分析增加任务调度
+    - 进度、取消、分块、采样上限、缓存；可评估 Web Worker
+    - 对应 M3-10、M5-05
+   - [x] 13.7 为地形采样、通视、土方、开挖编写基准与边界测试
+
+ - [x] 14. 检查点 - 确保 M3 测试通过
+  - 确保所有测试通过,如有疑问请询问用户
+
+ - [x] 15. 建立发布工程门禁
+   - [x] 15.1 统一包管理器与 lockfile
+    - 选择 npm，提交唯一权威 lockfile，设置 `packageManager`
+    - 对应 M4-01、Requirement 7
+   - [x] 15.2 增加独立类型检查脚本
+    - 添加 `typecheck`：`tsc --noEmit`
+    - 对应 M4-02、Requirement 7
+   - [x] 15.3 增加质量命令
+    - 加入 `format:check`、依赖边界检查、公开 API 导出检查
+    - 对应 M4-03、Requirement 7
+   - [x] 15.4 建立 GitHub Actions CI
+    - 自动执行安装、类型检查、单测、构建、打包冒烟
+    - 对应 M4-04、Requirement 7
+   - [x] 15.5 建立 npm pack 消费测试
+    - 验证 `import { Arc3D } from "arc3dlab"` 与 `arc3dlab/engine-cesium` 子路径
+    - 对应 M4-05、Requirement 7
+   - [x] 15.6 建立浏览器集成/E2E 测试
+    - 创建 Viewer、添加 Graphic/Model/Layer、交互、后处理、销毁
+    - 对应 M4-06、Requirement 5 / 7
+   - [x] 15.7 加依赖与许可证一致性检查
+    - 校验 Cesium peer、`LICENSE`、`NOTICE.md`、`package.json`
+    - 对应 M4-07、Requirement 7
+   - [x] 15.8 为 CI 脚本、pack 消费、E2E 核心路径编写自动化测试
+
+ - [x] 16. 检查点 - 确保 M4 门禁通过
+  - 运行 typecheck、test、build、pack 消费测试
+  - 确保所有测试通过,如有疑问请询问用户
+
+ - [x] 17. 建立性能基准与规模化能力
+   - [x] 17.1 编写可重复的性能基准脚本
+    - 固定场景范围、Graphic 数量、相机路线；记录初始化、首帧、拾取、销毁
+    - 对应 M5-01
+   - [x] 17.2 对比 Entity / Primitive 策略并回写 RenderPolicy 阈值
+    - 对应 M5-02、M2-04
+   - [x] 17.3 评估资源池与批量更新
+    - 针对高频点/线更新实现集合复用或差量更新
+    - 对应 M5-03、M2-07
+   - [x] 17.4 建立网络和资源加载诊断
+    - 区分 Token 错误、HTTP/网络、格式错误、引擎初始化错误
+    - 对应 M5-04、Requirement 3
+   - [x] 17.5 按需实现分析 Worker
+    - 纯数学、几何查询、采样网格可脱离 Cesium 场景计算；保留取消与错误序列化
+    - 对应 M5-05、M3-10
+   - [x] 17.6 为基准脚本与 Worker 取消路径编写测试
+
+ - [x] 18. 落地插件合同与领域扩展接口
+   - [x] 18.1 实现 Capability / Command / Tool 注册合同
+    - 名称空间、参数 schema、依赖、版本、错误码；禁止覆盖核心命令
+    - 对应 M6-02、Requirement 2
+   - [x] 18.2 建立插件隔离测试夹具
+    - Fake Engine + 最小 Viewer，验证卸载后核心 SDK 功能正常
+    - 对应 M6-03
+   - [x] 18.3 建立第一个领域插件样板
+    - 独立插件演示数据加载、图层/Graphic、专题分析、UI 生命周期
+    - 对应 M6-04、M6-05
+   - [x] 18.4 实现领域插件离线/错误状态
+    - 覆盖无网络、数据源失效、凭据缺失、部分成功、任务取消
+    - 对应 M6-07、Requirement 3
+   - [x] 18.5 为插件安装/卸载/重装与能力冲突编写测试
+
+ - [x] 19. 检查点 - 确保全部里程碑测试通过
+  - 确保所有测试通过,如有疑问请询问用户

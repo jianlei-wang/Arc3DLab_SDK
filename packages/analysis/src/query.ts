@@ -1,27 +1,18 @@
 import type { Arc3DContext, LngLatHeight, PositionInput, ResourceHandle } from "@arc3dlab/core"
 import {
-  anyVertexInPolygon,
-  anyVertexInRect,
-  anyVertexWithinMeters,
+  geometryMatchesDistance,
+  geometryMatchesPolygon,
+  geometryMatchesRect,
+  toMeasurePoint,
+  type QueryRelation,
   type RectQuery,
-} from "./math"
+} from "./geometry"
 
 const GRAPHIC_TYPES = new Set(["point", "polyline", "polygon", "model"])
 
 export interface QueryHit {
   id: string
   type: string
-}
-
-function toLngLat(input: PositionInput): LngLatHeight {
-  if (Array.isArray(input)) {
-    return { longitude: input[0], latitude: input[1], height: input[2] ?? 0 }
-  }
-  return {
-    longitude: input.longitude,
-    latitude: input.latitude,
-    height: "height" in input ? input.height : 0,
-  }
 }
 
 function graphicPositions(item: ResourceHandle): LngLatHeight[] {
@@ -32,29 +23,40 @@ function graphicPositions(item: ResourceHandle): LngLatHeight[] {
 export class SpatialQueryService {
   constructor(private readonly context: Arc3DContext) {}
 
-  async rectangle(rect: RectQuery): Promise<{ graphics: QueryHit[] }> {
+  async rectangle(rect: RectQuery & { relation?: QueryRelation }): Promise<{ graphics: QueryHit[] }> {
     this.context.lifecycle.assertUsable("query rectangle")
-    return { graphics: this.collect((positions) => anyVertexInRect(positions, rect)) }
+    const relation = rect.relation ?? "intersect"
+    return {
+      graphics: this.collect((type, positions) => geometryMatchesRect(type, positions, rect, relation)),
+    }
   }
 
-  async polygon(options: { positions: PositionInput[] }): Promise<{ graphics: QueryHit[] }> {
+  async polygon(options: {
+    positions: PositionInput[]
+    relation?: QueryRelation
+  }): Promise<{ graphics: QueryHit[] }> {
     this.context.lifecycle.assertUsable("query polygon")
-    const ring = options.positions.map(toLngLat)
-    return { graphics: this.collect((positions) => anyVertexInPolygon(positions, ring)) }
+    const ring = options.positions.map(toMeasurePoint)
+    const relation = options.relation ?? "intersect"
+    return {
+      graphics: this.collect((type, positions) => geometryMatchesPolygon(type, positions, ring, relation)),
+    }
   }
 
   async distance(options: { position: PositionInput; meters: number }): Promise<{ graphics: QueryHit[] }> {
     this.context.lifecycle.assertUsable("query distance")
-    const center = toLngLat(options.position)
+    const center = toMeasurePoint(options.position)
     return {
-      graphics: this.collect((positions) => anyVertexWithinMeters(positions, center, options.meters)),
+      graphics: this.collect((type, positions) =>
+        geometryMatchesDistance(type, positions, center, options.meters)
+      ),
     }
   }
 
-  private collect(match: (positions: LngLatHeight[]) => boolean): QueryHit[] {
+  private collect(match: (type: string, positions: LngLatHeight[]) => boolean): QueryHit[] {
     return this.context.registry
       .values()
-      .filter((item) => GRAPHIC_TYPES.has(item.type) && match(graphicPositions(item)))
+      .filter((item) => GRAPHIC_TYPES.has(item.type) && match(item.type, graphicPositions(item)))
       .map((item) => ({ id: item.id, type: item.type }))
   }
 }

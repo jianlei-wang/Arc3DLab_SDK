@@ -11,6 +11,9 @@
 
 ## 当前
 
+- Sandcastle 左侧底部显示运行控制台
+- Sandcastle 示例通过 gui.addToolbarButton / addToggleButton / addToolbarMenu 在地球上创建交互控件
+
 ## v1.0.0-alpha.1 - 2026-10-08
 
 ### Breaking Changes

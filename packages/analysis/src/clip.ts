@@ -12,8 +12,15 @@ import {
   Transforms,
 } from "cesium"
 
+export interface ExcavationResult {
+  depth: number
+  volumetric: boolean
+  method: "clipping-polygon-and-floor-plane"
+}
+
 export class ClipAnalysis {
   private active: string[] = []
+  private excavation: ExcavationResult | undefined
 
   constructor(private readonly context: Arc3DContext) {}
 
@@ -68,10 +75,19 @@ export class ClipAnalysis {
     this.active = ["polygon"]
   }
 
-  setExcavation(options: { positions: PositionInput[]; depth: number }): void {
+  setExcavation(options: { positions: PositionInput[]; depth: number }): ExcavationResult {
     this.context.lifecycle.assertUsable("set excavation")
     const cartesians = toCartesian3Array(options.positions)
-    if (cartesians.length < 3) return
+    if (cartesians.length < 3) {
+      const empty: ExcavationResult = {
+        depth: Math.max(0, options.depth),
+        volumetric: false,
+        method: "clipping-polygon-and-floor-plane",
+      }
+      this.excavation = empty
+      this.active = []
+      return empty
+    }
     const origin = cartesians.reduce((sum, point) => Cartesian3.add(sum, point, sum), new Cartesian3())
     Cartesian3.multiplyByScalar(origin, 1 / cartesians.length, origin)
     const globe = getCesiumViewer(this.context.engine.native.viewer).scene.globe
@@ -79,13 +95,26 @@ export class ClipAnalysis {
       polygons: [new ClippingPolygon({ positions: cartesians })],
       enabled: true,
     })
-    globe.clippingPlanes?.destroy?.()
-    globe.clippingPlanes = new ClippingPlaneCollection({
-      modelMatrix: Transforms.eastNorthUpToFixedFrame(origin),
-      planes: [new ClippingPlane(new Cartesian3(0, 0, -1), Math.max(0, options.depth))],
-      enabled: true,
-    })
+    const depth = Math.max(0, options.depth)
+    const volumetric = depth > 0
+    if (volumetric) {
+      globe.clippingPlanes?.destroy?.()
+      globe.clippingPlanes = new ClippingPlaneCollection({
+        modelMatrix: Transforms.eastNorthUpToFixedFrame(origin),
+        planes: [new ClippingPlane(new Cartesian3(0, 0, -1), depth)],
+        enabled: true,
+      })
+    } else {
+      this.clearPlanes()
+    }
+    const result: ExcavationResult = {
+      depth,
+      volumetric,
+      method: "clipping-polygon-and-floor-plane",
+    }
+    this.excavation = result
     this.active = ["excavation"]
+    return result
   }
 
   list(): string[] {
@@ -126,5 +155,6 @@ export class ClipAnalysis {
     this.clearPlanes()
     this.clearPolygons()
     this.active = []
+    this.excavation = undefined
   }
 }

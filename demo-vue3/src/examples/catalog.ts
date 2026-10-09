@@ -13,10 +13,15 @@ export const examples: SandcastleExample[] = [
     id: "hello-world",
     title: "Hello World",
     category: "入门",
-    summary: "创建 Arc3DApp 并飞到中国上空。运行时已注入 app。",
-    code: `// app 已由 Sandcastle 创建，直接调用公共 API。
+    summary: "创建 Arc3DApp 并飞到中国上空。运行时已注入 app 和 gui。",
+    code: `// app / gui 已由 Sandcastle 注入。
 app.performance.setFpsVisible(false)
 await app.camera.flyTo([104.06, 30.67, 4200000], 2)
+
+gui.addToolbarButton("成都", () => app.camera.flyTo([104.06, 30.67, 800000], 1.6))
+gui.addToolbarButton("北京", () => app.camera.flyTo([116.40, 39.91, 800000], 1.6))
+gui.addToolbarButton("上海", () => app.camera.flyTo([121.47, 31.23, 800000], 1.6))
+gui.addToggleButton("FPS", false, (on) => app.performance.setFpsVisible(on))
 `,
   },
   {
@@ -47,7 +52,7 @@ console.log("polygon id", polygon.id)
     id: "points",
     title: "Points",
     category: "图形",
-    summary: "批量加点，并打开 FPS 方便观察渲染。",
+    summary: "批量加点，并用开关控制 FPS。",
     code: `app.performance.setFpsVisible(true)
 
 app.graphics.addPoints({
@@ -66,6 +71,7 @@ app.graphics.addPoints({
 })
 
 await app.camera.flyTo([110.0, 32.0, 2800000], 2)
+gui.addToggleButton("FPS", true, (on) => app.performance.setFpsVisible(on))
 `,
   },
   {
@@ -94,19 +100,22 @@ await app.camera.flyTo([119.2, 32.4, 900000], 1.8)
     id: "camera-fly",
     title: "Camera FlyTo",
     category: "相机",
-    summary: "连续飞向两个目标，并打印相机状态。",
-    code: `await app.camera.flyTo([116.40, 39.91, 180000], 1.4)
-await app.camera.flyTo([121.47, 31.23, 120000], 1.8)
+    summary: "用工具栏按钮飞向城市，并打印相机姿态。",
+    code: `gui.addToolbarButton("北京", () => app.camera.flyTo([116.40, 39.91, 180000], 1.4))
+gui.addToolbarButton("上海", () => app.camera.flyTo([121.47, 31.23, 120000], 1.8))
+gui.addToolbarButton("打印姿态", () => {
+  const state = app.camera.getState()
+  console.log("heading / pitch", state.heading.toFixed(1), state.pitch.toFixed(1))
+})
 
-const state = app.camera.getState()
-console.log("heading / pitch", state.heading.toFixed(1), state.pitch.toFixed(1))
+await app.camera.flyTo([116.40, 39.91, 180000], 1.4)
 `,
   },
   {
     id: "scene-mode",
     title: "Scene Mode",
     category: "场景",
-    summary: "在 3D 与哥伦布视图之间切换。",
+    summary: "用工具栏在 3D、2D 与哥伦布视图之间切换。",
     code: `app.graphics.addPolygon({
   positions: [
     [120.10, 30.20],
@@ -118,7 +127,9 @@ console.log("heading / pitch", state.heading.toFixed(1), state.pitch.toFixed(1))
 })
 
 await app.camera.flyTo([120.16, 30.26, 180000], 1.2)
-app.scene.setMode("columbus")
+gui.addToolbarButton("3D", () => app.scene.setMode("3d"))
+gui.addToolbarButton("2D", () => app.scene.setMode("2d"))
+gui.addToolbarButton("哥伦布", () => app.scene.setMode("columbus"))
 `,
   },
   {
@@ -228,12 +239,15 @@ await app.camera.flyTo([120.16, 30.26, 90000], 1.5)
     id: "postprocess",
     title: "PostProcess",
     category: "场景",
-    summary: "打开 Bloom、雾和亮度校正。",
+    summary: "用开关控制 Bloom、雾和亮度校正。",
     code: `app.effects.postprocess.setBloom(true, { sigma: 3, delta: 1 })
 app.effects.postprocess.setFog(true, { density: 0.0006 })
 app.effects.postprocess.setColorCorrection(true, { brightness: 1.15 })
 
-console.log("postprocess", app.effects.postprocess.list())
+gui.addToggleButton("Bloom", true, (on) => app.effects.postprocess.setBloom(on, { sigma: 3, delta: 1 }))
+gui.addToggleButton("雾", true, (on) => app.effects.postprocess.setFog(on, { density: 0.0006 }))
+gui.addToggleButton("校色", true, (on) => app.effects.postprocess.setColorCorrection(on, { brightness: 1.15 }))
+
 await app.camera.flyTo([104.06, 30.67, 1800000], 2)
 `,
   },

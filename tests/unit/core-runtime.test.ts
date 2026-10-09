@@ -17,6 +17,7 @@ describe("createId", () => {
 describe("LifecycleManager", () => {
   it("blocks API use after destroy", () => {
     const life = new LifecycleManager()
+    life.transition("destroying")
     life.transition("destroyed")
     expect(() => life.assertUsable("add layer")).toThrow(Arc3DError)
   })

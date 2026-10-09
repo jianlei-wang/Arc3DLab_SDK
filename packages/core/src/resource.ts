@@ -54,11 +54,20 @@ export class ResourceRegistry<T extends ResourceHandle = ResourceHandle> {
     return Array.from(this.items.keys())
   }
 
-  clear(): void {
-    for (const item of Array.from(this.items.values())) {
+  clear(tracker?: ResourceTracker): void {
+    const seen = new Set<ResourceId>()
+    const destroyTree = (id: ResourceId): void => {
+      if (seen.has(id)) return
+      seen.add(id)
+      for (const child of [...(tracker?.childrenOf(id) ?? [])].reverse()) destroyTree(child)
+      const item = this.items.get(id)
+      if (!item) return
+      this.items.delete(id)
       if (item.owned) item.destroy()
     }
+    for (const id of this.ids()) destroyTree(id)
     this.items.clear()
+    tracker?.clear()
   }
 }
 
@@ -83,6 +92,10 @@ export class ResourceTracker {
 
   clear(): void {
     this.children.clear()
+  }
+
+  get size(): number {
+    return this.children.size
   }
 }
 
@@ -115,7 +128,22 @@ export function createHandle<TNative>(
     destroy() {
       if (destroyed) return
       destroyed = true
+      if (options.owned === false) return
       options.onDestroy?.()
     },
+  }
+}
+
+export function registerAtomically<T extends ResourceHandle>(
+  registry: ResourceRegistry,
+  resource: T,
+  rollback: () => void
+): T {
+  try {
+    registry.add(resource)
+    return resource
+  } catch (error) {
+    rollback()
+    throw error
   }
 }

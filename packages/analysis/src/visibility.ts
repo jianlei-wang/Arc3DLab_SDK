@@ -7,13 +7,13 @@ import {
   ColorGeometryInstanceAttribute,
   GeometryInstance,
   GroundPrimitive,
-  Math as CesiumMath,
   PerInstanceColorAppearance,
   PolygonGeometry,
   PolygonHierarchy,
 } from "cesium"
 import { destinationLngLat, lineOfSightFromSamples, rayRangeMeters, viewshedEnvelope } from "./math"
 import { sampleCartographics, toCartographic } from "./sampler"
+import { clampSampleCount, mapInChunks, type AnalysisTaskOptions } from "./scheduler"
 
 export interface SightPoint {
   longitude: number
@@ -26,6 +26,7 @@ export interface LineOfSightResult {
   visible: boolean
   occludedIndex?: number
   samples: SightPoint[]
+  interpolation: "ecef-chord"
 }
 
 export interface ViewshedRay {
@@ -39,6 +40,9 @@ export interface ViewshedResult {
   visibleCount: number
   rayCount: number
   rays: ViewshedRay[]
+  observerHeight: number
+  rayIntervalDegrees: number
+  interpolation: "ecef-chord"
 }
 
 export class VisibilityAnalysis {
@@ -50,9 +54,11 @@ export class VisibilityAnalysis {
     from: PositionInput
     to: PositionInput
     samples?: number
+    signal?: AbortSignal
+    maxSamples?: number
   }): Promise<LineOfSightResult> {
     this.context.lifecycle.assertUsable("analyze line of sight")
-    const count = Math.max(2, options.samples ?? 32)
+    const count = Math.max(2, clampSampleCount(options.samples ?? 32, options.maxSamples))
     const start = toCartesian3(options.from)
     const end = toCartesian3(options.to)
     const cartos: Cartographic[] = []
@@ -64,7 +70,7 @@ export class VisibilityAnalysis {
       carto.height = 0
       cartos.push(carto)
     }
-    const terrain = await sampleCartographics(this.context, cartos)
+    const terrain = await sampleCartographics(this.context, cartos, options, "analyze line of sight")
     const pairs = terrain.map((item, index) => ({
       lineHeight: lineHeights[index],
       terrainHeight: item.height,
@@ -74,11 +80,12 @@ export class VisibilityAnalysis {
       visible: result.visible,
       occludedIndex: result.occludedIndex,
       samples: terrain.map((item, index) => ({
-        longitude: CesiumMath.toDegrees(item.longitude),
-        latitude: CesiumMath.toDegrees(item.latitude),
+        longitude: item.longitude,
+        latitude: item.latitude,
         lineHeight: pairs[index].lineHeight,
         terrainHeight: pairs[index].terrainHeight,
       })),
+      interpolation: "ecef-chord",
     }
   }
 
@@ -89,39 +96,52 @@ export class VisibilityAnalysis {
     observerHeight?: number
     samples?: number
     draw?: boolean
+    signal?: AbortSignal
+    onProgress?: AnalysisTaskOptions["onProgress"]
+    maxSamples?: number
   }): Promise<ViewshedResult> {
     this.context.lifecycle.assertUsable("analyze viewshed")
-    const rayCount = Math.max(1, options.rays ?? 36)
+    const rayCount = Math.max(1, clampSampleCount(options.rays ?? 36, options.maxSamples))
     const observerHeight = options.observerHeight ?? 2
     const sampleCount = Math.max(2, options.samples ?? 16)
     const origin = toCartographic(options.observer)
-    const [sampled] = await sampleCartographics(this.context, [origin.clone()])
+    const [sampled] = await sampleCartographics(this.context, [origin.clone()], options, "analyze viewshed")
     const from: [number, number, number] = [
-      CesiumMath.toDegrees(sampled.longitude),
-      CesiumMath.toDegrees(sampled.latitude),
+      sampled.longitude,
+      sampled.latitude,
       sampled.height + observerHeight,
     ]
-    const rays: ViewshedRay[] = []
-    for (let i = 0; i < rayCount; i += 1) {
-      const heading = (360 * i) / rayCount
+    const headings = Array.from({ length: rayCount }, (_, i) => (360 * i) / rayCount)
+    const rays = await mapInChunks(
+      headings,
+      8,
+      async (heading) => {
       const dest = destinationLngLat(from[0], from[1], heading, options.radius)
       const sight = await this.lineOfSight({
         from,
         to: [dest.longitude, dest.latitude, sampled.height],
         samples: sampleCount,
+        signal: options.signal,
       })
-      rays.push({
+      return {
         heading,
         visible: sight.visible,
         occludedIndex: sight.occludedIndex,
         rangeMeters: rayRangeMeters(options.radius, sampleCount, sight.occludedIndex),
-      })
-    }
+      }
+      },
+      this.context,
+      "analyze viewshed",
+      options
+    )
     if (options.draw) this.drawEnvelope(from[0], from[1], rays)
     return {
       visibleCount: rays.filter((ray) => ray.visible).length,
       rayCount,
       rays,
+      observerHeight,
+      rayIntervalDegrees: 360 / rayCount,
+      interpolation: "ecef-chord",
     }
   }
 

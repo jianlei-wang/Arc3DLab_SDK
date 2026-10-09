@@ -64,4 +64,89 @@ describe("MeasurementService", () => {
     expect(result.degrees).toBeGreaterThan(70)
     expect(result.degrees).toBeLessThan(110)
   })
+
+  it("uses cartesian ECEF distance and ellipsoid height datum", async () => {
+    const result = await measure().distance({
+      positions: [
+        [120, 30, 0],
+        [120, 30, 1000],
+      ],
+    })
+    expect(result.meters).toBeCloseTo(1000, 0)
+    expect(result.units).toBe("meters")
+    expect(result.mode).toBe("cartesian")
+    expect(result.heightDatum).toBe("ellipsoid")
+  })
+
+  it("treats missing height as zero", async () => {
+    const result = await measure().distance({
+      positions: [
+        [120, 30],
+        [120, 30, 0],
+      ],
+    })
+    expect(result.meters).toBeCloseTo(0, 5)
+  })
+
+  it("computes geodesic horizontal distance near one degree at the equator", async () => {
+    const result = await measure().horizontalDistance({
+      from: [0, 0, 500],
+      to: [1, 0, 1500],
+    })
+    expect(result.meters).toBeCloseTo(111319.5, 0)
+    expect(result.mode).toBe("geodesic")
+  })
+
+  it("wraps westward heading to 270 degrees", async () => {
+    const result = await measure().heading({
+      from: [1, 0],
+      to: [0, 0],
+    })
+    expect(result.degrees).toBeCloseTo(270, 1)
+    expect(result.reference).toBe("north-clockwise")
+  })
+
+  it("returns geodesic area with square-meter units", async () => {
+    const result = await measure().area({
+      positions: [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ],
+    })
+    expect(result.squareMeters).toBeGreaterThan(1.2e10)
+    expect(result.squareMeters).toBeLessThan(1.3e10)
+    expect(result.units).toBe("squareMeters")
+    expect(result.mode).toBe("geodesic")
+  })
+
+  it("subtracts holes from outer ring area", async () => {
+    const outer = await measure().area({
+      positions: [
+        [0, 0],
+        [2, 0],
+        [2, 2],
+        [0, 2],
+      ],
+    })
+    const withHole = await measure().area({
+      positions: [
+        [0, 0],
+        [2, 0],
+        [2, 2],
+        [0, 2],
+      ],
+      holes: [
+        [
+          [0.5, 0.5],
+          [1.5, 0.5],
+          [1.5, 1.5],
+          [0.5, 1.5],
+        ],
+      ],
+    })
+    expect(withHole.squareMeters).toBeLessThan(outer.squareMeters)
+    expect(withHole.squareMeters).toBeGreaterThan(outer.squareMeters * 0.6)
+  })
 })

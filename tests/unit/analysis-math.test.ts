@@ -28,6 +28,13 @@ describe("slopeFromHeights", () => {
     expect(result.slopeDegrees).toBeCloseTo(45, 5)
     expect(result.aspectDegrees).toBeCloseTo(180, 5)
   })
+
+  it("matches a 30 degree east-up plane", () => {
+    const rise = 20 * Math.tan((30 * Math.PI) / 180)
+    const result = slopeFromHeights(100, 100 + rise, 100, 20)
+    expect(result.slopeDegrees).toBeCloseTo(30, 5)
+    expect(result.aspectDegrees).toBeCloseTo(270, 5)
+  })
 })
 
 describe("lineOfSightFromSamples", () => {

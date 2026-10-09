@@ -61,4 +61,35 @@ describe("PostProcessManager", () => {
     expect(added).toHaveLength(0)
     expect(fog.enabled).toBe(false)
   })
+
+  it("toggles the viewer bloom stage when it already exists", () => {
+    const bloom = { enabled: false, uniforms: { sigma: 2 } }
+    const postprocess = new PostProcessManager({
+      lifecycle: new LifecycleManager(),
+      engine: {
+        native: {
+          viewer: {
+            scene: {
+              fog: { enabled: false, density: 0 },
+              postProcessStages: {
+                bloom,
+                add() {
+                  throw new Error("should use built-in bloom")
+                },
+                remove() {
+                  return false
+                },
+              },
+            },
+          },
+        },
+      },
+    } as Arc3DContext)
+    postprocess.setBloom(true, { sigma: 5 })
+    expect(bloom.enabled).toBe(true)
+    expect(bloom.uniforms.sigma).toBe(5)
+    expect(postprocess.list()).toEqual(["bloom"])
+    postprocess.destroy()
+    expect(bloom.enabled).toBe(false)
+  })
 })

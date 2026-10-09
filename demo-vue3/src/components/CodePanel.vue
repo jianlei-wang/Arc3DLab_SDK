@@ -32,9 +32,18 @@ const bootstrapExtensions = [
 ]
 
 const tab = ref<Tab>("javascript")
-const visibleCode = computed(() =>
-  tab.value === "javascript" ? props.code : APP_BOOTSTRAP_CODE
-)
+const visibleCode = computed(() => {
+  if (tab.value === "bootstrap") return APP_BOOTSTRAP_CODE
+  return props.code
+})
+const editorExtensions = computed(() => {
+  if (tab.value === "bootstrap") return bootstrapExtensions
+  return extensions
+})
+const tabName = computed(() => {
+  if (tab.value === "bootstrap") return "App 创建"
+  return props.title
+})
 
 const onUpdate = (value: string) => {
   if (tab.value === "javascript") emit("update:code", value)
@@ -69,7 +78,7 @@ const copy = async () => {
       >
         公共代码
       </button>
-      <span class="name">{{ tab === "javascript" ? title : "App 创建" }}</span>
+      <span class="name">{{ tabName }}</span>
       <div class="tools">
         <button type="button" title="复制当前 tab 源码" @click="copy">复制</button>
         <button
@@ -92,13 +101,13 @@ const copy = async () => {
       </div>
     </div>
     <p v-if="tab === 'bootstrap'" class="hint">
-      每次运行都会先执行这段公共创建代码，再执行 JavaScript。示例里的 app 就是这里创建的 Arc3DApp。
+      每次运行都会先执行这段公共创建代码，再执行 JavaScript。示例里的 app 就是这里创建的 Arc3DApp。gui 用来在地球左上角创建按钮、开关和下拉菜单。
     </p>
     <p v-if="error && tab === 'javascript'" class="err">{{ error }}</p>
     <Codemirror
       :key="tab"
       :model-value="visibleCode"
-      :extensions="tab === 'javascript' ? extensions : bootstrapExtensions"
+      :extensions="editorExtensions"
       :tab-size="2"
       class="editor"
       @update:model-value="onUpdate"
@@ -120,15 +129,15 @@ const copy = async () => {
   display: flex;
   align-items: center;
   height: 32px;
-  padding: 0 8px;
+  padding: 0 6px;
   background: #303336;
   border-bottom: 1px solid #1a1c1e;
-  gap: 8px;
+  gap: 4px;
 }
 
 .tab {
   height: 24px;
-  padding: 0 10px;
+  padding: 0 8px;
   border-radius: 3px 3px 0 0;
   font-size: 12px;
   line-height: 24px;
@@ -137,6 +146,7 @@ const copy = async () => {
   background: transparent;
   cursor: pointer;
   font-family: inherit;
+  white-space: nowrap;
 }
 
 .tab.on {
@@ -145,13 +155,19 @@ const copy = async () => {
 }
 
 .name {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: #9aa0a6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tools {
   margin-left: auto;
   display: flex;
+  flex-shrink: 0;
   gap: 6px;
 
   button {
