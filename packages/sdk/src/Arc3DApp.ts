@@ -107,6 +107,8 @@ export class Arc3DApp {
     this.context.lifecycle.transition("destroying")
     this.ui.destroy()
     this.interaction.destroy()
+    this.effects.destroy()
+    this.analysis.destroy()
     this.graphics.clear()
     this.context.registry.clear()
     this.context.tracker.clear()

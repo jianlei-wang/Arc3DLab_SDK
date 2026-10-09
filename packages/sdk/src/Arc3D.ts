@@ -24,6 +24,14 @@ function buildApp(config: Arc3DConfig): Arc3DApp {
   context.capabilities.register("engine:cesium")
   context.capabilities.register("render:entity")
   context.capabilities.register("render:primitive")
+  context.capabilities.register("graphic:model")
+  context.capabilities.register("analysis:measure")
+  context.capabilities.register("analysis:terrain")
+  context.capabilities.register("analysis:visibility")
+  context.capabilities.register("effects:postprocess")
+  context.capabilities.register("analysis:query")
+  context.capabilities.register("analysis:clip")
+  context.capabilities.register("analysis:volume")
   return createApp(config, engine, context)
 }
 

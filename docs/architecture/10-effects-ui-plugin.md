@@ -4,7 +4,30 @@ Updated: 2026-10-08
 
 ## Effects
 
-材质、后处理、水面、扫描、发光、粒子。现有 `material/` 迁入该域。Buffer/实验 shader 通过 Capability 暴露。
+材质、后处理、水面、扫描、发光、粒子。Buffer/实验 shader 通过 Capability 暴露。
+
+```ts
+app.effects.materials.register("flow-line", (options) => factory(options))
+app.effects.materials.has("flow-line")
+app.effects.materials.create("flow-line", { color: "#00FFFF" })
+app.effects.materials.list()
+```
+
+内置 `color` 材质。业务通过 Registry 取材质。
+
+## PostProcess
+
+```ts
+app.effects.postprocess.setBloom(enabled, { sigma, delta, stepSize })
+app.effects.postprocess.setOutline(enabled)
+app.effects.postprocess.setDepthOfField(enabled, { focalDistance })
+app.effects.postprocess.setFog(enabled, { density })
+app.effects.postprocess.setColorCorrection(enabled, { brightness })
+app.effects.postprocess.list()
+app.effects.postprocess.clear()
+```
+
+Bloom 使用 Gaussian blur stage。Fog 使用 `scene.fog`。`app.destroy()` 回收全部 stage。
 
 ## UI
 

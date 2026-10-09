@@ -6,20 +6,12 @@ import {
   type ResourceHandle,
 } from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
-import { DataManager } from "@arc3dlab/data"
+import { createImageryProvider, DataManager, type ProviderSpec } from "@arc3dlab/data"
 import {
-  ArcGisMapServerImageryProvider,
   CesiumTerrainProvider,
-  Credit,
   EllipsoidTerrainProvider,
   ImageryLayer,
-  IonImageryProvider,
   NearFarScalar,
-  SingleTileImageryProvider,
-  UrlTemplateImageryProvider,
-  WebMapServiceImageryProvider,
-  WebMapTileServiceImageryProvider,
-  type ImageryProvider,
 } from "cesium"
 
 export interface Layer extends ResourceHandle {
@@ -28,75 +20,12 @@ export interface Layer extends ResourceHandle {
   group?: string
 }
 
-export interface BasemapSpec {
-  type: "xyz" | "wms" | "wmts" | "tdt" | "arcgis" | "ion" | "single"
-  url?: string
-  urlTemplate?: string
-  layers?: string
-  token?: string
-  credit?: string
-  mode?: "img" | "vec" | "cva" | "cia"
-  assetId?: number
-}
+export type BasemapSpec = ProviderSpec
 
 export interface TerrainSpec {
   type: "url" | "ion" | "none"
   url?: string
   assetId?: number
-}
-
-function tdtUrl(mode: string, token: string): string {
-  return `https://{s}.tianditu.gov.cn/${mode}_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${mode}&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILECOL={TileCol}&TILEROW={TileRow}&TILEMATRIX={TileMatrix}&tk=${token}`
-}
-
-async function createProvider(spec: BasemapSpec, fallbackToken?: string): Promise<ImageryProvider> {
-  const credit = spec.credit ? new Credit(spec.credit) : undefined
-  if (spec.type === "xyz") {
-    return new UrlTemplateImageryProvider({ url: spec.urlTemplate ?? spec.url ?? "", credit })
-  }
-  if (spec.type === "wms") {
-    return new WebMapServiceImageryProvider({
-      url: spec.url ?? "",
-      layers: spec.layers ?? "",
-      parameters: { transparent: true, format: "image/png" },
-      credit,
-    })
-  }
-  if (spec.type === "wmts") {
-    return new WebMapTileServiceImageryProvider({
-      url: spec.url ?? "",
-      layer: spec.layers ?? "",
-      style: "default",
-      format: "tiles",
-      tileMatrixSetID: "w",
-      credit,
-    })
-  }
-  if (spec.type === "tdt") {
-    const token = spec.token ?? fallbackToken ?? ""
-    if (!token) {
-      throw new Arc3DError("INVALID_ARGUMENT", "Tianditu basemap requires a runtime token")
-    }
-    return new WebMapTileServiceImageryProvider({
-      url: tdtUrl(spec.mode ?? "img", token),
-      layer: spec.mode ?? "img",
-      style: "default",
-      format: "tiles",
-      tileMatrixSetID: "w",
-      subdomains: ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
-      credit: credit ?? new Credit("天地图"),
-    })
-  }
-  if (spec.type === "arcgis") {
-    return ArcGisMapServerImageryProvider.fromUrl(spec.url ?? "")
-  }
-  if (spec.type === "ion") {
-    if (spec.assetId === undefined) {
-      throw new Arc3DError("INVALID_ARGUMENT", "Ion imagery requires assetId")
-    }
-    return IonImageryProvider.fromAssetId(spec.assetId)
-  }
-  return SingleTileImageryProvider.fromUrl(spec.url ?? "")
 }
 
 export class BasemapManager {
@@ -107,7 +36,7 @@ export class BasemapManager {
   async set(spec: BasemapSpec): Promise<Layer> {
     this.context.lifecycle.assertUsable("set basemap")
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    const provider = await createProvider(spec, this.context.config.tokens?.tdt)
+    const provider = await createImageryProvider(spec, this.context.config.tokens?.tdt)
     if (this.current) {
       this.current.destroy()
       this.current = undefined
@@ -155,7 +84,7 @@ export class ImageryOverlayManager {
       this.context.registry.remove(id)
     }
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    const provider = await createProvider(spec, this.context.config.tokens?.tdt)
+    const provider = await createImageryProvider(spec, this.context.config.tokens?.tdt)
     const imagery = viewer.imageryLayers.addImageryProvider(provider)
     const handle = createHandle({
       id,
@@ -255,11 +184,18 @@ export class TerrainManager {
 export class TilesetManager {
   constructor(private readonly context: Arc3DContext) {}
 
-  async add(options: { id?: string; url: string }): Promise<Layer> {
+  async add(options: { id?: string; url?: string; assetId?: number }): Promise<Layer> {
     this.context.lifecycle.assertUsable("add tileset")
     const { Cesium3DTileset } = await import("cesium")
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    const tileset = await Cesium3DTileset.fromUrl(options.url)
+    let tileset
+    if (options.assetId !== undefined) {
+      tileset = await Cesium3DTileset.fromIonAssetId(options.assetId)
+    } else if (options.url) {
+      tileset = await Cesium3DTileset.fromUrl(options.url)
+    } else {
+      throw new Arc3DError("INVALID_ARGUMENT", "Tileset requires url or assetId")
+    }
     viewer.scene.primitives.add(tileset)
     const id = options.id ?? createId("tileset")
     const handle = createHandle({

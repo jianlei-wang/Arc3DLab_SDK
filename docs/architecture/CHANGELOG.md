@@ -26,3 +26,23 @@
 ## 2026-10-08
 
 - 移除 `demo-html`。Playground 由 `demo-vue3` Sandcastle 承担。
+
+## 2026-10-08
+
+- 启动 P2 能力增长：Model Graphic、Data Provider、拾取/选择、基础测量、Material Registry。
+- `app.graphics.addModel` 纳入 Graphics 契约。
+- `app.data.createProvider` / `load` 成为数据接入入口。
+- Interaction 补齐 hover、pickGraphic、pickLayer、selection。
+- Analysis 测量补齐 height / heading / horizontalDistance / verticalDistance / spaceAngle。
+
+## 2026-10-08
+
+- P2 补齐地形采样 / 坡度坡向 / 剖面、通视 / 径向视域、PostProcess。
+
+## 2026-10-08
+
+- P2 补齐空间查询、Globe 剖切、地形夸张。
+
+## 2026-10-08
+
+- P2 补齐视域贴地可视化、土方挖填、开挖剖切。

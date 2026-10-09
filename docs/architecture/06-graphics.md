@@ -36,3 +36,18 @@ Polygon Primitive 与 Outline Primitive 使用不同内部 ID，对外共享同�
 ## 返回值
 
 `addPoint` / `addPolyline` / `addPolygon` 以及批量 API 始终返回 Graphic 或 Graphic[]。
+
+## Model
+
+```ts
+const model = app.graphics.addModel({
+  id: "aircraft-1",
+  url: "/models/Cesium_Air.glb",
+  position: [120.16, 30.26, 80],
+  scale: 1,
+  minimumPixelSize: 64,
+  heading: 90
+})
+```
+
+Model 走 Graphic 生命周期：`remove()` / `destroy()` 回收 Entity。第一阶段渲染后端为 Entity。

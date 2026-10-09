@@ -25,6 +25,19 @@
 - 引入 Arc3DApp、ResourceRegistry、EventBus、Lifecycle、CreditManager、RenderPolicy
 - `Viewer` 降为兼容适配器
 - 设计迭代文档：`docs/architecture/`
+- `app.graphics.addModel` 加载 glTF 模型
+- `app.data.createProvider` / `load` / `addKml` / `addCzml`
+- Interaction：hover、pickGraphic、pickLayer、selection
+- 测量：height / heading / horizontalDistance / verticalDistance / spaceAngle
+- `app.effects.materials` Material Registry
+- `app.analysis.terrain` 地形采样 / 坡度 / 剖面
+- `app.analysis.visibility` 通视 / 径向视域
+- `app.effects.postprocess` Bloom / Outline / DoF / Fog / ColorCorrection
+- `app.analysis.query` 矩形 / 多边形 / 距离查询
+- `app.analysis.clip` Plane / Box / Polygon 剖切
+- `app.analysis.terrain.setExaggeration` 地形夸张
+- `app.analysis.visibility.viewshed` 贴地可见包络
+- `app.analysis.volume` 挖填方 / 开挖剖切
 
 ### fix
 

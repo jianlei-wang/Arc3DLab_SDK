@@ -1,12 +1,14 @@
 import {
+  Arc3DError,
   createId,
   type Arc3DContext,
   type GraphicStyle,
+  type LngLatHeight,
   type PositionInput,
   type RenderMode,
   type ResourceHandle,
 } from "@arc3dlab/core"
-import { getCesiumViewer, toCartesian3, toCartesian3Array } from "@arc3dlab/engine-cesium"
+import { fromCartesian3, getCesiumViewer, toCartesian3, toCartesian3Array } from "@arc3dlab/engine-cesium"
 import {
   Color,
   ColorGeometryInstanceAttribute,
@@ -15,18 +17,22 @@ import {
   GroundPolylineGeometry,
   GroundPolylinePrimitive,
   GroundPrimitive,
+  HeadingPitchRoll,
   HeightReference,
+  Math as CesiumMath,
   PerInstanceColorAppearance,
   PointPrimitiveCollection,
   PolygonGeometry,
   PolygonHierarchy,
   PolylineGeometry,
   Primitive,
+  Transforms,
   type Viewer,
 } from "cesium"
 
 export interface Graphic extends ResourceHandle {
   readonly renderMode: Exclude<RenderMode, "auto">
+  readonly positions: LngLatHeight[]
   setStyle(style: GraphicStyle): void
   remove(): void
 }
@@ -36,6 +42,18 @@ export interface GraphicCreateOptions {
   positions: PositionInput | PositionInput[]
   style?: GraphicStyle
   renderMode?: RenderMode
+  properties?: Record<string, unknown>
+}
+
+export interface ModelCreateOptions {
+  id?: string
+  url: string
+  position: PositionInput
+  scale?: number
+  minimumPixelSize?: number
+  heading?: number
+  pitch?: number
+  roll?: number
   properties?: Record<string, unknown>
 }
 
@@ -55,6 +73,19 @@ function asList(positions: PositionInput | PositionInput[]): PositionInput[] {
   return [positions as PositionInput]
 }
 
+function toLngLatHeights(inputs: PositionInput[]): LngLatHeight[] {
+  return inputs.map((input) => {
+    if (Array.isArray(input)) {
+      return { longitude: input[0], latitude: input[1], height: input[2] ?? 0 }
+    }
+    return {
+      longitude: input.longitude,
+      latitude: input.latitude,
+      height: "height" in input ? input.height : 0,
+    }
+  })
+}
+
 class ManagedGraphic implements Graphic {
   owned = true
   native: unknown
@@ -66,7 +97,8 @@ class ManagedGraphic implements Graphic {
     native: unknown,
     private readonly teardown: () => void,
     private readonly setVisible: (visible: boolean) => void,
-    private readonly applyStyle: (style: GraphicStyle) => void
+    private readonly applyStyle: (style: GraphicStyle) => void,
+    readonly positions: LngLatHeight[]
   ) {
     this.native = native
   }
@@ -165,7 +197,7 @@ export class GraphicManager {
       }
     }
 
-    return this.register(id, "polyline", mode, native, teardown, setVisible)
+    return this.register(id, "polyline", mode, native, teardown, setVisible, toLngLatHeights(asList(options.positions)))
   }
 
   addPolygon(options: GraphicCreateOptions): Graphic {
@@ -208,6 +240,8 @@ export class GraphicManager {
         (visible) => {
           entity.show = visible
         }
+        ,
+        toLngLatHeights(asList(options.positions))
       )
     }
 
@@ -220,6 +254,47 @@ export class GraphicManager {
       outlineWidth,
       onGround,
     })
+  }
+
+  addModel(options: ModelCreateOptions): Graphic {
+    this.context.lifecycle.assertUsable("add model")
+    if (!options.url) {
+      throw new Arc3DError("INVALID_ARGUMENT", "Model url is required")
+    }
+    const viewer = getCesiumViewer(this.context.engine.native.viewer)
+    const id = options.id ?? createId("model")
+    const position = toCartesian3(options.position)
+    const orientation = Transforms.headingPitchRollQuaternion(
+      position,
+      new HeadingPitchRoll(
+        CesiumMath.toRadians(options.heading ?? 0),
+        CesiumMath.toRadians(options.pitch ?? 0),
+        CesiumMath.toRadians(options.roll ?? 0)
+      )
+    )
+    const entity = viewer.entities.add({
+      id,
+      position,
+      orientation,
+      model: {
+        uri: options.url,
+        scale: options.scale ?? 1,
+        minimumPixelSize: options.minimumPixelSize ?? 64,
+      },
+      properties: options.properties,
+    })
+    return this.register(
+      id,
+      "model",
+      "entity",
+      entity,
+      () => viewer.entities.remove(entity),
+      (visible) => {
+        entity.show = visible
+      }
+      ,
+      toLngLatHeights([options.position])
+    )
   }
 
   get(id: string): Graphic | undefined {
@@ -281,6 +356,8 @@ export class GraphicManager {
             (visible) => {
               entity.show = visible
             }
+            ,
+            toLngLatHeights([position])
           )
         )
         void index
@@ -312,6 +389,8 @@ export class GraphicManager {
         (visible) => {
           collection.show = visible
         }
+        ,
+        toLngLatHeights(positions)
       )
     )
     return graphics
@@ -387,6 +466,8 @@ export class GraphicManager {
         fillPrimitive.show = visible
         if (outlinePrimitive) outlinePrimitive.show = visible
       }
+      ,
+      options.cartesians.map((item) => fromCartesian3(item))
     )
   }
 
@@ -396,7 +477,8 @@ export class GraphicManager {
     renderMode: Exclude<RenderMode, "auto">,
     native: unknown,
     teardown: () => void,
-    setVisible: (visible: boolean) => void
+    setVisible: (visible: boolean) => void,
+    positions: LngLatHeight[] = []
   ): Graphic {
     if (this.items.has(id)) this.remove(id)
     const graphic = new ManagedGraphic(
@@ -413,7 +495,8 @@ export class GraphicManager {
       (visible) => {
         setVisible(visible)
       },
-      () => undefined
+      () => undefined,
+      positions
     )
     this.items.set(id, graphic)
     this.context.registry.add(graphic)

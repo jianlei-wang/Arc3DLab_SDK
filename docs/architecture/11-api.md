@@ -20,6 +20,21 @@ const app = await Arc3D.create({
 - `LngLat` / `LngLatHeight` / `CameraPose`
 - `PickResult` / `Arc3DPlugin` / `Arc3DError`
 
+P2 能力入口：
+
+- `app.graphics.addModel`
+- `app.data.createProvider` / `app.data.load`
+- `app.interaction.selection` / `pickGraphic` / `pickLayer` / `hover`
+- `app.analysis.measure.height` / `heading` / `horizontalDistance`
+- `app.effects.materials`
+- `app.analysis.terrain.sampleHeight` / `slope` / `profile`
+- `app.analysis.visibility.lineOfSight` / `viewshed`（`draw` / `rangeMeters`）
+- `app.effects.postprocess`
+- `app.analysis.query.rectangle` / `polygon` / `distance`
+- `app.analysis.clip.setPlane` / `setBox` / `setPolygon`
+- `app.analysis.terrain.setExaggeration`
+- `app.analysis.volume.cutFill` / `excavate`
+
 高级入口：
 
 ```ts

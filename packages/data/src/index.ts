@@ -1,6 +1,7 @@
 import { Arc3DError, createHandle, createId, type Arc3DContext, type ResourceHandle } from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
 import { CzmlDataSource, GeoJsonDataSource, KmlDataSource } from "cesium"
+import { createProviderHandle, type ProviderHandle, type ProviderSpec } from "./providers"
 
 export type DataFormat = "geojson" | "kml" | "czml"
 
@@ -12,6 +13,15 @@ export interface DataSourceSpec {
 
 export class DataManager {
   constructor(private readonly context: Arc3DContext) {}
+
+  async createProvider(spec: ProviderSpec): Promise<ProviderHandle> {
+    this.context.lifecycle.assertUsable("create provider")
+    return createProviderHandle(spec, this.context.config.tokens?.tdt)
+  }
+
+  load(spec: DataSourceSpec): Promise<ResourceHandle> {
+    return this.add(spec)
+  }
 
   async add(spec: DataSourceSpec): Promise<ResourceHandle> {
     this.context.lifecycle.assertUsable("add data source")
@@ -47,4 +57,21 @@ export class DataManager {
   addGeoJson(options: { id?: string; url: string }): Promise<ResourceHandle> {
     return this.add({ ...options, type: "geojson" })
   }
+
+  addKml(options: { id?: string; url: string }): Promise<ResourceHandle> {
+    return this.add({ ...options, type: "kml" })
+  }
+
+  addCzml(options: { id?: string; url: string }): Promise<ResourceHandle> {
+    return this.add({ ...options, type: "czml" })
+  }
 }
+
+export {
+  createImageryProvider,
+  createProviderHandle,
+  tdtUrl,
+  type ProviderHandle,
+  type ProviderSpec,
+  type ProviderType,
+} from "./providers"
