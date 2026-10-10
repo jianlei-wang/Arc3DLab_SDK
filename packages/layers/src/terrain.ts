@@ -11,9 +11,16 @@ import {
 } from "cesium"
 import type { TerrainSpec } from "./types"
 
+/**
+ * 地形管理器，用于设置地形数据源并控制夸张、透明度与地下穿行等效果。
+ */
 export class TerrainManager {
   private _alpha = 1
 
+  /**
+   * 创建地形管理器。
+   * @param context - Arc3D 运行时上下文。
+   */
   constructor(private readonly context: Arc3DContext) {}
 
   private viewer() {
@@ -21,6 +28,11 @@ export class TerrainManager {
     return getCesiumViewer(this.context.engine.native.viewer)
   }
 
+  /**
+   * 设置地形数据源。
+   * @param spec - 地形数据源配置。
+   * @returns 地形设置完成后兑现的 Promise。
+   */
   async set(spec: TerrainSpec): Promise<void> {
     const viewer = this.viewer()
     if (spec.type === "none") {
@@ -59,6 +71,9 @@ export class TerrainManager {
     )
   }
 
+  /**
+   * 地形的垂直夸张系数。
+   */
   get exaggeration(): number {
     return this.viewer().scene.verticalExaggeration
   }
@@ -67,6 +82,9 @@ export class TerrainManager {
     this.viewer().scene.verticalExaggeration = value
   }
 
+  /**
+   * 地形表面透明度，取值 0 到 1。
+   */
   get alpha(): number {
     return this._alpha
   }
@@ -79,6 +97,9 @@ export class TerrainManager {
     distance.farValue = value
   }
 
+  /**
+   * 是否启用地形半透明效果。
+   */
   set translucency(enabled: boolean) {
     const globe = this.viewer().scene.globe
     globe.translucency.frontFaceAlphaByDistance = new NearFarScalar(
@@ -95,6 +116,9 @@ export class TerrainManager {
     return this.viewer().scene.globe.translucency.enabled
   }
 
+  /**
+   * 是否允许相机进入地表以下。
+   */
   set enableUnderground(enabled: boolean) {
     this.viewer().scene.screenSpaceCameraController.enableCollisionDetection =
       !enabled

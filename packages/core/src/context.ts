@@ -23,23 +23,47 @@ function createCoreCommandBus(
   return commands
 }
 
+/** Arc3D 运行时上下文，聚合配置、引擎、资源注册表及各类扩展子系统。 */
 export interface Arc3DContext {
+  /** 应用配置。 */
   config: Arc3DConfig
+  /** 引擎上下文。 */
   engine: EngineContext
+  /** 底层引擎适配器，未提供时为 undefined。 */
   engineAdapter: Engine | undefined
+  /** 资源注册表。 */
   registry: ResourceRegistry
+  /** 父子资源关系追踪器。 */
   tracker: ResourceTracker
+  /** 事件总线。 */
   events: EventBus<Arc3DEvents>
+  /** 生命周期管理器。 */
   lifecycle: LifecycleManager
+  /** 日志记录器。 */
   logger: Logger
+  /** 能力注册表。 */
   capabilities: CapabilityRegistry
+  /** 命令总线。 */
   commands: CommandBus
+  /** 工具注册表。 */
   tools: ToolRegistry
+  /** 释放回调栈。 */
   disposers: DisposerStack
+  /** 插件作用域管理器。 */
   scopes: PluginScopeManager
+  /** 数据目录。 */
   catalog: DataCatalog
 }
 
+/**
+ * 创建并初始化 Arc3D 运行时上下文。
+ *
+ * @param config - 应用配置。
+ * @param engine - 引擎上下文。
+ * @param logger - 自定义日志记录器，省略时使用控制台日志记录器。
+ * @param engineAdapter - 可选的底层引擎适配器。
+ * @returns 初始化完成的 Arc3D 运行时上下文。
+ */
 export function createContext(
   config: Arc3DConfig,
   engine: EngineContext,

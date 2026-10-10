@@ -1,0 +1,7 @@
+dist/**
+coverage/**
+node_modules/**
+api-docs/**
+docs/api/**
+scripts/api-docs/theme/prism.js
+scripts/api-docs/theme/prism.css

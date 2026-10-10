@@ -22,22 +22,37 @@ import {
 import type { AnalysisResult } from "./task"
 import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
 
+/** 地形高度采样结果，附加来源与状态信息。 */
 export interface HeightSample extends LngLatHeight {
+  /** 高程来源。 */
   source: TerrainHeightSource
+  /** 采样状态。 */
   status: TerrainSampleStatus
 }
 
+/** 地形坡度采样结果。 */
 export interface SlopeResult extends HeightSample {
+  /** 坡度，单位为度。 */
   slopeDegrees: number
+  /** 坡向，单位为度。 */
   aspectDegrees: number
+  /** 采样间距，单位为米。 */
   sampleMeters: number
 }
 
+/** 地形剖面采样点，附加沿剖面起点的距离。 */
 export interface ProfilePoint extends LngLatHeight {
+  /** 沿剖面起点到该点的距离，单位为米。 */
   distance: number
 }
 
+/** 地形分析服务，提供高程、坡度与剖面采样能力。 */
 export class TerrainAnalysis {
+  /**
+   * 创建地形分析服务。
+   * @param context - Arc3D 运行上下文。
+   * @param runTask - 任务执行器，默认绑定当前上下文。
+   */
   constructor(
     private readonly context: Arc3DContext,
     private readonly runTask: AnalysisTaskExecutor = createTaskExecutor(
@@ -45,6 +60,11 @@ export class TerrainAnalysis {
     ),
   ) {}
 
+  /**
+   * 采样指定位置的地形高程。
+   * @param options - 采样选项，包含位置与取消信号。
+   * @returns 地形高度采样结果。
+   */
   async sampleHeight(options: {
     position: PositionInput
     signal?: AbortSignal
@@ -68,6 +88,11 @@ export class TerrainAnalysis {
     }
   }
 
+  /**
+   * 采样指定位置的坡度与坡向。
+   * @param options - 采样选项，包含位置、采样间距与取消信号。
+   * @returns 坡度采样结果。
+   */
   async slope(options: {
     position: PositionInput
     sampleMeters?: number
@@ -110,6 +135,11 @@ export class TerrainAnalysis {
     return { ...center, ...grade, sampleMeters }
   }
 
+  /**
+   * 沿折线路径采样地形剖面。
+   * @param options - 剖面选项，包含折线顶点、采样数及取消/进度配置。
+   * @returns 剖面上的采样点列表。
+   */
   async profile(options: {
     positions: PositionInput[]
     samples?: number
@@ -179,6 +209,11 @@ export class TerrainAnalysis {
     }
   }
 
+  /**
+   * 以任务形式采样地形高程。
+   * @param options - 采样选项，包含位置与取消信号。
+   * @returns 分析结果，结果值为地形高度采样结果。
+   */
   sampleHeightTask(options: {
     position: PositionInput
     signal?: AbortSignal
@@ -199,6 +234,11 @@ export class TerrainAnalysis {
     })
   }
 
+  /**
+   * 以任务形式采样地形坡度。
+   * @param options - 采样选项，包含位置、采样间距与取消信号。
+   * @returns 分析结果，结果值为坡度采样结果。
+   */
   slopeTask(options: {
     position: PositionInput
     sampleMeters?: number
@@ -220,6 +260,11 @@ export class TerrainAnalysis {
     })
   }
 
+  /**
+   * 以任务形式采样地形剖面。
+   * @param options - 剖面选项，包含折线顶点、采样数及取消/进度配置。
+   * @returns 分析结果，结果值为剖面上的采样点列表。
+   */
   profileTask(options: {
     positions: PositionInput[]
     samples?: number
@@ -247,6 +292,10 @@ export class TerrainAnalysis {
     })
   }
 
+  /**
+   * 设置地形垂直夸张比例。
+   * @param scale - 垂直夸张比例。
+   */
   setExaggeration(scale: number): void {
     this.context.lifecycle.assertUsable("set terrain exaggeration")
     getCesiumViewer(
@@ -254,6 +303,10 @@ export class TerrainAnalysis {
     ).scene.verticalExaggeration = scale
   }
 
+  /**
+   * 获取当前地形垂直夸张比例。
+   * @returns 垂直夸张比例。
+   */
   getExaggeration(): number {
     this.context.lifecycle.assertUsable("get terrain exaggeration")
     return getCesiumViewer(this.context.engine.native.viewer).scene

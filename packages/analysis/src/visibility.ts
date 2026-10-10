@@ -31,39 +31,67 @@ import {
 import type { AnalysisResult } from "./task"
 import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
 
+/** 视线采样点，包含视线上方与地形的相对高度。 */
 export interface SightPoint {
+  /** 采样点经度。 */
   longitude: number
+  /** 采样点纬度。 */
   latitude: number
+  /** 视线在该位置的高度。 */
   lineHeight: number
+  /** 地形在该位置的高度。 */
   terrainHeight: number
 }
 
+/** 通视分析结果。 */
 export interface LineOfSightResult {
+  /** 两端之间是否互相可见。 */
   visible: boolean
+  /** 首个遮挡点的采样索引。 */
   occludedIndex?: number
+  /** 视线上各采样点。 */
   samples: SightPoint[]
+  /** 视线插值方式。 */
   interpolation: "ecef-chord"
 }
 
+/** 可视域中的单条射线结果。 */
 export interface ViewshedRay {
+  /** 射线方位角，单位为度。 */
   heading: number
+  /** 该方向是否可见。 */
   visible: boolean
+  /** 该方向上首个遮挡点的采样索引。 */
   occludedIndex?: number
+  /** 该方向的可见范围，单位为米。 */
   rangeMeters: number
 }
 
+/** 可视域分析结果。 */
 export interface ViewshedResult {
+  /** 可见方向的数量。 */
   visibleCount: number
+  /** 射线总数。 */
   rayCount: number
+  /** 各射线结果。 */
   rays: ViewshedRay[]
+  /** 观察点高度，单位为米。 */
   observerHeight: number
+  /** 射线之间的间隔角度，单位为度。 */
   rayIntervalDegrees: number
+  /** 视线插值方式。 */
   interpolation: "ecef-chord"
 }
 
+/** 可见性分析服务，提供通视与可视域分析能力。 */
 export class VisibilityAnalysis {
   private overlay: { remove: () => void } | undefined
 
+  /**
+   * 创建可见性分析服务。
+   * @param context - Arc3D 运行上下文。
+   * @param runTask - 任务执行器，默认绑定当前上下文。
+   */
   constructor(
     private readonly context: Arc3DContext,
     private readonly runTask: AnalysisTaskExecutor = createTaskExecutor(
@@ -71,6 +99,11 @@ export class VisibilityAnalysis {
     ),
   ) {}
 
+  /**
+   * 分析两点之间的通视情况。
+   * @param options - 分析选项，包含起点、终点、采样数及取消配置。
+   * @returns 通视分析结果。
+   */
   async lineOfSight(options: {
     from: PositionInput
     to: PositionInput
@@ -123,6 +156,11 @@ export class VisibilityAnalysis {
     }
   }
 
+  /**
+   * 分析观察点在指定半径内的可视域。
+   * @param options - 分析选项，包含观察点、半径、射线数、观察高度及绘制/取消/进度配置。
+   * @returns 可视域分析结果。
+   */
   async viewshed(options: {
     observer: PositionInput
     radius: number
@@ -199,6 +237,11 @@ export class VisibilityAnalysis {
     }
   }
 
+  /**
+   * 以任务形式分析两点之间的通视情况。
+   * @param options - 分析选项，包含起点、终点、采样数及取消配置。
+   * @returns 分析结果，结果值为通视分析结果。
+   */
   lineOfSightTask(options: {
     from: PositionInput
     to: PositionInput
@@ -223,6 +266,11 @@ export class VisibilityAnalysis {
     })
   }
 
+  /**
+   * 以任务形式分析观察点的可视域。
+   * @param options - 分析选项，包含观察点、半径、射线数、观察高度及绘制/取消/进度配置。
+   * @returns 分析结果，结果值为可视域分析结果。
+   */
   viewshedTask(options: {
     observer: PositionInput
     radius: number
@@ -253,11 +301,13 @@ export class VisibilityAnalysis {
     })
   }
 
+  /** 清除可视域叠加显示。 */
   clearOverlay(): void {
     this.context.lifecycle.assertUsable("clear viewshed overlay")
     this.removeOverlay()
   }
 
+  /** 释放可见性分析服务占用的资源。 */
   destroy(): void {
     this.removeOverlay()
   }

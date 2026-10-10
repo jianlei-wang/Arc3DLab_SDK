@@ -34,10 +34,31 @@ function buildApp(config: Arc3DConfig): Arc3DApp {
   return createApp(config, engine, context)
 }
 
+/**
+ * Arc3D 运行时入口。
+ *
+ * 通过 {@link Arc3D.create} 创建已接线的运行时；`create` 解析完成表示 Runtime facade
+ * 就绪，异步资源（底图、地形、数据）通过各自的状态或 `app.scene.whenSceneReady()` 回报。
+ */
 export const Arc3D = {
+  /**
+   * 异步创建 Arc3D 运行时。
+   *
+   * @param config - 运行时配置，包含容器、引擎与场景选项。
+   * @returns 已就绪的 {@link Arc3DApp} 实例。
+   * @example
+   * const app = await Arc3D.create({ container: "map" })
+   * await app.scene.whenSceneReady()
+   */
   async create(config: Arc3DConfig): Promise<Arc3DApp> {
     return buildApp(config)
   },
+  /**
+   * 同步创建 Arc3D 运行时。
+   *
+   * @param config - 运行时配置。
+   * @returns 已就绪的 {@link Arc3DApp} 实例。
+   */
   createSync(config: Arc3DConfig): Arc3DApp {
     return buildApp(config)
   },

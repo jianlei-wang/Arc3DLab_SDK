@@ -2,6 +2,13 @@ import type { PositionInput } from "@arc3dlab/core"
 import { toCartesian3 } from "@arc3dlab/engine-cesium"
 import { graphicChildId } from "./policy"
 
+/**
+ * 将坐标序列同步到 Cesium 点图元集合，按需增删并更新每个点的位置与样式。
+ * @param collection - 目标点图元集合。
+ * @param groupId - 点集合所属的父图形 ID。
+ * @param positions - 目标坐标序列。
+ * @param style - 点的颜色、轮廓颜色、像素尺寸与轮廓宽度。
+ */
 export function syncPointCollection(
   collection: {
     length: number

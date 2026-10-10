@@ -1,5 +1,15 @@
 # 设计迭代日志
 
+## 2026-10-10（Cesium 风格 API 文档站）
+
+- 新增自研 API 文档生成器 `scripts/api-docs/**`：`typedoc --json` 提取模型 → `normalize` 归一化为与渲染无关的 DocsModel → `render` 输出 Cesium/JSDoc-default 结构类名的静态站点，替换原 TypeDoc + Material 主题。
+- 覆盖全部 13 个包：`typedoc.json` 改为 13 包入口 + 顶层入口的 `entryPointStrategy: resolve`；产物 `api-docs/api/`（index + 12 包命名空间页 + 符号页）。
+- 页面命名默认符号名，跨包同名追加包前缀（`<pkg>.<Name>.html`）；类型无法解析时退化为纯文本，不生成链接；源码链接指向仓库对应提交的 `#L<line>`。
+- `package.json` 新增 `docs:extract` / `docs:build` / `docs:preview` / `lint:docs`，`gate` 插入 `lint:docs`，移除 `typedoc-material-theme` / `typedoc-plugin-markdown`；`.gitignore` 忽略 `docs/api/`。
+- 全量补齐 13 个包公共导出的中文 TSDoc（类/接口/类型别名/函数/变量及其公共成员），覆盖率门禁 summary 100%、params 96.9%。
+- 新增单测 `tests/unit/docs-{normalize,render,type,coverage}.test.ts` 与夹具 `tests/fixtures/typedoc-model.ts`；修复归一化对「函数/方法 TSDoc 挂在签名上」的读取。
+- CI 新增 `docs` job 构建并上传 `api-docs` artifact，`gate` 加入 `docs:build` + `lint:docs`；`format`/`format:check` 纳入 `scripts/api-docs/**`。
+
 ## 2026-10-10（浏览器 E2E 与质量门禁收尾）
 
 - P1-08：新增 Playwright + Chromium（SwiftShader 无头 WebGL）浏览器 E2E；`e2e/app.spec.ts` 覆盖创建 → 添加 Graphic → 拾取 → 测量分析 → 销毁 → 重建完整路径。

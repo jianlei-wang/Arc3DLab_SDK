@@ -1,10 +1,15 @@
 import { Arc3DError, type Arc3DErrorCode } from "./errors"
 
+/** 加载失败的阶段分类。 */
 export type LoadFailureStage = "token" | "network" | "format" | "engine"
 
+/** 对加载错误分类后的结果。 */
 export interface ClassifiedLoadError {
+  /** 错误码。 */
   code: Arc3DErrorCode
+  /** 失败阶段。 */
   stage: LoadFailureStage
+  /** 错误信息。 */
   message: string
 }
 
@@ -21,6 +26,12 @@ function readMessage(error: unknown): string {
   return String(error)
 }
 
+/**
+ * 将任意加载错误归类为错误码与失败阶段。
+ *
+ * @param error - 待分类的错误。
+ * @returns 包含错误码、阶段与信息的分类结果。
+ */
 export function classifyLoadFailure(error: unknown): ClassifiedLoadError {
   if (error instanceof Arc3DError) {
     const stage: LoadFailureStage =
@@ -65,6 +76,12 @@ export function classifyLoadFailure(error: unknown): ClassifiedLoadError {
   return { code: "ENGINE_FAILURE", stage: "engine", message }
 }
 
+/**
+ * 将任意加载错误转换为 Arc3DError。
+ *
+ * @param error - 待转换的错误。
+ * @returns 统一后的 Arc3DError。
+ */
 export function classifyLoadError(error: unknown): Arc3DError {
   if (error instanceof Arc3DError) return error
   const classified = classifyLoadFailure(error)

@@ -1,11 +1,30 @@
 import { Arc3DError, type GraphicStyle } from "@arc3dlab/core"
 import type { ConcreteRenderMode } from "./policy"
 
+/**
+ * 样式适配器接口，用于把 CSS 颜色转换为具体渲染后端可用的颜色值。
+ */
 export interface StyleAdapters {
+  /**
+   * 将 CSS 颜色字符串转换为渲染后端颜色。
+   * @param css - CSS 颜色字符串。
+   * @returns 转换后的颜色值。
+   */
   color(css: string): unknown
+  /**
+   * 将 CSS 颜色字符串转换为几何实例颜色属性。
+   * @param css - CSS 颜色字符串。
+   * @returns 转换后的几何实例颜色属性值。
+   */
   colorAttribute(css: string): unknown
 }
 
+/**
+ * 合并当前样式与新的样式，新样式覆盖同名属性。
+ * @param current - 当前样式。
+ * @param next - 待合并的新样式。
+ * @returns 合并后的样式。
+ */
 export function mergeGraphicStyle(
   current: GraphicStyle,
   next: GraphicStyle,
@@ -13,6 +32,14 @@ export function mergeGraphicStyle(
   return { ...current, ...next }
 }
 
+/**
+ * 校验样式更新是否合法，阻止创建后不可变更的样式修改。
+ * @param type - 图形类型。
+ * @param mode - 图形采用的渲染模式。
+ * @param current - 当前样式。
+ * @param next - 待应用的样式。
+ * @throws {Arc3DError} 当更新的样式不被当前图形或渲染模式支持时抛出。
+ */
 export function assertMutableStyle(
   type: string,
   mode: ConcreteRenderMode,
@@ -132,6 +159,12 @@ function setPrimitiveColor(
   attrs.color = adapters.colorAttribute(css)
 }
 
+/**
+ * 将样式应用到图元或实体的原生渲染对象。
+ * @param target - 目标渲染对象及其类型、模式信息。
+ * @param style - 待应用的图形样式。
+ * @param adapters - 颜色转换适配器。
+ */
 export function applyNativeStyle(
   target: {
     id: string

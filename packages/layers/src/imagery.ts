@@ -9,9 +9,21 @@ import { getCesiumViewer } from "@arc3dlab/engine-cesium"
 import { createImageryProvider } from "@arc3dlab/data"
 import type { BasemapSpec, Layer } from "./types"
 
+/**
+ * 影像叠加图层管理器，用于添加、显示与移除影像图层。
+ */
 export class ImageryOverlayManager {
+  /**
+   * 创建影像叠加图层管理器。
+   * @param context - Arc3D 运行时上下文。
+   */
   constructor(private readonly context: Arc3DContext) {}
 
+  /**
+   * 添加一个影像叠加图层。
+   * @param spec - 影像数据源规格，可包含自定义 id 与名称。
+   * @returns 新建的影像图层句柄。
+   */
   async add(
     spec: BasemapSpec & { id?: string; name?: string },
   ): Promise<Layer> {
@@ -55,6 +67,12 @@ export class ImageryOverlayManager {
     return Object.assign(handle, { name: spec.name })
   }
 
+  /**
+   * 设置指定影像图层的可见性。
+   * @param id - 目标影像图层 ID。
+   * @param visible - 是否可见。
+   * @returns 图层存在且为影像类型时返回 true。
+   */
   show(id: string, visible: boolean): boolean {
     const layer = this.context.registry.get(id)
     if (!layer || layer.type !== "imagery") return false
@@ -62,6 +80,11 @@ export class ImageryOverlayManager {
     return true
   }
 
+  /**
+   * 移除指定的影像图层。
+   * @param id - 目标影像图层 ID。
+   * @returns 图层存在且为影像类型时返回 true。
+   */
   remove(id: string): boolean {
     const layer = this.context.registry.get(id)
     if (!layer || layer.type !== "imagery") return false

@@ -13,9 +13,21 @@ import {
 } from "@arc3dlab/engine-cesium"
 import type { Layer } from "./types"
 
+/**
+ * 3D Tiles 图层管理器，用于通过 URL 或 Cesium Ion 资源添加瓦片集图层。
+ */
 export class TilesetManager {
+  /**
+   * 创建 3D Tiles 图层管理器。
+   * @param context - Arc3D 运行时上下文。
+   */
   constructor(private readonly context: Arc3DContext) {}
 
+  /**
+   * 添加一个 3D Tiles 瓦片集图层。
+   * @param options - 瓦片集创建选项，需提供 url 或 assetId。
+   * @returns 新建的瓦片集图层句柄。
+   */
   async add(options: {
     id?: string
     url?: string

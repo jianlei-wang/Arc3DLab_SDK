@@ -33,14 +33,25 @@ function createDefaultBaseLayer():
   )
 }
 
+/**
+ * 基于 Cesium 的引擎视图实现，封装原生 Viewer 与运行时配置。
+ */
 export class CesiumEngineViewer implements EngineViewer {
+  /** Cesium 画布元素。 */
   readonly canvas: HTMLCanvasElement
+  /** 视图挂载的容器元素。 */
   readonly container: Element
+  /** 原生 Cesium Viewer 实例。 */
   readonly native: Cesium.Viewer
+  /** 版权信息管理器。 */
   readonly credits: CreditManager
   private destroyed = false
   private defaultBaseLayerState: DefaultBaseLayerState = "disabled"
 
+  /**
+   * 创建并初始化 Cesium 引擎视图。
+   * @param options - 引擎视图初始化选项。
+   */
   constructor(options: EngineViewerOptions) {
     this.container = resolveContainer(options.container)
 
@@ -97,15 +108,29 @@ export class CesiumEngineViewer implements EngineViewer {
     }
   }
 
+  /**
+   * 设置版权信息的展示模式。
+   * @param mode - 版权展示模式。
+   * @param element - 可选的自定义版权容器元素。
+   */
   setCreditMode(mode: CreditMode, element?: Element): void {
     this.credits.setMode(mode, element)
   }
 
+  /**
+   * 请求渲染一帧画面。
+   * @param _reason - 可选的请求原因，仅用于标注。
+   */
   requestRender(_reason?: string): void {
     if (this.destroyed) return
     this.native.scene.requestRender()
   }
 
+  /**
+   * 等待场景与默认底图加载就绪。
+   * @param options - 超时等就绪检测选项。
+   * @returns 场景就绪结果的 Promise。
+   */
   whenSceneReady(options: SceneReadyOptions = {}): Promise<SceneReadyResult> {
     const timeoutMs = options.timeoutMs ?? 20000
     const scene = this.native.scene
@@ -168,6 +193,9 @@ export class CesiumEngineViewer implements EngineViewer {
     })
   }
 
+  /**
+   * 销毁视图并释放原生 Cesium 资源。
+   */
   destroy(): void {
     if (this.destroyed) return
     this.destroyed = true
@@ -175,7 +203,11 @@ export class CesiumEngineViewer implements EngineViewer {
   }
 }
 
+/**
+ * Cesium 引擎实现，负责创建视图并提供能力声明与错误映射。
+ */
 export class CesiumEngine implements Engine {
+  /** 引擎类型标识。 */
   readonly type = "cesium"
   private viewer: CesiumEngineViewer | undefined
   private readonly capabilities = [
@@ -186,26 +218,49 @@ export class CesiumEngine implements Engine {
     "effects:postprocess",
   ]
 
+  /**
+   * 创建并返回一个 Cesium 引擎视图。
+   * @param options - 引擎视图初始化选项。
+   * @returns 已创建的引擎视图。
+   */
   createViewer(options: EngineViewerOptions): EngineViewer {
     this.viewer = new CesiumEngineViewer(options)
     return this.viewer
   }
 
+  /**
+   * 判断引擎是否具备指定能力。
+   * @param name - 能力名称。
+   * @returns 具备该能力时返回 true。
+   */
   hasCapability(name: string): boolean {
     return this.capabilities.includes(name)
   }
 
+  /**
+   * 将任意错误映射为统一的消息与错误码。
+   * @param error - 待映射的错误。
+   * @returns 包含消息与错误码的对象。
+   */
   mapError(error: unknown): { message: string; code?: string } {
     const classified = classifyLoadFailure(error)
     return { message: classified.message, code: classified.code }
   }
 
+  /**
+   * 销毁引擎及其持有的视图。
+   */
   destroy(): void {
     this.viewer?.destroy()
     this.viewer = undefined
   }
 }
 
+/**
+ * 创建 Cesium 引擎运行时上下文。
+ * @param options - 引擎视图初始化选项。
+ * @returns 引擎运行时上下文。
+ */
 export function createCesiumEngineContext(
   options: EngineViewerOptions,
 ): EngineContext {
@@ -221,6 +276,11 @@ export function createCesiumEngineContext(
   }
 }
 
+/**
+ * 将未知的原生对象断言为 Cesium Viewer。
+ * @param native - 原生视图对象。
+ * @returns 原生 Cesium Viewer 实例。
+ */
 export function getCesiumViewer(native: unknown): Cesium.Viewer {
   return native as Cesium.Viewer
 }

@@ -9,11 +9,23 @@ import { createImageryProvider } from "@arc3dlab/data"
 import { ImageryLayer } from "cesium"
 import type { BasemapSpec, Layer } from "./types"
 
+/**
+ * 底图管理器，用于设置替换底图并管理其生命周期。
+ */
 export class BasemapManager {
   private current: Layer | undefined
 
+  /**
+   * 创建底图管理器。
+   * @param context - Arc3D 运行时上下文。
+   */
   constructor(private readonly context: Arc3DContext) {}
 
+  /**
+   * 设置底图，替换现有底图并返回新的图层句柄。
+   * @param spec - 底图数据源规格。
+   * @returns 新建的底图图层句柄。
+   */
   async set(spec: BasemapSpec): Promise<Layer> {
     this.context.lifecycle.assertUsable("set basemap")
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
@@ -39,6 +51,10 @@ export class BasemapManager {
     }
   }
 
+  /**
+   * 获取当前底图图层。
+   * @returns 当前底图图层，未设置时返回 undefined。
+   */
   get(): Layer | undefined {
     return this.current
   }

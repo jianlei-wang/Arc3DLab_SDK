@@ -1,0 +1,214 @@
+/* Arc3DLab SDK API 文档样式（复刻 Cesium ref-doc 布局的原创样式） */
+
+:root {
+  --sidebar-width: 280px;
+  --sidebar-bg: #2b3440;
+  --sidebar-fg: #d7dee6;
+  --sidebar-muted: #93a1b1;
+  --accent: #2f6fdd;
+  --link: #1a6fbd;
+  --border: #dde3ea;
+  --code-bg: #f5f7fa;
+  --text: #232a31;
+  --muted: #5b6774;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  color: var(--text);
+  background: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code, pre, .name, .type-signature, .param-type {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+code {
+  background: var(--code-bg);
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+
+/* Sidebar */
+#sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-fg);
+  overflow-y: auto;
+  padding: 0 0 2rem;
+  z-index: 10;
+}
+.nav-header {
+  padding: 1rem 1.1rem 0.6rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.nav-header a { color: #fff; }
+.nav-search { padding: 0 0.9rem 0.8rem; }
+.nav-search input {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid #46525f;
+  background: #212a34;
+  color: #fff;
+  font-size: 0.85rem;
+}
+.nav-list { padding: 0 0.6rem; }
+.nav-package { margin-bottom: 0.35rem; }
+.nav-package > summary {
+  cursor: pointer;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  color: #fff;
+  list-style: none;
+}
+.nav-package > summary::-webkit-details-marker { display: none; }
+.nav-package > summary::before { content: "\25B8 "; color: var(--sidebar-muted); }
+.nav-package[open] > summary::before { content: "\25BE "; }
+.nav-package > summary a { color: #fff; }
+.nav-category { margin: 0.2rem 0 0.5rem 0.4rem; }
+.nav-category-title {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sidebar-muted);
+  margin: 0.3rem 0 0.15rem;
+}
+.nav-list ul { list-style: none; margin: 0; padding: 0 0 0 0.5rem; }
+.nav-list li { line-height: 1.5; }
+.nav-list li a { color: var(--sidebar-fg); font-size: 0.85rem; }
+.nav-list li a:hover { color: #fff; }
+
+/* Main content */
+#main {
+  margin-left: var(--sidebar-width);
+  padding: 1.5rem 2.5rem 4rem;
+  max-width: 1100px;
+}
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.9rem;
+  margin: 0 0 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.6rem;
+}
+.arc3dLogo { height: 34px; }
+.titleCenterer { flex: 1; }
+
+.breadcrumb {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 0.8rem;
+}
+.kind-label {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.72rem;
+}
+
+.container-overview { margin-bottom: 1.5rem; }
+.nameContainer { margin-top: 1rem; }
+h4.name {
+  font-size: 1.15rem;
+  margin: 0;
+  padding: 0.4rem 0;
+  font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+  border-bottom: 1px solid var(--border);
+}
+h4.name .doc-link { display: none; }
+.signature { color: var(--muted); }
+.type-signature { color: var(--muted); font-weight: 400; }
+.attribute-readonly,
+.attribute-static,
+.optional {
+  font-size: 0.72rem;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 0.3rem;
+  color: var(--muted);
+}
+.optional { font-style: italic; }
+
+.source-link { margin: 0.25rem 0; }
+.source-link.rightLinks a { font-size: 0.75rem; color: var(--muted); }
+
+.description { margin: 0.6rem 0; }
+.description p { margin: 0.4rem 0; }
+
+/* Params / returns tables */
+table.params {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.6rem 0 1rem;
+}
+table.params th, table.params td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.9rem;
+}
+table.params thead th { background: var(--code-bg); font-size: 0.8rem; }
+table.params td.name { white-space: nowrap; }
+table.params td.description { color: var(--muted); }
+
+h5 { margin: 0.8rem 0 0.3rem; font-size: 0.95rem; }
+h5.details-header { display: inline; }
+dl.details { margin: 0.4rem 0 0.8rem; }
+dl.details h5 { color: var(--muted); }
+
+.subsection-title {
+  margin: 1.8rem 0 0.6rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid var(--border);
+  font-size: 1.25rem;
+}
+
+ul.see-list { margin: 0.3rem 0; padding-left: 1.2rem; }
+ul.see-list li { line-height: 1.8; }
+.qualified, .pkg-counts { color: var(--muted); font-size: 0.82rem; }
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.8rem;
+  overflow-x: auto;
+}
+pre code { background: none; padding: 0; }
+
+.doc-footer {
+  margin-left: var(--sidebar-width);
+  padding: 1rem 2.5rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 860px) {
+  #sidebar { position: static; width: auto; }
+  #main, .doc-footer { margin-left: 0; }
+}

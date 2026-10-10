@@ -17,16 +17,30 @@ import type { AnalysisTaskOptions } from "./scheduler"
 import type { AnalysisResult } from "./task"
 import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
 
+/** 土方平衡计算结果。 */
 export interface CutFillResult {
+  /** 挖方体积，单位为立方米。 */
   cutCubicMeters: number
+  /** 填方体积，单位为立方米。 */
   fillCubicMeters: number
+  /** 设计高程，单位为米。 */
   designHeight: number
+  /** 采样点数量。 */
   sampleCount: number
+  /** 网格分辨率，单位为米。 */
   resolutionMeters: number
+  /** 估算误差体积，单位为立方米。 */
   estimatedErrorCubicMeters: number
 }
 
+/** 体积分析服务，提供土方平衡计算与开挖能力。 */
 export class VolumeAnalysis {
+  /**
+   * 创建体积分析服务。
+   * @param context - Arc3D 运行上下文。
+   * @param clip - 裁剪分析服务，用于执行开挖。
+   * @param runTask - 任务执行器，默认绑定当前上下文。
+   */
   constructor(
     private readonly context: Arc3DContext,
     private readonly clip: ClipAnalysis,
@@ -35,6 +49,11 @@ export class VolumeAnalysis {
     ),
   ) {}
 
+  /**
+   * 计算多边形范围内的土方挖填量。
+   * @param options - 计算选项，包含多边形、采样数、设计高程与取消/进度配置。
+   * @returns 土方平衡计算结果。
+   */
   async cutFill(options: {
     positions: PositionInput[]
     samples?: number
@@ -105,6 +124,11 @@ export class VolumeAnalysis {
     }
   }
 
+  /**
+   * 按多边形与深度执行开挖。
+   * @param options - 开挖选项，包含多边形顶点与深度。
+   * @returns 开挖结果。
+   */
   async excavate(options: {
     positions: PositionInput[]
     depth: number
@@ -116,6 +140,11 @@ export class VolumeAnalysis {
     })
   }
 
+  /**
+   * 以任务形式计算土方挖填量。
+   * @param options - 计算选项，包含多边形、采样数、设计高程与取消/进度配置。
+   * @returns 分析结果，结果值为土方平衡计算结果。
+   */
   cutFillTask(options: {
     positions: PositionInput[]
     samples?: number
@@ -143,10 +172,12 @@ export class VolumeAnalysis {
     })
   }
 
+  /** 清除本服务产生的开挖裁剪效果。 */
   clear(): void {
     this.context.lifecycle.assertUsable("clear volume")
     if (this.clip.list().includes("excavation")) this.clip.clear()
   }
 
+  /** 释放体积分析服务占用的资源。 */
   destroy(): void {}
 }

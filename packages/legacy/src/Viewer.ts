@@ -1,30 +1,40 @@
 import type { Arc3DConfig } from "@arc3dlab/core"
 import { Arc3D, Arc3DApp } from "@arc3dlab/sdk"
 
+/**
+ * 旧版查看器的可选配置。
+ */
 export interface LegacyViewerOptions {
+  /**
+   * Cesium ion 默认访问令牌。
+   */
   defaultKey?: string
+  /**
+   * 是否显示帧率。
+   */
   fpsShow?: boolean
+  /**
+   * 是否使用 mapbox 控制器。
+   */
   mapboxController?: boolean
 }
 
 /**
- * Compatibility adapter around Arc3DApp.
- * New code should use `Arc3D.create()`.
+ * 围绕 Arc3DApp 的兼容适配器，供旧版 Viewer API 迁移期间使用。
  *
- * @deprecated Since 1.0.0-alpha.1. Use `Arc3D.create()` (stable) instead.
- * This adapter only maps a small subset of the legacy surface:
- * `Layers.Add.addPoints/addLines/addPolygons`, `Layers.get/remove/show/clear`,
- * `Terrain`, `EventHandler`, `ReminderTip`, plus `native/scene/camera/canvas`
- * escape hatches. Legacy-only concepts without a counterpart (Popup tip DOM,
- * built-in creator factories, mapbox controller flags beyond `controls`) are
- * intentionally unsupported and map to the closest primitive.
- *
- * `native` / `scene` / `camera` / `canvas` are advanced, unstable escape
- * hatches bound to the Cesium runtime and are excluded from SemVer guarantees.
+ * @deprecated 请改用 Arc3D.create()
  */
 export class Viewer {
+  /**
+   * 底层 Arc3DApp 实例。
+   */
   readonly app: Arc3DApp
 
+  /**
+   * 创建旧版查看器实例。
+   * @param container - 承载查看器的容器元素或其 id
+   * @param options - 旧版可选配置
+   */
   constructor(container: string | Element, options: LegacyViewerOptions = {}) {
     const config: Arc3DConfig = {
       container,
@@ -40,6 +50,9 @@ export class Viewer {
     this.app = Arc3D.createSync(config)
   }
 
+  /**
+   * 图层操作入口，提供添加点、线、面以及查询、显示、清除等方法。
+   */
   get Layers() {
     return {
       Add: {
@@ -92,34 +105,59 @@ export class Viewer {
     }
   }
 
+  /**
+   * 地形服务。
+   */
   get Terrain() {
     return this.app.terrain
   }
 
+  /**
+   * 交互事件处理器。
+   */
   get EventHandler() {
     return this.app.interaction
   }
 
+  /**
+   * 提示工具服务。
+   */
   get ReminderTip() {
     return this.app.ui.tooltip
   }
 
+  /**
+   * 底层 Cesium Viewer 实例（高级不稳定逃生舱）。
+   */
   get native() {
     return this.app.native.viewer
   }
 
+  /**
+   * 底层 Cesium 场景对象（高级不稳定逃生舱）。
+   */
   get scene() {
     return (this.app.native.viewer as { scene: unknown }).scene
   }
 
+  /**
+   * 底层 Cesium 相机对象（高级不稳定逃生舱）。
+   */
   get camera() {
     return (this.app.native.viewer as { camera: unknown }).camera
   }
 
+  /**
+   * 查看器画布元素。
+   */
   get canvas() {
     return this.app.context.engine.viewer.canvas
   }
 
+  /**
+   * 销毁查看器并释放相关资源。
+   * @returns 销毁完成后的 Promise
+   */
   destroy(): Promise<void> {
     return this.app.destroy()
   }

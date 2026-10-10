@@ -16,18 +16,31 @@ import {
   Transforms,
 } from "cesium"
 
+/** 开挖结果，描述深度、是否为体积开挖及所采用的方法。 */
 export interface ExcavationResult {
+  /** 开挖深度，单位为米。 */
   depth: number
+  /** 是否为体积开挖。 */
   volumetric: boolean
+  /** 所采用的开挖方法。 */
   method: "clipping-polygon-and-floor-plane"
 }
 
+/** 裁剪分析服务，基于 Cesium 裁剪平面与裁剪多边形实现剖切与开挖。 */
 export class ClipAnalysis {
   private active: string[] = []
   private excavation: ExcavationResult | undefined
 
+  /**
+   * 创建裁剪分析服务。
+   * @param context - Arc3D 运行上下文。
+   */
   constructor(private readonly context: Arc3DContext) {}
 
+  /**
+   * 设置基于平面的剖切。
+   * @param options - 剖切选项，包含原点与可选方位角。
+   */
   setPlane(options: { origin: PositionInput; heading?: number }): void {
     this.context.lifecycle.assertUsable("set clip plane")
     const heading = CesiumMath.toRadians(options.heading ?? 0)
@@ -47,6 +60,10 @@ export class ClipAnalysis {
     )
   }
 
+  /**
+   * 设置基于地理范围的盒状剖切。
+   * @param options - 盒状范围，包含西、南、东、北边界。
+   */
   setBox(options: {
     west: number
     south: number
@@ -78,6 +95,10 @@ export class ClipAnalysis {
     )
   }
 
+  /**
+   * 设置基于多边形的剖切。
+   * @param options - 剖切选项，包含多边形顶点。
+   */
   setPolygon(options: { positions: PositionInput[] }): void {
     this.context.lifecycle.assertUsable("set clip polygon")
     this.clearPlanes()
@@ -93,6 +114,11 @@ export class ClipAnalysis {
     this.active = ["polygon"]
   }
 
+  /**
+   * 设置多边形与底面平面构成的开挖。
+   * @param options - 开挖选项，包含多边形顶点与深度。
+   * @returns 开挖结果。
+   */
   setExcavation(options: {
     positions: PositionInput[]
     depth: number
@@ -141,15 +167,21 @@ export class ClipAnalysis {
     return result
   }
 
+  /**
+   * 列出当前生效的裁剪类型。
+   * @returns 裁剪类型名称列表。
+   */
   list(): string[] {
     return [...this.active]
   }
 
+  /** 清除当前所有裁剪效果。 */
   clear(): void {
     this.context.lifecycle.assertUsable("clear clip")
     this.removeAll()
   }
 
+  /** 释放裁剪服务占用的资源。 */
   destroy(): void {
     this.removeAll()
   }

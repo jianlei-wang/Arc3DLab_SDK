@@ -29,8 +29,13 @@ export {
   resolvePick,
 } from "./pick"
 
+/**
+ * 交互拾取事件，在通用拾取结果之上附加图形与图层信息。
+ */
 export interface InteractionPickEvent extends PickResult {
+  /** 命中的图形对象。 */
   graphic?: { id: string }
+  /** 命中的图层对象。 */
   layer?: { id: string }
 }
 
@@ -40,36 +45,59 @@ type InteractionEvents = {
   move: { windowPosition: WindowPosition }
 }
 
+/**
+ * 维护当前选中资源的标识，并提供选中状态的读写操作。
+ */
 export class SelectionController {
   private selectedId: string | undefined
 
+  /**
+   * 创建选中状态控制器。
+   * @param context - Arc3D 运行时上下文。
+   */
   constructor(private readonly context: Arc3DContext) {}
 
+  /** 当前选中资源的标识。 */
   get id(): string | undefined {
     return this.selectedId
   }
 
+  /**
+   * 获取当前选中资源对应的资源句柄。
+   * @returns 选中的资源句柄，未选中时返回 undefined。
+   */
   get(): ResourceHandle | undefined {
     if (!this.selectedId) return undefined
     return this.context.registry.get(this.selectedId)
   }
 
+  /**
+   * 设置当前选中的资源标识。
+   * @param id - 要选中的资源标识。
+   */
   set(id: string | undefined): void {
     this.context.lifecycle.assertUsable("set selection")
     this.selectedId = id
   }
 
+  /**
+   * 清除当前选中状态。
+   */
   clear(): void {
     this.selectedId = undefined
   }
 }
 
+/**
+ * 统一处理画布上的点击、悬停与移动交互事件。
+ */
 export class InteractionManager {
   private handler: ScreenSpaceEventHandler | undefined
   private listeners = new Map<
     keyof InteractionEvents,
     Set<(payload: never) => void>
   >()
+  /** 选中状态控制器。 */
   readonly selection: SelectionController
   private readonly hoverGate = new HoverGate()
   private readonly canvas: HTMLCanvasElement
@@ -78,6 +106,10 @@ export class InteractionManager {
     this.emit("hover", this.emptyPick())
   }
 
+  /**
+   * 创建交互管理器并在画布上注册输入事件。
+   * @param context - Arc3D 运行时上下文。
+   */
   constructor(private readonly context: Arc3DContext) {
     const viewer = getCesiumViewer(context.engine.native.viewer)
     this.canvas = viewer.canvas
@@ -109,6 +141,12 @@ export class InteractionManager {
     this.canvas.addEventListener("mouseleave", this.onCanvasLeave)
   }
 
+  /**
+   * 注册交互事件监听器。
+   * @param event - 事件名称。
+   * @param handler - 事件处理函数。
+   * @returns 用于取消订阅的函数。
+   */
   on<K extends keyof InteractionEvents>(
     event: K,
     handler: (payload: InteractionEvents[K]) => void,
@@ -122,6 +160,11 @@ export class InteractionManager {
     return () => this.off(event, handler)
   }
 
+  /**
+   * 移除交互事件监听器，未提供处理函数时移除该事件的全部监听器。
+   * @param event - 事件名称。
+   * @param handler - 可选的事件处理函数。
+   */
   off<K extends keyof InteractionEvents>(
     event: K,
     handler?: (payload: InteractionEvents[K]) => void,
@@ -133,6 +176,11 @@ export class InteractionManager {
     this.listeners.get(event)?.delete(handler as (payload: never) => void)
   }
 
+  /**
+   * 在指定窗口坐标处执行拾取并返回拾取结果。
+   * @param windowPosition - 窗口坐标位置。
+   * @returns 交互拾取事件。
+   */
   pick(windowPosition: WindowPosition): InteractionPickEvent {
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
     const window = new Cartesian2(windowPosition.x, windowPosition.y)
@@ -179,14 +227,27 @@ export class InteractionManager {
     }
   }
 
+  /**
+   * 在指定窗口坐标处拾取图形。
+   * @param windowPosition - 窗口坐标位置。
+   * @returns 命中的图形，未命中时返回 undefined。
+   */
   pickGraphic(windowPosition: WindowPosition): { id: string } | undefined {
     return this.pick(windowPosition).graphic
   }
 
+  /**
+   * 在指定窗口坐标处拾取图层。
+   * @param windowPosition - 窗口坐标位置。
+   * @returns 命中的图层，未命中时返回 undefined。
+   */
   pickLayer(windowPosition: WindowPosition): { id: string } | undefined {
     return this.pick(windowPosition).layer
   }
 
+  /**
+   * 销毁交互管理器并释放已注册的事件监听。
+   */
   destroy(): void {
     this.canvas.removeEventListener("mouseleave", this.onCanvasLeave)
     if (this.handler && !this.handler.isDestroyed()) {

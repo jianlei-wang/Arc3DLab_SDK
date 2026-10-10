@@ -15,6 +15,9 @@ export {
   tooltipOffsetStyle,
 } from "./tooltip-dom"
 
+/**
+ * 工具提示服务，负责在 Cesium 容器内创建、显示与定位提示文本。
+ */
 export class TooltipService {
   private element: HTMLDivElement
   private message = ""
@@ -23,6 +26,10 @@ export class TooltipService {
   private listening = false
   private readonly owned: boolean
 
+  /**
+   * 创建工具提示服务实例。
+   * @param context - Arc3D 运行时上下文
+   */
   constructor(private readonly context: Arc3DContext) {
     const viewer = getCesiumViewer(context.engine.native.viewer)
     const host = viewer.container as HTMLElement
@@ -34,6 +41,9 @@ export class TooltipService {
     this.onMove = (event) => this.place(event)
   }
 
+  /**
+   * 提示文本内容。
+   */
   set text(value: string) {
     this.message = value
     this.element.textContent = value
@@ -43,6 +53,10 @@ export class TooltipService {
     return this.message
   }
 
+  /**
+   * 显示提示，并可同时更新提示文本。
+   * @param text - 可选的新提示文本
+   */
   show(text?: string): void {
     if (text !== undefined) this.text = text
     this.visible = true
@@ -54,6 +68,9 @@ export class TooltipService {
     this.context.engine.viewer.requestRender?.("tooltip")
   }
 
+  /**
+   * 隐藏提示并清空文本。
+   */
   hide(): void {
     this.visible = false
     if (this.listening) {
@@ -65,6 +82,9 @@ export class TooltipService {
     this.text = ""
   }
 
+  /**
+   * 销毁工具提示并移除其 DOM 元素。
+   */
   destroy(): void {
     this.hide()
     if (this.owned) removeOwnedTooltip(this.element)
@@ -87,13 +107,26 @@ export class TooltipService {
   }
 }
 
+/**
+ * UI 管理器，聚合界面相关的服务。
+ */
 export class UIManager {
+  /**
+   * 工具提示服务实例。
+   */
   readonly tooltip: TooltipService
 
+  /**
+   * 创建 UI 管理器实例。
+   * @param context - Arc3D 运行时上下文
+   */
   constructor(context: Arc3DContext) {
     this.tooltip = new TooltipService(context)
   }
 
+  /**
+   * 销毁 UI 管理器并释放相关资源。
+   */
   destroy(): void {
     this.tooltip.destroy()
   }

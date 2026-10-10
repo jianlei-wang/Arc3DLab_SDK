@@ -6,11 +6,19 @@ import {
 } from "./jobs"
 import type { AnalysisTaskOptions } from "./scheduler"
 
+/** 可跨线程传递的序列化错误信息。 */
 export interface SerializedAnalysisError {
+  /** 错误码。 */
   code: string
+  /** 错误消息。 */
   message: string
 }
 
+/**
+ * 将任意错误序列化为可传递的错误信息。
+ * @param error - 待序列化的错误。
+ * @returns 序列化后的错误信息。
+ */
 export function serializeAnalysisError(
   error: unknown,
 ): SerializedAnalysisError {
@@ -23,6 +31,11 @@ export function serializeAnalysisError(
   }
 }
 
+/**
+ * 将序列化的错误信息还原为 Arc3DError。
+ * @param payload - 序列化的错误信息。
+ * @returns 还原得到的 Arc3DError。
+ */
 export function restoreAnalysisError(
   payload: SerializedAnalysisError,
 ): Arc3DError {
@@ -30,20 +43,29 @@ export function restoreAnalysisError(
 }
 
 /**
- * Runs analysis jobs in-process on the main thread.
+ * 在主线程内同步运行分析作业的宿主。
  *
- * Named `AnalysisJobHost` deliberately: it schedules and cancels jobs
- * asynchronously but does not spawn a Web Worker yet. A true worker-backed
- * implementation is tracked as a future enhancement; this host is the
- * contract that such an implementation will satisfy.
+ * 特意命名为 AnalysisJobHost：它以异步方式调度与取消作业，但尚未启动真正的
+ * Web Worker。在真实工作线程实现完成前，此宿主即为该实现需要满足的契约。
  */
 export class AnalysisJobHost {
   private seq = 0
   private pending = new Map<number, { reject: (error: Arc3DError) => void }>()
   private terminated = false
 
+  /**
+   * 创建分析作业宿主。
+   * @param execute - 作业执行函数，默认为进程内执行器。
+   */
   constructor(private readonly execute = executeAnalysisJob) {}
 
+  /**
+   * 异步运行一个分析作业，支持取消。
+   * @param job - 待运行的分析作业。
+   * @param options - 任务选项，包含取消信号。
+   * @returns 作业执行结果。
+   * @throws {Arc3DError} 宿主已终止或作业被取消时抛出。
+   */
   async run(
     job: AnalysisJob,
     options?: AnalysisTaskOptions,
@@ -92,6 +114,7 @@ export class AnalysisJobHost {
     })
   }
 
+  /** 终止宿主并拒绝所有未完成的作业。 */
   destroy(): void {
     this.terminated = true
     for (const entry of this.pending.values()) {

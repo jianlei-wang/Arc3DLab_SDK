@@ -4,6 +4,7 @@ import { createHandle } from "./resource"
 import { getRuntimeDiagnostics } from "./diagnostics"
 import type { Engine, EngineViewer, EngineViewerOptions } from "./types"
 
+/** 运行时基准测试使用的默认场景参数。 */
 export const BENCHMARK_SCENE = {
   west: 104.0,
   south: 30.5,
@@ -18,15 +19,23 @@ export const BENCHMARK_SCENE = {
   ],
 } as const
 
+/** 基准测试中单个阶段的耗时记录。 */
 export interface BenchmarkPhase {
+  /** 阶段名称。 */
   name: "init" | "firstFrame" | "pick" | "destroy"
+  /** 阶段耗时，单位为毫秒。 */
   durationMs: number
 }
 
+/** 运行时基准测试的完整报告。 */
 export interface RuntimeBenchmarkReport {
+  /** 使用的场景参数。 */
   scene: typeof BENCHMARK_SCENE
+  /** 渲染的图形数量。 */
   graphicCount: number
+  /** 各阶段耗时记录。 */
   phases: BenchmarkPhase[]
+  /** 场景范围内被命中的图形数量。 */
   picked: number
 }
 
@@ -94,6 +103,13 @@ function pointInScene(longitude: number, latitude: number): boolean {
   )
 }
 
+/**
+ * 执行一次运行时基准测试并返回各阶段耗时报告。
+ *
+ * @param graphicCount - 要渲染的图形数量，默认为场景配置中的首个数量。
+ * @returns 包含阶段耗时与命中数量的基准报告。
+ * @throws {Error} 当基准上下文缺失时抛出。
+ */
 export function runRuntimeBenchmark(
   graphicCount = BENCHMARK_SCENE.graphicCounts[0],
 ): RuntimeBenchmarkReport {

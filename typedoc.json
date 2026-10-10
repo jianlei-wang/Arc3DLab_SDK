@@ -1,24 +1,32 @@
 {
-  "entryPoints": ["./src/index.ts"],
-  "out": "api-docs/api",
-  "name": "Arc3DLab SDK API 文档",
-  "includeVersion": true,
-  "plugin": ["typedoc-material-theme"],
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "packages/core/src/index.ts",
+    "packages/engine-cesium/src/index.ts",
+    "packages/scene/src/index.ts",
+    "packages/layers/src/index.ts",
+    "packages/graphics/src/index.ts",
+    "packages/data/src/index.ts",
+    "packages/interaction/src/index.ts",
+    "packages/analysis/src/index.ts",
+    "packages/effects/src/index.ts",
+    "packages/ui/src/index.ts",
+    "packages/sdk/src/index.ts",
+    "packages/legacy/src/index.ts",
+    "src/index.ts"
+  ],
+  "entryPointStrategy": "resolve",
+  "tsconfig": "./tsconfig.json",
   "excludePrivate": true,
   "excludeProtected": true,
-  "readme": "README.md",
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "readme": "none",
+  "name": "Arc3DLab SDK API",
   "categorizeByGroup": true,
-  "sort": ["source-order"],
-  "exclude": [
-    "**/node_modules/**",
-    "**/demo-vue3/**",
-    "**/dist/**"
-  ],
-  "tsconfig": "./tsconfig.json",
-  "locales": {
-    "zh-CN": {
-      "name": "Arc3DLab SDK API 文档",
-      "description": "A Modular 3D WebGIS Runtime built on CesiumJS"
-    }
-  },
+  "sort": ["kind", "alphabetical"],
+  "validation": {
+    "notExported": false,
+    "invalidLink": false
+  }
 }

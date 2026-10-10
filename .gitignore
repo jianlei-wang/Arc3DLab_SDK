@@ -4,5 +4,6 @@ coverage
 playwright-report
 test-results
 api-docs/*
+docs/api/
 # Editor directories and files
 .vscode/*

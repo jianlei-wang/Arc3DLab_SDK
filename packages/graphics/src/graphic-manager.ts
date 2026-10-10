@@ -48,9 +48,16 @@ import { syncPointCollection } from "./points"
 import { ManagedGraphic } from "./managed-graphic"
 import type { Graphic, GraphicCreateOptions, ModelCreateOptions } from "./types"
 
+/**
+ * 图形管理器，负责各种图形的创建、查询、可见性控制、批量更新与销毁。
+ */
 export class GraphicManager {
   private items = new Map<string, Graphic>()
 
+  /**
+   * 创建图形管理器。
+   * @param context - Arc3D 运行时上下文。
+   */
   constructor(private readonly context: Arc3DContext) {}
 
   private claimId(id: string): void {
@@ -63,15 +70,30 @@ export class GraphicManager {
     }
   }
 
+  /**
+   * 添加单个点图形。
+   * @param options - 点图形创建选项。
+   * @returns 新建的点图形。
+   */
   addPoint(options: GraphicCreateOptions): Graphic {
     const positions = asList(options.positions)
     return this.createPoints(positions, options)[0]
   }
 
+  /**
+   * 批量添加点图形。
+   * @param options - 点图形创建选项，positions 为坐标数组。
+   * @returns 新建的点图形数组。
+   */
   addPoints(options: GraphicCreateOptions): Graphic[] {
     return this.createPoints(asList(options.positions), options)
   }
 
+  /**
+   * 添加一个折线图形。
+   * @param options - 折线图形创建选项。
+   * @returns 新建的折线图形。
+   */
   addPolyline(options: GraphicCreateOptions): Graphic {
     this.context.lifecycle.assertUsable("add polyline")
     const positions = asList(options.positions)
@@ -164,6 +186,11 @@ export class GraphicManager {
     )
   }
 
+  /**
+   * 添加一个多边形图形。
+   * @param options - 多边形图形创建选项。
+   * @returns 新建的多边形图形。
+   */
   addPolygon(options: GraphicCreateOptions): Graphic {
     this.context.lifecycle.assertUsable("add polygon")
     const positions = asList(options.positions)
@@ -243,6 +270,11 @@ export class GraphicManager {
     })
   }
 
+  /**
+   * 添加一个模型图形。
+   * @param options - 模型图形创建选项。
+   * @returns 新建的模型图形。
+   */
   addModel(options: ModelCreateOptions): Graphic {
     this.context.lifecycle.assertUsable("add model")
     this.context.capabilities.require("graphic:model", "add model")
@@ -289,10 +321,20 @@ export class GraphicManager {
     )
   }
 
+  /**
+   * 根据 ID 获取图形。
+   * @param id - 图形 ID。
+   * @returns 对应的图形，未找到时返回 undefined。
+   */
   get(id: string): Graphic | undefined {
     return this.items.get(id)
   }
 
+  /**
+   * 移除指定图形。
+   * @param id - 图形 ID。
+   * @returns 图形存在并被移除时返回 true。
+   */
   remove(id: string): boolean {
     const graphic = this.items.get(id)
     if (!graphic) return false
@@ -300,6 +342,12 @@ export class GraphicManager {
     return true
   }
 
+  /**
+   * 设置指定图形的可见性。
+   * @param id - 图形 ID。
+   * @param visible - 是否可见。
+   * @returns 图形存在并设置成功时返回 true。
+   */
   show(id: string, visible: boolean): boolean {
     const graphic = this.items.get(id)
     if (!graphic) return false
@@ -307,10 +355,19 @@ export class GraphicManager {
     return true
   }
 
+  /**
+   * 列出全部图形。
+   * @returns 当前管理的所有图形数组。
+   */
   list(): Graphic[] {
     return Array.from(this.items.values())
   }
 
+  /**
+   * 批量添加折线图形，并按整体数量统一选择渲染模式。
+   * @param items - 折线图形创建选项数组。
+   * @returns 新建的折线图形数组。
+   */
   addPolylines(items: GraphicCreateOptions[]): Graphic[] {
     this.context.lifecycle.assertUsable("add polylines")
     const policy = decideRenderPolicy({
@@ -327,6 +384,11 @@ export class GraphicManager {
     )
   }
 
+  /**
+   * 批量添加多边形图形，并按整体数量统一选择渲染模式。
+   * @param items - 多边形图形创建选项数组。
+   * @returns 新建的多边形图形数组。
+   */
   addPolygons(items: GraphicCreateOptions[]): Graphic[] {
     this.context.lifecycle.assertUsable("add polygons")
     const policy = decideRenderPolicy({
@@ -343,6 +405,11 @@ export class GraphicManager {
     )
   }
 
+  /**
+   * 批量移除图形。
+   * @param ids - 待移除的图形 ID 数组。
+   * @returns 实际移除的图形数量。
+   */
   removeMany(ids: string[]): number {
     let removed = 0
     for (const id of ids) {
@@ -351,6 +418,12 @@ export class GraphicManager {
     return removed
   }
 
+  /**
+   * 批量设置图形可见性。
+   * @param ids - 目标图形 ID 数组。
+   * @param visible - 是否可见。
+   * @returns 实际更新成功的图形数量。
+   */
   showMany(ids: string[], visible: boolean): number {
     let updated = 0
     for (const id of ids) {
@@ -359,6 +432,11 @@ export class GraphicManager {
     return updated
   }
 
+  /**
+   * 批量更新图形坐标。
+   * @param updates - 包含图形 ID 与新坐标的更新列表。
+   * @returns 实际更新成功的图形数量。
+   */
   updatePositionsBatch(
     updates: Array<{ id: string; positions: PositionInput | PositionInput[] }>,
   ): number {
@@ -366,6 +444,9 @@ export class GraphicManager {
     return applyPositionUpdates((id) => this.items.get(id), updates)
   }
 
+  /**
+   * 销毁并清空所有图形。
+   */
   clear(): void {
     for (const graphic of Array.from(this.items.values())) graphic.destroy()
   }

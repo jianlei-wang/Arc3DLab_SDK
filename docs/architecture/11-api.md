@@ -88,3 +88,22 @@ viewer.app // Arc3DApp
 ```
 
 `Viewer` 是 Legacy Adapter，文档主路径是 `Arc3D.create()`。
+
+## API 文档站
+
+公共 API 文档由自研生成器产出，形式对齐 CesiumJS ref-doc（JSDoc 默认结构类名、侧边栏包命名空间 + 类别分组），覆盖全部 13 个包：
+
+```bash
+# 提取类型模型并构建静态站点（输出 api-docs/api/）
+npm run docs:build
+
+# 校验公共符号注释覆盖率（summary >= 70%，params >= 50%）
+npm run lint:docs
+
+# 本地预览
+npm run docs:preview
+```
+
+生成流程：`typedoc --json` 提取模型 → `normalize` 归一化为 DocsModel → `render` 输出 HTML。产物写入 `api-docs/`（被 gitignore），覆盖率报告写入 `docs/api/report.json`。`lint:docs` 已纳入 `gate` 与 CI，构建产物作为 `api-docs` artifact 上传。
+
+正文中文，标识符 / 类型 / 签名保持英文；源码链接指向仓库对应提交的 `#L<line>`。`typedoc-material-theme` 与 `typedoc-plugin-markdown` 已移除。

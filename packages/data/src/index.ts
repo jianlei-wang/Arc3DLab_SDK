@@ -21,26 +21,57 @@ import {
   type ProviderSpec,
 } from "./providers"
 
+/**
+ * 支持的数据源格式类型。
+ */
 export type DataFormat = "geojson" | "kml" | "czml"
 
+/**
+ * 描述一个待加载的数据源。
+ */
 export interface DataSourceSpec {
+  /** 可选的资源标识符，未提供时自动生成。 */
   id?: string
+  /** 数据源格式类型。 */
   type: DataFormat
+  /** 数据源地址。 */
   url: string
 }
 
+/**
+ * 负责创建影像提供者并加载、管理各类数据源。
+ */
 export class DataManager {
+  /**
+   * 创建数据管理器。
+   * @param context - Arc3D 运行时上下文。
+   */
   constructor(private readonly context: Arc3DContext) {}
 
+  /**
+   * 根据提供者规格创建影像提供者句柄。
+   * @param spec - 影像提供者规格。
+   * @returns 影像提供者句柄的 Promise。
+   */
   async createProvider(spec: ProviderSpec): Promise<ProviderHandle> {
     this.context.lifecycle.assertUsable("create provider")
     return createProviderHandle(spec, this.context.config.tokens?.tdt)
   }
 
+  /**
+   * 加载数据源并返回资源句柄，是 add 的别名。
+   * @param spec - 数据源规格。
+   * @returns 资源句柄的 Promise。
+   */
   load(spec: DataSourceSpec): Promise<ResourceHandle> {
     return this.add(spec)
   }
 
+  /**
+   * 将数据源添加到 Cesium 视图并注册对应图层。
+   * @param spec - 数据源规格。
+   * @returns 资源句柄的 Promise。
+   */
   async add(spec: DataSourceSpec): Promise<ResourceHandle> {
     this.context.lifecycle.assertUsable("add data source")
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
@@ -107,14 +138,29 @@ export class DataManager {
     return handle
   }
 
+  /**
+   * 加载 GeoJSON 数据源。
+   * @param options - 可选的资源标识符与数据源地址。
+   * @returns 资源句柄的 Promise。
+   */
   addGeoJson(options: { id?: string; url: string }): Promise<ResourceHandle> {
     return this.add({ ...options, type: "geojson" })
   }
 
+  /**
+   * 加载 KML 数据源。
+   * @param options - 可选的资源标识符与数据源地址。
+   * @returns 资源句柄的 Promise。
+   */
   addKml(options: { id?: string; url: string }): Promise<ResourceHandle> {
     return this.add({ ...options, type: "kml" })
   }
 
+  /**
+   * 加载 CZML 数据源。
+   * @param options - 可选的资源标识符与数据源地址。
+   * @returns 资源句柄的 Promise。
+   */
   addCzml(options: { id?: string; url: string }): Promise<ResourceHandle> {
     return this.add({ ...options, type: "czml" })
   }

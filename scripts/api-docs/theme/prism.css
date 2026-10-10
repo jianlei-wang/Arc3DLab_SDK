@@ -1,0 +1,59 @@
+/* Arc3DLab 代码高亮（Prism 兼容类名，原创实现，MIT 风格自由使用） */
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #383a42;
+  background: none;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.88em;
+  line-height: 1.6;
+  direction: ltr;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  tab-size: 2;
+  hyphens: none;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata { color: #8a9199; font-style: italic; }
+
+.token.punctuation { color: #6a737d; }
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted { color: #e45649; }
+
+.token.boolean,
+.token.number { color: #986801; }
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted { color: #50a14f; }
+
+.token.operator,
+.token.entity,
+.token.url,
+.token.variable { color: #0184bc; }
+
+.token.atrule,
+.token.attr-value,
+.token.keyword { color: #a626a4; }
+
+.token.function,
+.token.class-name { color: #4078f2; }
+
+.token.regex,
+.token.important { color: #c18401; }
+
+.token.important,
+.token.bold { font-weight: 700; }
+.token.italic { font-style: italic; }

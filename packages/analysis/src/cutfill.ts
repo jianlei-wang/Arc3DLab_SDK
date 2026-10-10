@@ -1,17 +1,27 @@
 import { pointInPolygon, type LngLatLike } from "./geometry"
 import { fromLocalMeters, toLocalMeters } from "./geometry"
 
+/** 土方计算网格中的单个单元，记录中心位置、覆盖率与面积。 */
 export interface CutFillCell {
+  /** 单元中心的经度。 */
   longitude: number
+  /** 单元中心的纬度。 */
   latitude: number
+  /** 单元被多边形覆盖的比例，取值 0 到 1。 */
   coverage: number
+  /** 单元的有效面积，单位为平方米。 */
   areaSquareMeters: number
 }
 
+/** 土方计算网格，包含所有单元及其分辨率信息。 */
 export interface CutFillGrid {
+  /** 网格单元列表。 */
   cells: CutFillCell[]
+  /** 网格的综合分辨率，单位为米。 */
   resolutionMeters: number
+  /** 单个单元的宽度，单位为米。 */
   cellWidthMeters: number
+  /** 单个单元的高度，单位为米。 */
   cellHeightMeters: number
 }
 
@@ -53,6 +63,12 @@ function cellCoverage(
   return hits / probes.length
 }
 
+/**
+ * 根据多边形边界构建土方计算网格。
+ * @param ring - 多边形边界点列表。
+ * @param samples - 每一边划分的采样数量。
+ * @returns 构建得到的土方计算网格。
+ */
 export function buildCutFillGrid(
   ring: LngLatLike[],
   samples: number,
@@ -110,6 +126,11 @@ export function buildCutFillGrid(
   return { cells, resolutionMeters, cellWidthMeters, cellHeightMeters }
 }
 
+/**
+ * 按面积加权累计各个采样的挖方与填方体积。
+ * @param samples - 采样列表，每项包含高差与对应面积。
+ * @returns 累计得到的挖方量与填方量。
+ */
 export function accumulateCutFillWeighted(
   samples: Array<{ delta: number; area: number }>,
 ): { cut: number; fill: number } {
@@ -122,6 +143,12 @@ export function accumulateCutFillWeighted(
   return { cut, fill }
 }
 
+/**
+ * 估算部分覆盖单元带来的土方计算误差。
+ * @param cells - 土方计算网格单元列表。
+ * @param deltas - 与单元一一对应的高差列表。
+ * @returns 估算得到的误差体积。
+ */
 export function estimateCutFillError(
   cells: CutFillCell[],
   deltas: number[],

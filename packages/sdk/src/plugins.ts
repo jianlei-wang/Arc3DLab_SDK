@@ -5,18 +5,37 @@ import {
   type PluginState,
 } from "@arc3dlab/core"
 
+/** Arc3D 插件契约。 */
 export interface Arc3DPlugin<TApp = unknown> {
+  /** 插件名称，需全局唯一，且不能为 `core`/`arc3dlab`。 */
   name: string
+  /** 插件版本。 */
   version?: string
+  /** 声明依赖的能力。 */
   /** @deprecated use requiresCapabilities */
   dependsOn?: string[]
+  /** 声明所需的运行时能力。 */
   requiresCapabilities?: string[]
+  /** 声明依赖的其他插件名称。 */
   dependsOnPlugins?: string[]
+  /**
+   * 安装插件。
+   *
+   * @param app - 应用实例。
+   * @param context - 运行时上下文。
+   * @param scope - 插件专属作用域。
+   */
   install(
     app: TApp,
     context: Arc3DContext,
     scope: PluginScope,
   ): void | Promise<void>
+  /**
+   * 卸载插件。
+   *
+   * @param app - 应用实例。
+   * @param context - 运行时上下文。
+   */
   uninstall?(app: TApp, context: Arc3DContext): void | Promise<void>
 }
 
@@ -25,15 +44,27 @@ interface PluginEntry<TApp> {
   scope: PluginScope
 }
 
+/** 插件生命周期管理器：负责安装、卸载、依赖与能力校验。 */
 export class PluginManager<TApp = unknown> {
   private plugins = new Map<string, PluginEntry<TApp>>()
   private stateMap = new Map<string, PluginState>()
 
+  /**
+   * 构造插件管理器。
+   *
+   * @param app - 应用实例。
+   * @param context - 运行时上下文。
+   */
   constructor(
     private readonly app: TApp,
     private readonly context: Arc3DContext,
   ) {}
 
+  /**
+   * 安装插件。
+   *
+   * @param plugin - 插件对象。
+   */
   async use(plugin: Arc3DPlugin<TApp>): Promise<void> {
     this.context.lifecycle.assertUsable("install plugin")
     assertPluginName(plugin)
@@ -76,6 +107,11 @@ export class PluginManager<TApp = unknown> {
     }
   }
 
+  /**
+   * 卸载插件。
+   *
+   * @param name - 插件名称。
+   */
   async uninstall(name: string): Promise<void> {
     const entry = this.plugins.get(name)
     if (!entry) {
@@ -111,6 +147,7 @@ export class PluginManager<TApp = unknown> {
     }
   }
 
+  /** 逆序卸载全部插件。 */
   async destroy(): Promise<void> {
     const names = Array.from(this.plugins.keys()).reverse()
     for (const name of names) {
@@ -122,14 +159,22 @@ export class PluginManager<TApp = unknown> {
     }
   }
 
+  /** 列出已安装插件名称。 */
   list(): string[] {
     return Array.from(this.plugins.keys())
   }
 
+  /**
+   * 查询插件状态。
+   *
+   * @param name - 插件名称。
+   * @returns 插件状态，未安装时返回 undefined。
+   */
   state(name: string): PluginState | undefined {
     return this.stateMap.get(name)
   }
 
+  /** 返回全部插件状态的快照。 */
   states(): Record<string, PluginState> {
     return Object.fromEntries(this.stateMap)
   }
