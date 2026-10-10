@@ -303,31 +303,33 @@ interface ResourceHandle<TNative = unknown> {
 - `owned=true`：SDK 负责销毁；`owned=false`：借用对象，销毁只取消注册。
 - 复合资源（Polygon fill + outline）对外是单一 Graphic，内部由 ResourceTracker 统一回收。
 
-## 6. 通用业务语义层（Planned / Partial）
+## 6. 通用业务语义层（Implemented / Partial）
 
 先固化通用 WebGIS 语义，再由领域插件扩展行业对象。
 
-### 6.1 空间与数据语义
+### 6.1 空间与数据语义（Implemented）
 
-- `SpatialReference`：水平 CRS、轴顺序、角度单位、投影单位。
-- `VerticalDatum`：区分椭球高、正高、地形采样高、设计面高。
-- `DataAsset`：ID、格式、URI、版本、数据范围、时间范围、空间参考、字段模式、版权、校验值、来源。
+- `SpatialReference`：水平 CRS、轴顺序、角度单位、投影单位（`packages/core/src/spatial.ts`）。
+- `VerticalDatum / VerticalReference`：区分椭球高、正高、地形采样高、设计面高。
+- `DataAsset`：ID、格式、URI、版本、数据范围、时间范围、空间参考、字段模式、版权、校验值、来源（`packages/core/src/catalog.ts`）。
 - `FeatureSchema / AttributeField`：字段名、类型、单位、枚举、必填、显示名、派生标识。
 - `FeatureRef`：业务对象稳定 ID、数据资产 ID、版本与来源。
 - `LayerMetadata`：数据引用、图层类型、样式、层级、分组、可见性、加载状态、错误、版权。
+- `DataCatalog`：登记资产/模式/图层；卸载图层不清除资产，支持多视图复用。
 
-默认简写约定：现有 `LngLat / LngLatHeight` 明确为 WGS84 经纬度、度、椭球高。
+默认简写约定：现有 `LngLat / LngLatHeight` 明确为 WGS84 经纬度、度、椭球高；投影坐标由 `assertGeographicPosition` 拒绝。
 
-### 6.2 任务与结果语义
+### 6.2 任务与结果语义（Implemented / Partial）
 
-- `AnalysisTask<TInput, TResult>`：任务 ID、算法类型/版本、输入引用、参数、状态、起止时间、进度、取消、资源上限。
+- `AnalysisTask<TInput, TResult>`：任务 ID、算法类型/版本、输入引用、参数、状态、起止时间、进度、取消、资源上限（`packages/analysis/src/task.ts`）。
 - `AnalysisResult<TResult>`：单位、CRS、高程基准、结果范围、警告、误差/可信度、输入快照、算法版本、来源、产物引用。
 - `ResultArtifact`：体积模型、剖面线、视域面、采样网格、报告文件等。
 - 采样类结果状态：`sampled / fallback / unavailable / cancelled`。
+- 现状：`runAnalysisTask` + `AnalysisTaskRegistry` 提供统一执行合同；既有各分析方法尚未全部改为返回 `AnalysisResult`（Partial）。
 
-### 6.3 插件合同与领域模型分离
+### 6.3 插件合同与领域模型分离（Implemented）
 
-通用 SDK 负责生命周期、数据与空间合同、渲染、交互、分析任务、错误、注册、权限与资源回收。`mining / geology / urban / disaster / ocean` 插件负责行业对象、数据适配、业务工作流、专业算法与 UI。
+通用 SDK 负责生命周期、数据与空间合同、渲染、交互、分析任务、错误、注册、权限与资源回收。`mining / geology / urban / disaster / ocean` 插件负责行业对象、数据适配、业务工作流、专业算法与 UI。`examples/domain-plugins` 提供 sample-report 与 mining 两个仅依赖公共合同的示例。
 
 ## 7. 模块清单与演进方向
 

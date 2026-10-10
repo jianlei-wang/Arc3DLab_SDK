@@ -1,5 +1,15 @@
 # 设计迭代日志
 
+## 2026-10-10
+
+- 落地通用业务语义层（P1-05 / P1-06 / P1-07 / D-01 / D-02 / D-03）：
+  - 空间语义：`SpatialReference / VerticalDatum / VerticalReference / TimeRange / CoordinateTransform`；`LngLat` 简写明确为 WGS84、度、椭球高；投影坐标经 `assertGeographicPosition` 拒绝而非静默按经纬度解释。
+  - 数据语义：`DataCatalog / DataAsset / FeatureSchema / AttributeField / FeatureRef / LayerMetadata`；`DataManager` 与影像/3D Tiles/底图登记目录，图层销毁不清除领域数据。
+  - 分析合同：`runAnalysisTask / AnalysisTaskRegistry / AnalysisTask / AnalysisResult / ResultArtifact`，统一状态、进度、取消、计时、错误与产物；`AnalysisManager.run()` 与 `AnalysisManager.tasks`。
+  - 插件扩展：新增 `examples/domain-plugins/sample-report-plugin.ts`，仅用公共合同扩展，验证无需修改 `core`。
+- 文档同步 `05-layers`、`07-data`、`09-analysis`、`11-api`。
+- 测试新增 spatial-reference、data-catalog、analysis-task、plugin-example，共 16 例。
+
 ## 2026-10-09
 
 - 重写整体设计框架 `design.md`：明确 Cesium-first 定位、依赖硬规则、运行时主流程、关键合同、业务语义层、模块清单与质量门禁。

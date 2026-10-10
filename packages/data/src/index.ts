@@ -46,6 +46,14 @@ export class DataManager {
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
     const id = spec.id ?? createId(spec.type)
     assertNewResourceId(this.context.registry, id)
+    this.context.catalog.registerAsset({ id, format: spec.type, uri: spec.url })
+    this.context.catalog.registerLayer({
+      id,
+      kind: "data",
+      assetId: id,
+      visible: true,
+      loadState: "loading",
+    })
 
     let source: DataSource
     try {
@@ -60,7 +68,12 @@ export class DataManager {
           `Unsupported data type: ${String(spec.type)}`,
         )
     } catch (error) {
-      throw classifyLoadError(error)
+      const classified = classifyLoadError(error)
+      this.context.catalog.updateLayer(id, {
+        loadState: "failed",
+        error: { code: classified.code, message: classified.message },
+      })
+      throw classified
     }
 
     await afterAwait(this.context.lifecycle, "add data source", source)
@@ -78,6 +91,7 @@ export class DataManager {
       onDestroy: () => {
         viewer.dataSources.remove(source, true)
         this.context.registry.unregister(id)
+        this.context.catalog.unregisterLayer(id)
         this.context.events.emit("layerRemoved", { id, type: spec.type })
       },
     })
@@ -85,8 +99,10 @@ export class DataManager {
       this.context.registry.add(handle)
     } catch (error) {
       viewer.dataSources.remove(source, true)
+      this.context.catalog.unregisterLayer(id)
       throw error
     }
+    this.context.catalog.updateLayer(id, { loadState: "ready" })
     this.context.events.emit("layerAdded", { id, type: spec.type })
     return handle
   }

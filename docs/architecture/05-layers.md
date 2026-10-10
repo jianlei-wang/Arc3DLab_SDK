@@ -1,6 +1,6 @@
 # Layers 模块
 
-Updated: 2026-10-08
+Updated: 2026-10-10
 
 ## Layer 模型
 
@@ -30,6 +30,17 @@ interface Layer {
 - `app.layers.data`：矢量数据图层
 
 Graphic 走 `app.graphics`，不再挂在 Layers 下。
+
+## LayerMetadata 与数据目录
+
+每个图层在 `Arc3DContext.catalog` 登记一条 `LayerMetadata`（`kind / visible / loadState / zIndex / group / error / spatialReference`）。`loadState` 取值 `idle / loading / ready / failed / unloaded`。图层销毁时只移除对应 metadata，引用的 `DataAsset` 保留，同一数据可被多个视图复用。
+
+```ts
+const context = app.context
+context.catalog.listLayers()      // LayerMetadata[]
+context.catalog.getLayer(id)
+context.catalog.listAssets()      // DataAsset[]
+```
 
 ## Basemap
 

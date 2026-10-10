@@ -17,9 +17,9 @@
 | P1-02 | ToolRegistry 活动工具状态机 | P1 | DONE |
 | P1-03 | 插件依赖、命名空间与注册归属 | P1 | DONE |
 | P1-04 | Command 参数 Schema 完整合同 | P1 | DONE |
-| P1-05 | GIS 空间参考/高程基准/单位语义 | P1 | TODO |
-| P1-06 | Layer/DataAsset/Feature/Graphic 语义边界 | P1 | TODO |
-| P1-07 | Analysis 统一任务合同 | P1 | TODO |
+| P1-05 | GIS 空间参考/高程基准/单位语义 | P1 | DONE |
+| P1-06 | Layer/DataAsset/Feature/Graphic 语义边界 | P1 | DONE |
+| P1-07 | Analysis 统一任务合同 | P1 | PARTIAL |
 | P1-08 | 真实浏览器/WebGL E2E | P1 | DEFERRED |
 | P1-09 | Runtime ready 与资源 ready 语义 | P1 | PARTIAL |
 | P1-10 | 后处理 Bloom/Blur 语义 | P1 | DONE |
@@ -36,9 +36,9 @@
 | P2-08 | 发布质量门禁 | P2 | PARTIAL |
 | P2-09 | 兼容矩阵与 SemVer | P2 | TODO |
 | P2-10 | 许可证与分发策略 | P2 | TODO |
-| D-01 | 通用数据语义 | P1 | TODO |
-| D-02 | 统一任务与结果语义 | P1 | TODO |
-| D-03 | 插件合同与领域模型分开 | P1 | TODO |
+| D-01 | 通用数据语义 | P1 | DONE |
+| D-02 | 统一任务与结果语义 | P1 | DONE |
+| D-03 | 插件合同与领域模型分开 | P1 | DONE |
 
 ## 1. P0：进入 Beta / 1.0 前必须处理
 
@@ -118,21 +118,21 @@
 - 问题：`LngLat/LngLatHeight` 无 CRS、轴顺序、单位、Vertical Datum 元数据。
 - 方案：引入 `SpatialReference / VerticalDatum / CoordinateTransform / TimeRange`；明确简写默认含义。
 - 验收：文档与类型明确 CRS/基准/单位；投影坐标或正高不静默按经纬度解释。
-- 状态：TODO
+- 状态：DONE（`SpatialReference / VerticalReference / TimeRange / CoordinateTransform`；`resolveSpatialReference` 默认 WGS84 度椭球高；`assertGeographicPosition` 拒绝投影坐标；`spatial-reference.test.ts` 覆盖）
 
 ### [ ] P1-06 Layer / DataAsset / Feature / Graphic 语义边界
 
 - 问题：Layer 主要是 ResourceHandle；Graphic.properties 为 `Record<string, unknown>`；缺统一数据目录。
 - 方案：引入 `DataAsset / FeatureSchema / LayerMetadata / FeatureRef`；Graphic 只负责显示与交互。
 - 验收：一个数据源可被多个视图引用；卸载视图不销毁领域数据。
-- 状态：TODO
+- 状态：DONE（`DataCatalog / DataAsset / FeatureSchema / AttributeField / FeatureRef / LayerMetadata`；`DataManager` 与影像/3D Tiles/底图登记目录；`data-catalog.test.ts` 验证卸载图层保留资产）
 
 ### [ ] P1-07 Analysis API 统一任务合同
 
 - 问题：各分析结果形态不统一，缺统一任务 ID、状态、进度、取消、版本、血缘。
 - 方案：建立 `AnalysisTask<TInput,TResult>` 与 `AnalysisResult<TResult>`；采样结果状态显式化。
 - 验收：任意分析可关联输入、参数、状态、警告、单位与结果。
-- 状态：TODO
+- 状态：PARTIAL（`runAnalysisTask / AnalysisTaskRegistry / AnalysisTask / AnalysisResult / ResultArtifact` 已落地；`AnalysisManager.run()/tasks`；既有各分析方法尚未全部改为返回 `AnalysisResult`）
 
 ### [ ] P1-08 真实浏览器/WebGL E2E
 
@@ -234,19 +234,19 @@
 
 - `DataAsset / FeatureSchema / AttributeField / FeatureRef / LayerMetadata`。
 - 验收：同一 Feature 可有多种 Graphic 表达；更新渲染不改原始数据版本。
-- 状态：TODO
+- 状态：DONE（`DataAsset.version` + `LayerMetadata.assetId` 支持多视图复用同一资产；`FeatureRef(assetId, featureId, version)` 稳定引用）
 
 ### [ ] D-02 统一任务与结果语义
 
 - `AnalysisTask / AnalysisResult / ResultArtifact`。
 - 验收：所有分析统一诊断、取消、重试、保存与追溯。
-- 状态：TODO
+- 状态：DONE（统一 `AnalysisTask / AnalysisResult / ResultArtifact`，状态机、进度、取消、计时、错误码、`inputSnapshot` 与 `artifacts`；`analysis-task.test.ts` 覆盖成功/失败/取消/进度）
 
 ### [ ] D-03 插件合同与领域模型分开
 
 - 通用 SDK 与领域插件职责分离；插件通过正式合同扩展。
 - 验收：新增非矿山示例插件不需修改 `core`。
-- 状态：TODO
+- 状态：DONE（`examples/domain-plugins/sample-report-plugin.ts` 仅用 `Arc3DPlugin/Arc3DContext/commands/runAnalysisTask`；`plugin-example.test.ts` 安装→执行→卸载全程不改 `core`）
 
 ## 5. 推荐整改顺序
 

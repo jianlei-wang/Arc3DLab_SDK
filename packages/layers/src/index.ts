@@ -85,10 +85,17 @@ export class BasemapManager {
       onDestroy: () => {
         viewer.imageryLayers.remove(imagery, true)
         this.context.registry.unregister(id)
+        this.context.catalog.unregisterLayer(id)
         this.context.events.emit("layerRemoved", { id, type })
       },
     })
     this.context.registry.add(handle)
+    this.context.catalog.registerLayer({
+      id,
+      kind: "basemap",
+      visible: true,
+      loadState: "ready",
+    })
     return handle
   }
 }
@@ -119,6 +126,7 @@ export class ImageryOverlayManager {
       onDestroy: () => {
         viewer.imageryLayers.remove(imagery, true)
         this.context.registry.unregister(id)
+        this.context.catalog.unregisterLayer(id)
         this.context.events.emit("layerRemoved", { id, type: "imagery" })
       },
     })
@@ -128,6 +136,12 @@ export class ImageryOverlayManager {
       viewer.imageryLayers.remove(imagery, true)
       throw error
     }
+    this.context.catalog.registerLayer({
+      id,
+      kind: "imagery",
+      visible: true,
+      loadState: "ready",
+    })
     this.context.events.emit("layerAdded", { id, type: "imagery" })
     return Object.assign(handle, { name: spec.name })
   }
@@ -282,6 +296,7 @@ export class TilesetManager {
       onDestroy: () => {
         viewer.scene.primitives.remove(tileset)
         this.context.registry.unregister(id)
+        this.context.catalog.unregisterLayer(id)
         this.context.events.emit("layerRemoved", { id, type: "tileset" })
       },
     })
@@ -291,6 +306,12 @@ export class TilesetManager {
       viewer.scene.primitives.remove(tileset)
       throw error
     }
+    this.context.catalog.registerLayer({
+      id,
+      kind: "tileset",
+      visible: true,
+      loadState: "ready",
+    })
     this.context.events.emit("layerAdded", { id, type: "tileset" })
     return handle
   }

@@ -16,6 +16,31 @@ await app.analysis.measure.spaceAngle({ from, via, to })
 
 单位约定：长度米、面积平方米、体积立方米、角度度。高程基准为椭球高，缺失高程按 0。
 
+## 统一任务与结果合同（Partial）
+
+`app.analysis.run(options)` 用统一合同执行分析，任务登记在 `app.analysis.tasks`：
+
+```ts
+const result = await app.analysis.run({
+  algorithm: "custom-area",
+  input: { positions },
+  signal,
+  onProgress,
+  maxSamples,
+  execute: (runner) => {
+    runner.report(1, 1, "compute")
+    return { value: 42, units: { area: "squareMeters" } }
+  }
+})
+
+result.status   // pending | running | succeeded | failed | cancelled
+result.value
+result.units    // { length?, area?, volume?, angle? }
+result.artifacts // ResultArtifact[]
+```
+
+`AnalysisTask` 记录 `id / algorithm / algorithmVersion / status / createdAt / startedAt / finishedAt / progress / maxSamples / error`。`AnalysisResult` 携带 `units / spatialReference / verticalReference / extent / warnings / confidence / inputSnapshot / source / artifacts`。执行函数抛错不向上传播，转换为 `status: "failed"` 的结果并保留稳定错误码；`signal` 触发为 `cancelled`。`ResultArtifact.kind` 覆盖 `volume / profile / viewshed / sample-grid / report / geometry`。
+
 `distance` 为 ECEF 三维直线距离。`horizontalDistance` 为椭球面测地线距离。`height` / `verticalDistance` 为两点椭球高差。`heading` 为正北起算、顺时针方位角（0–360°）。`area` 默认球面多边形面积，可选 `mode: "planar"` 局部东-北投影；`holes` 从外环面积中扣除。
 
 ## 地形

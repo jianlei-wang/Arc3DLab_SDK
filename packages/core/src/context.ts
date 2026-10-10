@@ -1,5 +1,6 @@
 import type { Arc3DConfig, Arc3DEvents, Engine, EngineContext } from "./types"
 import { CapabilityRegistry } from "./capabilities"
+import { DataCatalog } from "./catalog"
 import { CommandBus } from "./commands"
 import { DisposerStack } from "./disposer"
 import { EventBus } from "./event-bus"
@@ -36,6 +37,7 @@ export interface Arc3DContext {
   tools: ToolRegistry
   disposers: DisposerStack
   scopes: PluginScopeManager
+  catalog: DataCatalog
 }
 
 export function createContext(
@@ -66,5 +68,6 @@ export function createContext(
     tools: new ToolRegistry(ownerProvider),
     disposers: new DisposerStack(),
     scopes,
+    catalog: new DataCatalog(),
   }
 }

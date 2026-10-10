@@ -20,6 +20,12 @@ import {
   type HeightResult,
   type LengthResult,
 } from "./units"
+import {
+  AnalysisTaskRegistry,
+  runAnalysisTask,
+  type AnalysisResult,
+  type RunAnalysisTaskOptions,
+} from "./task"
 
 export class MeasurementService {
   constructor(private readonly context: Arc3DContext) {}
@@ -135,20 +141,36 @@ export class AnalysisManager {
   readonly query: SpatialQueryService
   readonly clip: ClipAnalysis
   readonly volume: VolumeAnalysis
+  readonly tasks: AnalysisTaskRegistry
 
-  constructor(context: Arc3DContext) {
+  constructor(private readonly context: Arc3DContext) {
     this.measure = new MeasurementService(context)
     this.terrain = new TerrainAnalysis(context)
     this.visibility = new VisibilityAnalysis(context)
     this.query = new SpatialQueryService(context)
     this.clip = new ClipAnalysis(context)
     this.volume = new VolumeAnalysis(context, this.clip)
+    this.tasks = new AnalysisTaskRegistry()
+  }
+
+  run<TInput, TResult>(
+    options: Omit<
+      RunAnalysisTaskOptions<TInput, TResult>,
+      "context" | "registry"
+    >,
+  ): Promise<AnalysisResult<TResult>> {
+    return runAnalysisTask({
+      ...options,
+      context: this.context,
+      registry: this.tasks,
+    })
   }
 
   destroy(): void {
     this.visibility.destroy()
     this.volume.destroy()
     this.clip.destroy()
+    this.tasks.clear()
   }
 }
 
@@ -217,3 +239,16 @@ export {
   serializeAnalysisError,
   restoreAnalysisError,
 } from "./worker-host"
+export {
+  AnalysisTaskRegistry,
+  runAnalysisTask,
+  type AnalysisTask,
+  type AnalysisTaskStatus,
+  type AnalysisResult,
+  type AnalysisExecution,
+  type AnalysisTaskRunner,
+  type AnalysisUnits,
+  type ResultArtifact,
+  type ArtifactKind,
+  type RunAnalysisTaskOptions,
+} from "./task"

@@ -21,6 +21,20 @@ const app = await Arc3D.create({
 - `PickResult` / `Arc3DPlugin` / `NativeContext`
 - `Arc3DError` / `createId`
 
+## 业务语义类型
+
+空间与数据合同从 `@arc3dlab/core` 导出：
+
+- `SpatialReference` / `VerticalReference` / `VerticalDatum` / `TimeRange` / `CoordinateTransform`
+- `WGS84` / `WGS84_3D` / `WEB_MERCATOR` / `ELLIPSOID_VERTICAL`
+- `resolveSpatialReference` / `resolveVerticalReference` / `assertGeographicPosition` / `tryCreateCoordinateTransform` / `assertTimeRange`
+- `DataCatalog` / `DataAsset` / `FeatureSchema` / `AttributeField` / `FeatureRef` / `LayerMetadata` / `LoadState`
+
+统一分析任务合同从 `@arc3dlab/analysis` 导出：
+
+- `runAnalysisTask` / `AnalysisTaskRegistry`
+- `AnalysisTask` / `AnalysisResult` / `AnalysisExecution` / `ResultArtifact`
+
 ## 就绪语义
 
 `await Arc3D.create()` 解析时表示 Runtime facade 就绪（Manager 已接线、生命周期进入 `ready`）。底图、地形、数据等异步资源有独立状态，可能在 `ready` 之后才完成加载。默认底图成功 / 失败 / 关闭是三条确定路径；`whenSceneReady()` 作为后续增强（Planned）。
