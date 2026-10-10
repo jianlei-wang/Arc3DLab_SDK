@@ -11,6 +11,7 @@
 
 ## 当前
 
+- 新增 `app.scene.whenSceneReady()` 首屏就绪信号，返回 `SceneReadyResult`（`remainingTiles / timedOut / destroyed / defaultBaseLayer`），并派发 `sceneReady` 事件；导出 `SceneReadyOptions` / `SceneReadyResult` / `DefaultBaseLayerState`
 - 内置分析新增任务化方法（`measure` / `terrain` / `visibility` / `query` / `volume.*Task`），返回统一 `AnalysisResult` 并登记到 `app.analysis.tasks`；导出 `createTaskExecutor` / `AnalysisTaskExecutor`
 - 新增 bundle 体积门禁 `lint:size`（`bundle-baseline.json` + `scripts/check-bundle-size.mjs`）与依赖漏洞审计 `lint:audit`
 - 公共 API 白名单扩展：Options / Event / 空间与数据语义 / `AnalysisTask` 等类型，根入口与 `@arc3dlab/sdk` 命名导出

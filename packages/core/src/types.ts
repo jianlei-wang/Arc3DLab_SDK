@@ -70,6 +70,7 @@ export interface CameraState extends CameraPose {
 
 export interface Arc3DEvents {
   ready: Record<string, never>
+  sceneReady: SceneReadyResult
   destroy: Record<string, never>
   cameraChanged: CameraState
   layerAdded: LayerEvent
@@ -101,6 +102,21 @@ export interface EngineViewer {
   setCreditMode(mode: CreditMode, element?: Element): void
   requestRender(reason?: string): void
   destroy(): void
+  whenSceneReady?(options?: SceneReadyOptions): Promise<SceneReadyResult>
+}
+
+export type DefaultBaseLayerState = "disabled" | "loading" | "ready" | "failed"
+
+export interface SceneReadyOptions {
+  timeoutMs?: number
+}
+
+export interface SceneReadyResult {
+  ready: boolean
+  remainingTiles: number
+  timedOut: boolean
+  destroyed: boolean
+  defaultBaseLayer: DefaultBaseLayerState
 }
 
 export interface Engine {

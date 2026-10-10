@@ -1,5 +1,14 @@
 # 设计迭代日志
 
+## 2026-10-10（首屏就绪语义）
+
+- P1-09：新增 `SceneReadyResult` / `SceneReadyOptions` / `DefaultBaseLayerState` 合同；`EngineViewer` 增加可选 `whenSceneReady()`。
+- `CesiumEngineViewer` 实现 `whenSceneReady()`：等待 Globe 瓦片加载完成与初始渲染帧，跟踪默认底图 `disabled / loading / ready / failed`，支持 `timeoutMs`、销毁中断；`SceneController.whenSceneReady()` 委托引擎并派发 `sceneReady` 事件，非 Cesium 引擎回退为已就绪。
+- 公共 API：`@arc3dlab/sdk` 与根入口导出 `SceneReadyOptions` / `SceneReadyResult` / `DefaultBaseLayerState`，`Arc3DEvents` 增加 `sceneReady`。
+- 测试新增 `tests/unit/scene-ready.test.ts`；`tests/fixtures/fake-context.ts` TestViewer 支持可配置场景就绪结果。
+- 文档同步 `02-runtime`、`11-api`、`design.md` 4.1（sceneReady → Implemented）。
+- bundle 基线随功能增长更新为 `arc3dlab.esm.js` raw 112775 / gzip 26758。
+
 ## 2026-10-10（分析任务化与工程门禁）
 
 - P1-07 收尾：新增任务执行器 `createTaskExecutor` / `AnalysisTaskExecutor`（`packages/analysis/src/task-executor.ts`）。

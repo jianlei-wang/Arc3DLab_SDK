@@ -34,6 +34,19 @@ created -> initializing -> ready -> destroying -> destroyed
 
 `ready` 表示 Runtime facade 与各 Manager 就绪，底图、地形、数据等异步资源有各自独立的加载状态（见 `11-api.md`）。
 
+首屏资源就绪使用 `app.scene.whenSceneReady(options?)`，返回 `SceneReadyResult`：
+
+```ts
+const result = await app.scene.whenSceneReady({ timeoutMs: 20000 })
+result.ready            // 未超时且未销毁
+result.remainingTiles   // 仍在加载的 Globe 瓦片数
+result.timedOut         // 是否超时返回
+result.destroyed        // 等待期间是否被销毁
+result.defaultBaseLayer // disabled | loading | ready | failed
+```
+
+`whenSceneReady` 等待初始渲染帧与 Globe 瓦片加载完成，默认底图状态独立回报；成功、失败、关闭三条路径都能确定结果。就绪后会派发 `sceneReady` 事件。
+
 ## EventBus
 
 ```ts
@@ -47,7 +60,7 @@ on<K extends keyof Arc3DEvents>(
 
 稳定事件：
 
-- `ready` / `destroy`
+- `ready` / `sceneReady` / `destroy`
 - `cameraChanged`
 - `layerAdded` / `layerRemoved`
 - `graphicAdded` / `graphicRemoved`

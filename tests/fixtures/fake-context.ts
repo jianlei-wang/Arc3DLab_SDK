@@ -5,6 +5,8 @@ import {
   type Engine,
   type EngineViewer,
   type EngineViewerOptions,
+  type SceneReadyOptions,
+  type SceneReadyResult,
 } from "@arc3dlab/core"
 
 class TestViewer implements EngineViewer {
@@ -12,10 +14,25 @@ class TestViewer implements EngineViewer {
   readonly container = { id: "test-container" } as Element
   readonly native = {}
   destroyed = false
+  readyCalls = 0
+  lastReadyOptions: SceneReadyOptions | undefined
+  sceneReadyResult: SceneReadyResult = {
+    ready: true,
+    remainingTiles: 0,
+    timedOut: false,
+    destroyed: false,
+    defaultBaseLayer: "disabled",
+  }
 
   setCreditMode(): void {}
 
   requestRender(): void {}
+
+  whenSceneReady(options?: SceneReadyOptions): Promise<SceneReadyResult> {
+    this.readyCalls += 1
+    this.lastReadyOptions = options
+    return Promise.resolve(this.sceneReadyResult)
+  }
 
   destroy(): void {
     this.destroyed = true

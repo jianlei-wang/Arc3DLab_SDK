@@ -32,6 +32,9 @@ export {
   type VerticalReference,
   type TimeRange,
   type CoordinateTransform,
+  type DefaultBaseLayerState,
+  type SceneReadyOptions,
+  type SceneReadyResult,
 } from "@arc3dlab/core"
 export type {
   Graphic,

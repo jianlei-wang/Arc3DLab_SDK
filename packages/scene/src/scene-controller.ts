@@ -1,4 +1,9 @@
-import type { Arc3DContext, SceneModeName } from "@arc3dlab/core"
+import type {
+  Arc3DContext,
+  SceneModeName,
+  SceneReadyOptions,
+  SceneReadyResult,
+} from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
 import { SceneMode } from "cesium"
 import { CameraController } from "./camera"
@@ -54,6 +59,30 @@ export class SceneController {
   get size(): { width: number; height: number } {
     const canvas = this.viewer().canvas
     return { width: canvas.width, height: canvas.height }
+  }
+
+  async whenSceneReady(options?: SceneReadyOptions): Promise<SceneReadyResult> {
+    if (this.context.lifecycle.isTerminating) {
+      return {
+        ready: false,
+        remainingTiles: 0,
+        timedOut: false,
+        destroyed: true,
+        defaultBaseLayer: "disabled",
+      }
+    }
+    const engineViewer = this.context.engine.viewer
+    const result = engineViewer.whenSceneReady
+      ? await engineViewer.whenSceneReady(options)
+      : {
+          ready: true,
+          remainingTiles: 0,
+          timedOut: false,
+          destroyed: false,
+          defaultBaseLayer: "disabled" as const,
+        }
+    this.context.events.emit("sceneReady", result)
+    return result
   }
 
   captureImage(): string {

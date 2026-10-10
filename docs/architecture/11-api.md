@@ -1,6 +1,6 @@
 # 公共 API
 
-Updated: 2026-10-09
+Updated: 2026-10-10
 
 ## 稳定入口
 
@@ -19,6 +19,7 @@ const app = await Arc3D.create({
 - `Graphic` / `Layer`
 - `LngLat` / `LngLatHeight` / `CameraPose`
 - `PickResult` / `Arc3DPlugin` / `NativeContext`
+- `SceneReadyOptions` / `SceneReadyResult` / `DefaultBaseLayerState`
 - `Arc3DError` / `createId`
 
 ## 业务语义类型
@@ -38,7 +39,18 @@ const app = await Arc3D.create({
 
 ## 就绪语义
 
-`await Arc3D.create()` 解析时表示 Runtime facade 就绪（Manager 已接线、生命周期进入 `ready`）。底图、地形、数据等异步资源有独立状态，可能在 `ready` 之后才完成加载。默认底图成功 / 失败 / 关闭是三条确定路径；`whenSceneReady()` 作为后续增强（Planned）。
+`await Arc3D.create()` 解析时表示 Runtime facade 就绪（Manager 已接线、生命周期进入 `ready`）。底图、地形、数据等异步资源有独立状态，可能在 `ready` 之后才完成加载。默认底图成功 / 失败 / 关闭是三条确定路径，由 `app.scene.whenSceneReady()` 统一回报：
+
+```ts
+const result = await app.scene.whenSceneReady({ timeoutMs?: number })
+result.ready            // 未超时且未销毁
+result.remainingTiles   // 仍在加载的 Globe 瓦片数
+result.timedOut         // 是否超时返回
+result.destroyed        // 等待期间是否被销毁
+result.defaultBaseLayer // disabled | loading | ready | failed
+```
+
+`whenSceneReady` 等待初始渲染帧与 Globe 瓦片加载完成，就绪后派发 `sceneReady` 事件。
 
 ## 公共类型白名单
 

@@ -116,5 +116,8 @@ export type {
   EngineViewer,
   EngineViewerOptions,
   EngineContext,
+  DefaultBaseLayerState,
+  SceneReadyOptions,
+  SceneReadyResult,
   Arc3DConfig,
 } from "./types"

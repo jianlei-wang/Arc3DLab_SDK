@@ -195,7 +195,7 @@ flowchart TD
 `ready` 表示 Runtime facade 已完成组装，公共 API 可调用。它不表示默认底图、地形或业务数据已经加载完成。
 
 - `runtimeReady`：`ready` 事件与 `app` 可用。
-- `sceneReady`（Planned）：首屏资源（默认底图、初始地形、业务数据）就绪信号。
+- `sceneReady`（Implemented）：`app.scene.whenSceneReady()` 等待首屏渲染帧与 Globe 瓦片加载完成，返回 `SceneReadyResult`（含 `remainingTiles / timedOut / destroyed / defaultBaseLayer`），并派发 `sceneReady` 事件。
 - 每个异步资源使用独立状态：`idle / loading / ready / partial / failed / cancelled / disposed`。
 
 ### 4.2 生命周期状态机（Implemented）

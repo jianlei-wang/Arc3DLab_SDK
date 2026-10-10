@@ -6,6 +6,7 @@ import {
   Arc3DError,
   CesiumEngine,
   createId,
+  createTaskExecutor,
   DataCatalog,
   runAnalysisTask,
   Viewer,
@@ -18,6 +19,7 @@ import type {
   AttributeField,
   CoordinateTransform,
   DataAsset,
+  DefaultBaseLayerState,
   FeatureRef,
   FeatureSchema,
   Graphic,
@@ -29,6 +31,7 @@ import type {
   ModelCreateOptions,
   PickResult,
   ResultArtifact,
+  SceneReadyResult,
   SpatialReference,
   TerrainSpec,
 } from "../../src/index"
@@ -51,6 +54,7 @@ describe("public api surface", () => {
       expect(typeof value).toBe("function")
     }
     expect(typeof createId).toBe("function")
+    expect(typeof createTaskExecutor).toBe("function")
     expect(typeof runAnalysisTask).toBe("function")
   })
 
@@ -73,6 +77,8 @@ describe("public api surface", () => {
       ref: FeatureRef
       metadata: LayerMetadata
       loadState: LoadState
+      baseLayerState: DefaultBaseLayerState
+      sceneReady: SceneReadyResult
       task: AnalysisTask
       result: AnalysisResult
       artifact: ResultArtifact

@@ -21,7 +21,7 @@
 | P1-06 | Layer/DataAsset/Feature/Graphic 语义边界 | P1 | DONE |
 | P1-07 | Analysis 统一任务合同 | P1 | DONE |
 | P1-08 | 真实浏览器/WebGL E2E | P1 | DEFERRED |
-| P1-09 | Runtime ready 与资源 ready 语义 | P1 | PARTIAL |
+| P1-09 | Runtime ready 与资源 ready 语义 | P1 | DONE |
 | P1-10 | 后处理 Bloom/Blur 语义 | P1 | DONE |
 | P1-11 | 公共 API 类型白名单 | P1 | DONE |
 | P1-12 | 领域插件样板脱离产品源码 | P1 | DONE |
@@ -146,7 +146,7 @@
 - 问题：默认底图加载晚于 `ready`，含义模糊。
 - 方案：文档明确 `ready` 为 Runtime facade 就绪；资源状态独立；提供 `whenSceneReady()`（Planned）。
 - 验收：默认底图成功/失败/关闭三路径状态确定。
-- 状态：PARTIAL（02-runtime/11-api 已明确 `ready` 指 Runtime facade 就绪、资源状态独立；`whenSceneReady()` 仍为 Planned）
+- 状态：DONE（`02-runtime`/`11-api` 明确 `ready` 指 Runtime facade 就绪、资源状态独立；新增 `app.scene.whenSceneReady()` 返回 `SceneReadyResult`（`remainingTiles/timedOut/destroyed/defaultBaseLayer`）并派发 `sceneReady`；`CesiumEngineViewer` 跟踪默认底图 `disabled/loading/ready/failed` 三路径；`scene-ready.test.ts` 覆盖）
 
 ### [ ] P1-10 后处理 Bloom/Blur 语义
 

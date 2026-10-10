@@ -3,12 +3,12 @@
   "tolerancePercent": 5,
   "entries": {
     "dist/arc3dlab.esm.js": {
-      "rawBytes": 107057,
-      "gzipBytes": 25964
+      "rawBytes": 112775,
+      "gzipBytes": 26758
     },
     "dist/engine-cesium.js": {
       "rawBytes": 529,
-      "gzipBytes": 309
+      "gzipBytes": 307
     }
   }
 }

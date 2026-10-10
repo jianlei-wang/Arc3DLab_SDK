@@ -4,6 +4,9 @@ import type {
   EngineViewer,
   EngineViewerOptions,
   CreditMode,
+  DefaultBaseLayerState,
+  SceneReadyOptions,
+  SceneReadyResult,
 } from "@arc3dlab/core"
 import { Arc3DError, classifyLoadFailure } from "@arc3dlab/core"
 import * as Cesium from "cesium"
@@ -36,6 +39,7 @@ export class CesiumEngineViewer implements EngineViewer {
   readonly native: Cesium.Viewer
   readonly credits: CreditManager
   private destroyed = false
+  private defaultBaseLayerState: DefaultBaseLayerState = "disabled"
 
   constructor(options: EngineViewerOptions) {
     this.container = resolveContainer(options.container)
@@ -48,13 +52,16 @@ export class CesiumEngineViewer implements EngineViewer {
     this.credits.setMode(options.creditMode ?? "default")
 
     if (options.defaultBaseLayer !== false) {
+      this.defaultBaseLayerState = "loading"
       void Promise.resolve(createDefaultBaseLayer())
         .then((layer) => {
           if (this.destroyed) return
           viewer.imageryLayers.add(layer, 0)
+          this.defaultBaseLayerState = "ready"
         })
         .catch((error) => {
           if (this.destroyed) return
+          this.defaultBaseLayerState = "failed"
           const message = error instanceof Error ? error.message : String(error)
           options.onError?.({ message, code: "ENGINE_FAILURE" })
         })
@@ -97,6 +104,68 @@ export class CesiumEngineViewer implements EngineViewer {
   requestRender(_reason?: string): void {
     if (this.destroyed) return
     this.native.scene.requestRender()
+  }
+
+  whenSceneReady(options: SceneReadyOptions = {}): Promise<SceneReadyResult> {
+    const timeoutMs = options.timeoutMs ?? 20000
+    const scene = this.native.scene
+    const globe = scene.globe
+    if (this.destroyed) {
+      return Promise.resolve({
+        ready: false,
+        remainingTiles: 0,
+        timedOut: false,
+        destroyed: true,
+        defaultBaseLayer: this.defaultBaseLayerState,
+      })
+    }
+
+    return new Promise<SceneReadyResult>((resolve) => {
+      let settled = false
+      let remainingTiles = globe?.tilesLoaded ? 0 : 1
+      let timer: ReturnType<typeof setTimeout> | undefined
+
+      const cleanup = (): void => {
+        if (timer !== undefined) clearTimeout(timer)
+        globe?.tileLoadProgressEvent.removeEventListener(onProgress)
+        scene.postRender.removeEventListener(onPostRender)
+      }
+
+      const settle = (timedOut: boolean): void => {
+        if (settled) return
+        settled = true
+        cleanup()
+        resolve({
+          ready: !timedOut && !this.destroyed,
+          remainingTiles: globe?.tilesLoaded ? 0 : remainingTiles,
+          timedOut,
+          destroyed: this.destroyed,
+          defaultBaseLayer: this.defaultBaseLayerState,
+        })
+      }
+
+      const maybeSettle = (): void => {
+        const tilesLoaded = !globe || globe.tilesLoaded
+        const baseSettled = this.defaultBaseLayerState !== "loading"
+        if (tilesLoaded && baseSettled) settle(false)
+      }
+
+      const onProgress = (remaining: number): void => {
+        remainingTiles = remaining
+        maybeSettle()
+      }
+      const onPostRender = (): void => {
+        maybeSettle()
+      }
+
+      timer =
+        timeoutMs > 0 ? setTimeout(() => settle(true), timeoutMs) : undefined
+
+      globe?.tileLoadProgressEvent.addEventListener(onProgress)
+      scene.postRender.addEventListener(onPostRender)
+      scene.requestRender()
+      maybeSettle()
+    })
   }
 
   destroy(): void {
