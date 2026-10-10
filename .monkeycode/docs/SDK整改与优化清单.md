@@ -216,7 +216,7 @@
 ### [ ] P2-08 完善发布质量门禁
 
 - CI 纳入浏览器 E2E、公共 API 类型消费、覆盖率阈值、bundle size、依赖漏洞扫描、最小权限。
-- 状态：PARTIAL（`gate` 已覆盖 typecheck/test/deps/exports/license/api/format；CI 新增 `lint:size`（bundle 体积基线）与 `lint:audit`（`npm audit --omit=dev --audit-level=high`）；浏览器 E2E（P1-08）与覆盖率阈值待补）
+- 状态：PARTIAL（`gate` 已覆盖 typecheck/test/deps/exports/license/api/format；CI 新增 `lint:size`（bundle 体积基线 + 资源外置检查）、`lint:audit`（`npm audit --omit=dev --audit-level=high`）、`test:coverage`（v8 覆盖率阈值）、`permissions: contents: read` 最小权限；仅剩浏览器 E2E，跟随 P1-08 DEFERRED 一并处理）
 
 ### [ ] P2-09 建立兼容矩阵与 SemVer 变更管理
 

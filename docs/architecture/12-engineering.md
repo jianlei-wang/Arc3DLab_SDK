@@ -45,6 +45,11 @@ CesiumJS 采用 Apache-2.0，第三方底图、示例数据需要在 `NOTICE.md`
 
 - Unit：core 的 EventBus / Lifecycle / Registry / ID
 - Integration：Arc3DApp destroy 回收
-- 后续 E2E：Playground 关键路径
+- 覆盖率：`npm run test:coverage`（v8），阈值 lines/statements 60、functions 58、branches 75，CI 以 `test:coverage` 替代 `test`
+- 后续 E2E：Playground 关键路径（Playwright，deferred）
+
+## CI 门禁
+
+`.github/workflows/ci.yml`（`permissions: contents: read`）依次执行：`typecheck` → `test:coverage` → `lint:deps` → `lint:exports` → `lint:license` → `lint:api` → `lint:audit` → `format:check` → `build` → `lint:size` → `test:pack`。
 
 开发命令、即时测试、预览、API 文档生成和 npm 发布步骤见 `docs/guides/sdk-development.md`。

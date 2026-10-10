@@ -1,5 +1,11 @@
 # 设计迭代日志
 
+## 2026-10-10（覆盖率与 CI 最小权限）
+
+- P2-08：新增 `@vitest/coverage-v8` 与 `npm run test:coverage`，覆盖率阈值 lines/statements 60、functions 58、branches 75；CI 以 `test:coverage` 替代 `test`。
+- CI workflow 增加 `permissions: contents: read`。
+- `.gitignore` 忽略 `coverage/`；文档同步 `12-engineering`（测试与 CI 门禁）、清单。
+
 ## 2026-10-10（静态资源外置）
 
 - P2-04：默认底图 `globe.jpg` 从内联 base64 改为 `?url&no-inline` 独立资源，`vite.config.ts` 增加 `base: "./"`，产物用 `new URL("globe.jpg", import.meta.url)` 模块相对引用并按需加载；引擎 chunk 从约 126.8 kB 降至 9.3 kB，`dist/globe.jpg`（88.1 kB）单独发布。
