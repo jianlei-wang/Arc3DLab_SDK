@@ -11,7 +11,12 @@ export interface PluginScope {
   readonly owner: string
   /** 当前插件状态。 */
   readonly state: PluginState
-  /** 追踪一个释放回调。 */
+  /**
+   * 追踪一个释放回调。
+   *
+   * @param disposer - 释放回调。
+   * @returns 取消追踪的函数。
+   */
   track(disposer: Disposer): () => void
   /** 已追踪的释放回调数量。 */
   readonly size: number

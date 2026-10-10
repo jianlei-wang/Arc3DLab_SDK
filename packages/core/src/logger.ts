@@ -13,13 +13,33 @@ const LEVEL_WEIGHT: Record<LogLevel, number> = {
 export interface Logger {
   /** 当前日志级别。 */
   level: LogLevel
-  /** 输出调试日志。 */
+  /**
+   * 输出调试日志。
+   *
+   * @param message - 日志信息。
+   * @param extra - 附加数据。
+   */
   debug(message: string, extra?: unknown): void
-  /** 输出信息日志。 */
+  /**
+   * 输出信息日志。
+   *
+   * @param message - 日志信息。
+   * @param extra - 附加数据。
+   */
   info(message: string, extra?: unknown): void
-  /** 输出警告日志。 */
+  /**
+   * 输出警告日志。
+   *
+   * @param message - 日志信息。
+   * @param extra - 附加数据。
+   */
   warn(message: string, extra?: unknown): void
-  /** 输出错误日志。 */
+  /**
+   * 输出错误日志。
+   *
+   * @param message - 日志信息。
+   * @param extra - 附加数据。
+   */
   error(message: string, extra?: unknown): void
 }
 

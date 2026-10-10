@@ -129,9 +129,19 @@ export interface AnalysisTaskRunner {
   readonly id: string
   /** 最大采样数量。 */
   readonly maxSamples: number
-  /** 上报进度。 */
+  /**
+   * 上报进度。
+   *
+   * @param completed - 已完成数量。
+   * @param total - 总数量。
+   * @param stage - 当前阶段名称。
+   */
   report(completed: number, total: number, stage: string): void
-  /** 检查任务是否已取消。 */
+  /**
+   * 检查任务是否已取消。
+   *
+   * @param action - 正在执行的操作名称。
+   */
   throwIfCancelled(action: string): void
 }
 

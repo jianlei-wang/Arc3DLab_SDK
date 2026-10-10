@@ -6,7 +6,7 @@
 - 覆盖全部 13 个包：`typedoc.json` 改为 13 包入口 + 顶层入口的 `entryPointStrategy: resolve`；产物 `api-docs/api/`（index + 12 包命名空间页 + 符号页）。
 - 页面命名默认符号名，跨包同名追加包前缀（`<pkg>.<Name>.html`）；类型无法解析时退化为纯文本，不生成链接；源码链接指向仓库对应提交的 `#L<line>`。
 - `package.json` 新增 `docs:extract` / `docs:build` / `docs:preview` / `lint:docs`，`gate` 插入 `lint:docs`，移除 `typedoc-material-theme` / `typedoc-plugin-markdown`；`.gitignore` 忽略 `docs/api/`。
-- 全量补齐 13 个包公共导出的中文 TSDoc（类/接口/类型别名/函数/变量及其公共成员），覆盖率门禁 summary 100%、params 96.9%。
+- 全量补齐 13 个包公共导出的中文 TSDoc（类/接口/类型别名/函数/变量及其公共成员），覆盖率门禁 summary 100%、params 100%。
 - 新增单测 `tests/unit/docs-{normalize,render,type,coverage}.test.ts` 与夹具 `tests/fixtures/typedoc-model.ts`；修复归一化对「函数/方法 TSDoc 挂在签名上」的读取。
 - CI 新增 `docs` job 构建并上传 `api-docs` artifact，`gate` 加入 `docs:build` + `lint:docs`；`format`/`format:check` 纳入 `scripts/api-docs/**`。
 

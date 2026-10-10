@@ -12,7 +12,7 @@
 ## 当前
 
 - 新增 Cesium 风格 API 文档站：自研生成器（`typedoc --json` → normalize → render）替换 TypeDoc + Material 主题，覆盖 13 个包、JSDoc-default 结构类名与包命名空间侧边栏；`npm run docs:build` / `npm run lint:docs` / `npm run docs:preview`
-- 全量补齐 13 个包公共导出的中文 TSDoc；公共符号摘要覆盖率 100%、参数覆盖率 96.9%，`lint:docs` 纳入 `gate` 与 CI
+- 全量补齐 13 个包公共导出的中文 TSDoc；公共符号摘要覆盖率 100%、参数覆盖率 100%，`lint:docs` 纳入 `gate` 与 CI
 - 新增浏览器 E2E（Playwright + Chromium / SwiftShader）：`npm run test:e2e` 覆盖创建 → 添加 Graphic → 拾取 → 测量分析 → 销毁 → 重建；CI 增加独立 `e2e` job
 - 新增覆盖率门禁 `npm run test:coverage`（v8，lines/statements 60、functions 58、branches 75），CI 增加最小权限 `contents: read`
 - 默认底图改为外置 `globe.jpg` 资源按需加载，引擎 chunk 体积从约 126.8 kB 降至 9.3 kB；`lint:size` 增加必需资源存在性与大 base64 内联检查

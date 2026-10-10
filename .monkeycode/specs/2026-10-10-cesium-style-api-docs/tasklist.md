@@ -37,7 +37,7 @@ Updated: 2026-10-10
   - [x] 5.5 `data` / `interaction`
   - [x] 5.6 `analysis`
   - [x] 5.7 `effects` / `ui` / `legacy`
-  - [x] 5.8 使公共导出摘要覆盖率与参数覆盖率达标（summary 100%、params 96.9%）
+  - [x] 5.8 使公共导出摘要覆盖率与参数覆盖率达标（summary 100%、params 100%）
 
 - [x] 6. 测试
   - [x] 6.1 `tests/unit/docs-normalize.test.ts`（夹具）

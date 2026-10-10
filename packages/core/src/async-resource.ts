@@ -6,7 +6,11 @@ export interface LifecycleGate {
   readonly isDestroyed: boolean
   /** 对象是否正在销毁或已销毁。 */
   readonly isTerminating: boolean
-  /** 断言对象仍可用于指定操作，不可用时抛出异常。 */
+  /**
+   * 断言对象仍可用于指定操作，不可用时抛出异常。
+   *
+   * @param action - 正在执行的操作名称，用于错误信息。
+   */
   assertUsable(action: string): void
 }
 
