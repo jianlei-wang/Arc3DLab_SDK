@@ -42,10 +42,12 @@ export type { Layer, BasemapSpec, TerrainSpec } from "@arc3dlab/layers"
 export {
   runAnalysisTask,
   AnalysisTaskRegistry,
+  createTaskExecutor,
   type AnalysisTask,
   type AnalysisResult,
   type AnalysisExecution,
   type AnalysisTaskStatus,
+  type AnalysisTaskExecutor,
   type ResultArtifact,
 } from "@arc3dlab/analysis"
 export { CesiumEngine } from "@arc3dlab/engine-cesium"

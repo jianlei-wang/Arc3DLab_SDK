@@ -1,6 +1,6 @@
 # Analysis 模块
 
-Updated: 2026-10-09
+Updated: 2026-10-10
 
 Analysis 是 Arc3DLab 的核心竞争力域。第一阶段提供测量骨架，后续按 Capability 扩展。
 
@@ -16,7 +16,7 @@ await app.analysis.measure.spaceAngle({ from, via, to })
 
 单位约定：长度米、面积平方米、体积立方米、角度度。高程基准为椭球高，缺失高程按 0。
 
-## 统一任务与结果合同（Partial）
+## 统一任务与结果合同（Implemented）
 
 `app.analysis.run(options)` 用统一合同执行分析，任务登记在 `app.analysis.tasks`：
 
@@ -40,6 +40,27 @@ result.artifacts // ResultArtifact[]
 ```
 
 `AnalysisTask` 记录 `id / algorithm / algorithmVersion / status / createdAt / startedAt / finishedAt / progress / maxSamples / error`。`AnalysisResult` 携带 `units / spatialReference / verticalReference / extent / warnings / confidence / inputSnapshot / source / artifacts`。执行函数抛错不向上传播，转换为 `status: "failed"` 的结果并保留稳定错误码；`signal` 触发为 `cancelled`。`ResultArtifact.kind` 覆盖 `volume / profile / viewshed / sample-grid / report / geometry`。
+
+内置分析同时提供任务化方法（`*Task`），返回统一的 `AnalysisResult`，接入 `app.analysis.tasks`：
+
+```ts
+await app.analysis.measure.distanceTask({ positions })      // measure.distance
+await app.analysis.measure.areaTask({ positions, holes })   // measure.area
+await app.analysis.measure.heightTask({ from, to })         // measure.height
+await app.analysis.measure.headingTask({ from, to })        // measure.heading
+await app.analysis.measure.spaceAngleTask({ from, via, to })// measure.spaceAngle
+await app.analysis.terrain.sampleHeightTask({ position })   // terrain.sampleHeight
+await app.analysis.terrain.slopeTask({ position })          // terrain.slope
+await app.analysis.terrain.profileTask({ positions })       // terrain.profile（profile 产物）
+await app.analysis.visibility.lineOfSightTask({ from, to }) // visibility.lineOfSight
+await app.analysis.visibility.viewshedTask({ observer, radius }) // viewshed 产物
+await app.analysis.query.rectangleTask({ west, south, east, north })
+await app.analysis.query.polygonTask({ positions })
+await app.analysis.query.distanceTask({ position, meters })
+await app.analysis.volume.cutFillTask({ positions })        // volume 产物
+```
+
+非任务方法返回原始结果，`*Task` 变体在 `app.analysis.tasks` 中登记任务并补齐任务 ID、状态、计时、单位、空间参考与产物。两类方法共享同一底层实现。
 
 `distance` 为 ECEF 三维直线距离。`horizontalDistance` 为椭球面测地线距离。`height` / `verticalDistance` 为两点椭球高差。`heading` 为正北起算、顺时针方位角（0–360°）。`area` 默认球面多边形面积，可选 `mode: "planar"` 局部东-北投影；`holes` 从外环面积中扣除。
 

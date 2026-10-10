@@ -1,4 +1,9 @@
-import type { Arc3DContext, PositionInput } from "@arc3dlab/core"
+import {
+  ELLIPSOID_VERTICAL,
+  WGS84_3D,
+  type Arc3DContext,
+  type PositionInput,
+} from "@arc3dlab/core"
 import { getCesiumViewer, toCartesian3 } from "@arc3dlab/engine-cesium"
 import {
   Cartesian3,
@@ -23,6 +28,8 @@ import {
   mapInChunks,
   type AnalysisTaskOptions,
 } from "./scheduler"
+import type { AnalysisResult } from "./task"
+import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
 
 export interface SightPoint {
   longitude: number
@@ -57,7 +64,12 @@ export interface ViewshedResult {
 export class VisibilityAnalysis {
   private overlay: { remove: () => void } | undefined
 
-  constructor(private readonly context: Arc3DContext) {}
+  constructor(
+    private readonly context: Arc3DContext,
+    private readonly runTask: AnalysisTaskExecutor = createTaskExecutor(
+      context,
+    ),
+  ) {}
 
   async lineOfSight(options: {
     from: PositionInput
@@ -185,6 +197,60 @@ export class VisibilityAnalysis {
       rayIntervalDegrees: 360 / rayCount,
       interpolation: "ecef-chord",
     }
+  }
+
+  lineOfSightTask(options: {
+    from: PositionInput
+    to: PositionInput
+    samples?: number
+    signal?: AbortSignal
+    maxSamples?: number
+  }): Promise<AnalysisResult<LineOfSightResult>> {
+    return this.runTask<typeof options, LineOfSightResult>({
+      algorithm: "visibility.lineOfSight",
+      input: options,
+      signal: options.signal,
+      maxSamples: options.maxSamples,
+      spatialReference: WGS84_3D,
+      verticalReference: ELLIPSOID_VERTICAL,
+      execute: async (runner) => {
+        runner.throwIfCancelled("analyze line of sight")
+        return {
+          value: await this.lineOfSight(options),
+          units: { length: "m" },
+        }
+      },
+    })
+  }
+
+  viewshedTask(options: {
+    observer: PositionInput
+    radius: number
+    rays?: number
+    observerHeight?: number
+    samples?: number
+    draw?: boolean
+    signal?: AbortSignal
+    onProgress?: AnalysisTaskOptions["onProgress"]
+    maxSamples?: number
+  }): Promise<AnalysisResult<ViewshedResult>> {
+    return this.runTask<typeof options, ViewshedResult>({
+      algorithm: "visibility.viewshed",
+      input: options,
+      signal: options.signal,
+      maxSamples: options.maxSamples,
+      onProgress: options.onProgress,
+      spatialReference: WGS84_3D,
+      verticalReference: ELLIPSOID_VERTICAL,
+      execute: async (runner) => {
+        runner.throwIfCancelled("analyze viewshed")
+        return {
+          value: await this.viewshed(options),
+          units: { length: "m", angle: "deg" },
+          artifacts: [{ id: "viewshed", kind: "viewshed" }],
+        }
+      },
+    })
   }
 
   clearOverlay(): void {

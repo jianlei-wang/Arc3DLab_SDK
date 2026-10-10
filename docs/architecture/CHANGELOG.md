@@ -1,5 +1,14 @@
 # 设计迭代日志
 
+## 2026-10-10（分析任务化与工程门禁）
+
+- P1-07 收尾：新增任务执行器 `createTaskExecutor` / `AnalysisTaskExecutor`（`packages/analysis/src/task-executor.ts`）。
+- 内置分析新增任务化方法，返回统一 `AnalysisResult` 并登记到 `app.analysis.tasks`：`measure.{distance,area,height,heading,spaceAngle}Task`、`terrain.{sampleHeight,slope,profile}Task`、`visibility.{lineOfSight,viewshed}Task`、`query.{rectangle,polygon,distance}Task`、`volume.cutFillTask`；`AnalysisManager` 共享同一 `AnalysisTaskRegistry`，非任务方法保留原始返回。
+- 公共合同扩展：`@arc3dlab/sdk` 与根入口新增 `createTaskExecutor` / `AnalysisTaskExecutor`。
+- P2-04 / P2-08：新增 `bundle-baseline.json` 与 `scripts/check-bundle-size.mjs`（`lint:size`，原始与 gzip 体积对比基线 +5% 容忍），新增 `lint:audit`（`npm audit --omit=dev --audit-level=high`），CI 在 `build` 后执行 `lint:size`。
+- 测试新增 `tests/unit/analysis-task-services.test.ts`（5 例），总计 226 passed | 1 skipped。
+- 文档同步 `09-analysis`、`11-api`、清单。
+
 ## 2026-10-10
 
 - 落地通用业务语义层（P1-05 / P1-06 / P1-07 / D-01 / D-02 / D-03）：

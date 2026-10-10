@@ -21,6 +21,8 @@ jobs:
       - run: npm run lint:exports
       - run: npm run lint:license
       - run: npm run lint:api
+      - run: npm run lint:audit
       - run: npm run format:check
       - run: npm run build
+      - run: npm run lint:size
       - run: npm run test:pack

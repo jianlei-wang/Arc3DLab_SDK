@@ -1,4 +1,9 @@
-import type { Arc3DContext, PositionInput } from "@arc3dlab/core"
+import {
+  ELLIPSOID_VERTICAL,
+  WGS84_3D,
+  type Arc3DContext,
+  type PositionInput,
+} from "@arc3dlab/core"
 import { TerrainAnalysis } from "./terrain"
 import { VisibilityAnalysis } from "./visibility"
 import { SpatialQueryService } from "./query"
@@ -26,9 +31,15 @@ import {
   type AnalysisResult,
   type RunAnalysisTaskOptions,
 } from "./task"
+import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
 
 export class MeasurementService {
-  constructor(private readonly context: Arc3DContext) {}
+  constructor(
+    private readonly context: Arc3DContext,
+    private readonly runTask: AnalysisTaskExecutor = createTaskExecutor(
+      context,
+    ),
+  ) {}
 
   async distance(options: {
     positions: PositionInput[]
@@ -132,6 +143,96 @@ export class MeasurementService {
       units: ANALYSIS_UNITS.angle,
     }
   }
+
+  distanceTask(options: {
+    positions: PositionInput[]
+  }): Promise<AnalysisResult<LengthResult>> {
+    return this.runTask<typeof options, LengthResult>({
+      algorithm: "measure.distance",
+      input: options,
+      spatialReference: WGS84_3D,
+      verticalReference: ELLIPSOID_VERTICAL,
+      execute: async (runner) => {
+        runner.throwIfCancelled("measure distance")
+        return {
+          value: await this.distance(options),
+          units: { length: "m" },
+        }
+      },
+    })
+  }
+
+  areaTask(options: {
+    positions: PositionInput[]
+    holes?: PositionInput[][]
+    mode?: AreaMode
+  }): Promise<AnalysisResult<AreaResult>> {
+    return this.runTask<typeof options, AreaResult>({
+      algorithm: "measure.area",
+      input: options,
+      spatialReference: WGS84_3D,
+      execute: async (runner) => {
+        runner.throwIfCancelled("measure area")
+        return { value: await this.area(options), units: { area: "m2" } }
+      },
+    })
+  }
+
+  heightTask(options: {
+    from: PositionInput
+    to: PositionInput
+  }): Promise<AnalysisResult<HeightResult>> {
+    return this.runTask<typeof options, HeightResult>({
+      algorithm: "measure.height",
+      input: options,
+      spatialReference: WGS84_3D,
+      verticalReference: ELLIPSOID_VERTICAL,
+      execute: async (runner) => {
+        runner.throwIfCancelled("measure height")
+        return {
+          value: await this.height(options),
+          units: { length: "m" },
+        }
+      },
+    })
+  }
+
+  headingTask(options: {
+    from: PositionInput
+    to: PositionInput
+  }): Promise<AnalysisResult<AngleResult>> {
+    return this.runTask<typeof options, AngleResult>({
+      algorithm: "measure.heading",
+      input: options,
+      spatialReference: WGS84_3D,
+      execute: async (runner) => {
+        runner.throwIfCancelled("measure heading")
+        return {
+          value: await this.heading(options),
+          units: { angle: "deg" },
+        }
+      },
+    })
+  }
+
+  spaceAngleTask(options: {
+    from: PositionInput
+    via: PositionInput
+    to: PositionInput
+  }): Promise<AnalysisResult<AngleResult>> {
+    return this.runTask<typeof options, AngleResult>({
+      algorithm: "measure.spaceAngle",
+      input: options,
+      spatialReference: WGS84_3D,
+      execute: async (runner) => {
+        runner.throwIfCancelled("measure space angle")
+        return {
+          value: await this.spaceAngle(options),
+          units: { angle: "deg" },
+        }
+      },
+    })
+  }
 }
 
 export class AnalysisManager {
@@ -144,13 +245,15 @@ export class AnalysisManager {
   readonly tasks: AnalysisTaskRegistry
 
   constructor(private readonly context: Arc3DContext) {
-    this.measure = new MeasurementService(context)
-    this.terrain = new TerrainAnalysis(context)
-    this.visibility = new VisibilityAnalysis(context)
-    this.query = new SpatialQueryService(context)
-    this.clip = new ClipAnalysis(context)
-    this.volume = new VolumeAnalysis(context, this.clip)
     this.tasks = new AnalysisTaskRegistry()
+    const runTask: AnalysisTaskExecutor = (options) =>
+      runAnalysisTask({ ...options, context, registry: this.tasks })
+    this.clip = new ClipAnalysis(context)
+    this.measure = new MeasurementService(context, runTask)
+    this.terrain = new TerrainAnalysis(context, runTask)
+    this.visibility = new VisibilityAnalysis(context, runTask)
+    this.query = new SpatialQueryService(context, runTask)
+    this.volume = new VolumeAnalysis(context, this.clip, runTask)
   }
 
   run<TInput, TResult>(
@@ -252,3 +355,4 @@ export {
   type ArtifactKind,
   type RunAnalysisTaskOptions,
 } from "./task"
+export { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"

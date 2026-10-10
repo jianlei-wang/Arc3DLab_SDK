@@ -32,8 +32,9 @@ const app = await Arc3D.create({
 
 统一分析任务合同从 `@arc3dlab/analysis` 导出：
 
-- `runAnalysisTask` / `AnalysisTaskRegistry`
+- `runAnalysisTask` / `AnalysisTaskRegistry` / `createTaskExecutor`
 - `AnalysisTask` / `AnalysisResult` / `AnalysisExecution` / `ResultArtifact`
+- 内置分析任务化方法：`measure.*Task` / `terrain.*Task` / `visibility.*Task` / `query.*Task` / `volume.cutFillTask`，返回 `AnalysisResult` 并登记到 `app.analysis.tasks`
 
 ## 就绪语义
 

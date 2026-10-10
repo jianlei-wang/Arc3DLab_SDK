@@ -12,6 +12,7 @@ export {
   Arc3DError,
   CesiumEngine,
   createId,
+  createTaskExecutor,
   DataCatalog,
   runAnalysisTask,
 } from "@arc3dlab/sdk"
@@ -19,6 +20,7 @@ export type {
   AnalysisExecution,
   AnalysisResult,
   AnalysisTask,
+  AnalysisTaskExecutor,
   AnalysisTaskStatus,
   Arc3DConfig,
   Arc3DContext,

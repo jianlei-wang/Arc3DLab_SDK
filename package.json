@@ -34,6 +34,8 @@
     "lint:exports": "node scripts/release-gate.mjs exports",
     "lint:license": "node scripts/release-gate.mjs license",
     "lint:api": "node scripts/release-gate.mjs api",
+    "lint:size": "node scripts/check-bundle-size.mjs",
+    "lint:audit": "npm audit --omit=dev --audit-level=high",
     "gate": "npm run typecheck && npm test && npm run lint:deps && npm run lint:exports && npm run lint:license && npm run lint:api && npm run format:check",
     "docs": "node scripts/generate-docs.js",
     "docs:watch": "typedoc --options typedoc.json --watch",

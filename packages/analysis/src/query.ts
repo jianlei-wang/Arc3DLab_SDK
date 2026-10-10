@@ -1,8 +1,9 @@
-import type {
-  Arc3DContext,
-  LngLatHeight,
-  PositionInput,
-  ResourceHandle,
+import {
+  WGS84_3D,
+  type Arc3DContext,
+  type LngLatHeight,
+  type PositionInput,
+  type ResourceHandle,
 } from "@arc3dlab/core"
 import {
   geometryMatchesDistance,
@@ -12,6 +13,8 @@ import {
   type QueryRelation,
   type RectQuery,
 } from "./geometry"
+import type { AnalysisResult } from "./task"
+import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
 
 const GRAPHIC_TYPES = new Set(["point", "polyline", "polygon", "model"])
 
@@ -27,7 +30,12 @@ function graphicPositions(item: ResourceHandle): LngLatHeight[] {
 }
 
 export class SpatialQueryService {
-  constructor(private readonly context: Arc3DContext) {}
+  constructor(
+    private readonly context: Arc3DContext,
+    private readonly runTask: AnalysisTaskExecutor = createTaskExecutor(
+      context,
+    ),
+  ) {}
 
   async rectangle(
     rect: RectQuery & { relation?: QueryRelation },
@@ -66,6 +74,50 @@ export class SpatialQueryService {
         geometryMatchesDistance(type, positions, center, options.meters),
       ),
     }
+  }
+
+  rectangleTask(
+    rect: RectQuery & { relation?: QueryRelation },
+  ): Promise<AnalysisResult<{ graphics: QueryHit[] }>> {
+    return this.runTask<typeof rect, { graphics: QueryHit[] }>({
+      algorithm: "query.rectangle",
+      input: rect,
+      spatialReference: WGS84_3D,
+      execute: async (runner) => {
+        runner.throwIfCancelled("query rectangle")
+        return { value: await this.rectangle(rect) }
+      },
+    })
+  }
+
+  polygonTask(options: {
+    positions: PositionInput[]
+    relation?: QueryRelation
+  }): Promise<AnalysisResult<{ graphics: QueryHit[] }>> {
+    return this.runTask<typeof options, { graphics: QueryHit[] }>({
+      algorithm: "query.polygon",
+      input: options,
+      spatialReference: WGS84_3D,
+      execute: async (runner) => {
+        runner.throwIfCancelled("query polygon")
+        return { value: await this.polygon(options) }
+      },
+    })
+  }
+
+  distanceTask(options: {
+    position: PositionInput
+    meters: number
+  }): Promise<AnalysisResult<{ graphics: QueryHit[] }>> {
+    return this.runTask<typeof options, { graphics: QueryHit[] }>({
+      algorithm: "query.distance",
+      input: options,
+      spatialReference: WGS84_3D,
+      execute: async (runner) => {
+        runner.throwIfCancelled("query distance")
+        return { value: await this.distance(options) }
+      },
+    })
   }
 
   private collect(

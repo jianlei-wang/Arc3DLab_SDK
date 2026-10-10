@@ -1,4 +1,9 @@
-import type { Arc3DContext, PositionInput } from "@arc3dlab/core"
+import {
+  ELLIPSOID_VERTICAL,
+  WGS84_3D,
+  type Arc3DContext,
+  type PositionInput,
+} from "@arc3dlab/core"
 import { Cartographic } from "cesium"
 import type { ClipAnalysis, ExcavationResult } from "./clip"
 import { toMeasurePoint } from "./geometry"
@@ -9,6 +14,8 @@ import {
 } from "./cutfill"
 import { sampleCartographics } from "./sampler"
 import type { AnalysisTaskOptions } from "./scheduler"
+import type { AnalysisResult } from "./task"
+import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
 
 export interface CutFillResult {
   cutCubicMeters: number
@@ -23,6 +30,9 @@ export class VolumeAnalysis {
   constructor(
     private readonly context: Arc3DContext,
     private readonly clip: ClipAnalysis,
+    private readonly runTask: AnalysisTaskExecutor = createTaskExecutor(
+      context,
+    ),
   ) {}
 
   async cutFill(options: {
@@ -103,6 +113,33 @@ export class VolumeAnalysis {
     return this.clip.setExcavation({
       positions: options.positions,
       depth: options.depth,
+    })
+  }
+
+  cutFillTask(options: {
+    positions: PositionInput[]
+    samples?: number
+    designHeight?: number
+    signal?: AbortSignal
+    onProgress?: AnalysisTaskOptions["onProgress"]
+    maxSamples?: number
+  }): Promise<AnalysisResult<CutFillResult>> {
+    return this.runTask<typeof options, CutFillResult>({
+      algorithm: "volume.cutFill",
+      input: options,
+      signal: options.signal,
+      maxSamples: options.maxSamples,
+      onProgress: options.onProgress,
+      spatialReference: WGS84_3D,
+      verticalReference: ELLIPSOID_VERTICAL,
+      execute: async (runner) => {
+        runner.throwIfCancelled("analyze cut fill")
+        return {
+          value: await this.cutFill(options),
+          units: { volume: "m3", length: "m" },
+          artifacts: [{ id: "cutfill", kind: "volume" }],
+        }
+      },
     })
   }
 

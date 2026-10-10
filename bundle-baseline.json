@@ -1,0 +1,14 @@
+{
+  "note": "Bundle size baseline for the ESM library entry. Regenerate with `npm run build` then update rawBytes/gzipBytes from `node -e`. tolerancePercent is the allowed growth before `lint:size` fails.",
+  "tolerancePercent": 5,
+  "entries": {
+    "dist/arc3dlab.esm.js": {
+      "rawBytes": 107057,
+      "gzipBytes": 25964
+    },
+    "dist/engine-cesium.js": {
+      "rawBytes": 529,
+      "gzipBytes": 309
+    }
+  }
+}

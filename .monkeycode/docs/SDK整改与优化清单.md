@@ -19,7 +19,7 @@
 | P1-04 | Command 参数 Schema 完整合同 | P1 | DONE |
 | P1-05 | GIS 空间参考/高程基准/单位语义 | P1 | DONE |
 | P1-06 | Layer/DataAsset/Feature/Graphic 语义边界 | P1 | DONE |
-| P1-07 | Analysis 统一任务合同 | P1 | PARTIAL |
+| P1-07 | Analysis 统一任务合同 | P1 | DONE |
 | P1-08 | 真实浏览器/WebGL E2E | P1 | DEFERRED |
 | P1-09 | Runtime ready 与资源 ready 语义 | P1 | PARTIAL |
 | P1-10 | 后处理 Bloom/Blur 语义 | P1 | DONE |
@@ -29,7 +29,7 @@
 | P2-01 | 移除包管理器配置冲突 | P2 | DONE |
 | P2-02 | format:check 覆盖 TypeScript 源码 | P2 | DONE |
 | P2-03 | 拆分偏大的聚合源文件 | P2 | DONE |
-| P2-04 | 减少内嵌静态资源影响 | P2 | TODO |
+| P2-04 | 减少内嵌静态资源影响 | P2 | PARTIAL |
 | P2-05 | 隔离开发预览与库构建配置 | P2 | DONE |
 | P2-06 | Legacy Viewer 映射与废弃策略 | P2 | DONE |
 | P2-07 | 同步架构文档、类型合同与测试 | P2 | DONE |
@@ -132,7 +132,7 @@
 - 问题：各分析结果形态不统一，缺统一任务 ID、状态、进度、取消、版本、血缘。
 - 方案：建立 `AnalysisTask<TInput,TResult>` 与 `AnalysisResult<TResult>`；采样结果状态显式化。
 - 验收：任意分析可关联输入、参数、状态、警告、单位与结果。
-- 状态：PARTIAL（`runAnalysisTask / AnalysisTaskRegistry / AnalysisTask / AnalysisResult / ResultArtifact` 已落地；`AnalysisManager.run()/tasks`；既有各分析方法尚未全部改为返回 `AnalysisResult`）
+- 状态：DONE（`runAnalysisTask / AnalysisTaskRegistry / AnalysisTask / AnalysisResult / ResultArtifact` 已落地；`app.analysis.run()`/`tasks`；内置分析新增任务化方法 `measure/terrain/visibility/query/volume.*Task` 返回统一 `AnalysisResult` 并登记任务，非任务方法保留；`analysis-task-services.test.ts` 覆盖共享 registry、采样状态、体积、取消）
 
 ### [ ] P1-08 真实浏览器/WebGL E2E
 
@@ -196,7 +196,7 @@
 ### [ ] P2-04 减少内嵌静态资源对主包的影响
 
 - 记录 bundle size 基线，评估独立静态资源或按需加载。
-- 状态：TODO
+- 状态：PARTIAL（已建立 `bundle-baseline.json` 基线并用 `lint:size` 在 CI `build` 后校验原始/gzip 体积；内嵌静态资源拆分或按需加载待评估）
 
 ### [ ] P2-05 隔离开发预览与库构建配置
 
@@ -216,7 +216,7 @@
 ### [ ] P2-08 完善发布质量门禁
 
 - CI 纳入浏览器 E2E、公共 API 类型消费、覆盖率阈值、bundle size、依赖漏洞扫描、最小权限。
-- 状态：PARTIAL（`gate` 已覆盖 typecheck/test/deps/exports/license/format；新增 `lint:api` 覆盖公共 API 类型消费与深路径导入禁令；浏览器 E2E、覆盖率阈值、bundle size、漏洞扫描待补）
+- 状态：PARTIAL（`gate` 已覆盖 typecheck/test/deps/exports/license/api/format；CI 新增 `lint:size`（bundle 体积基线）与 `lint:audit`（`npm audit --omit=dev --audit-level=high`）；浏览器 E2E（P1-08）与覆盖率阈值待补）
 
 ### [ ] P2-09 建立兼容矩阵与 SemVer 变更管理
 

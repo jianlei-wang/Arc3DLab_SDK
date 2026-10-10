@@ -1,4 +1,10 @@
-import type { Arc3DContext, LngLatHeight, PositionInput } from "@arc3dlab/core"
+import {
+  ELLIPSOID_VERTICAL,
+  WGS84_3D,
+  type Arc3DContext,
+  type LngLatHeight,
+  type PositionInput,
+} from "@arc3dlab/core"
 import { EllipsoidGeodesic } from "cesium"
 import { destinationLngLat, slopeFromHeights } from "./math"
 import {
@@ -13,6 +19,8 @@ import {
   throwIfCancelled,
   type AnalysisTaskOptions,
 } from "./scheduler"
+import type { AnalysisResult } from "./task"
+import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
 
 export interface HeightSample extends LngLatHeight {
   source: TerrainHeightSource
@@ -30,7 +38,12 @@ export interface ProfilePoint extends LngLatHeight {
 }
 
 export class TerrainAnalysis {
-  constructor(private readonly context: Arc3DContext) {}
+  constructor(
+    private readonly context: Arc3DContext,
+    private readonly runTask: AnalysisTaskExecutor = createTaskExecutor(
+      context,
+    ),
+  ) {}
 
   async sampleHeight(options: {
     position: PositionInput
@@ -164,6 +177,74 @@ export class TerrainAnalysis {
         distance: distances[index],
       })),
     }
+  }
+
+  sampleHeightTask(options: {
+    position: PositionInput
+    signal?: AbortSignal
+  }): Promise<AnalysisResult<HeightSample>> {
+    return this.runTask<typeof options, HeightSample>({
+      algorithm: "terrain.sampleHeight",
+      input: options,
+      signal: options.signal,
+      spatialReference: WGS84_3D,
+      verticalReference: ELLIPSOID_VERTICAL,
+      execute: async (runner) => {
+        runner.throwIfCancelled("sample terrain height")
+        return {
+          value: await this.sampleHeight(options),
+          units: { length: "m" },
+        }
+      },
+    })
+  }
+
+  slopeTask(options: {
+    position: PositionInput
+    sampleMeters?: number
+    signal?: AbortSignal
+  }): Promise<AnalysisResult<SlopeResult>> {
+    return this.runTask<typeof options, SlopeResult>({
+      algorithm: "terrain.slope",
+      input: options,
+      signal: options.signal,
+      spatialReference: WGS84_3D,
+      verticalReference: ELLIPSOID_VERTICAL,
+      execute: async (runner) => {
+        runner.throwIfCancelled("sample terrain slope")
+        return {
+          value: await this.slope(options),
+          units: { length: "m", angle: "deg" },
+        }
+      },
+    })
+  }
+
+  profileTask(options: {
+    positions: PositionInput[]
+    samples?: number
+    signal?: AbortSignal
+    onProgress?: AnalysisTaskOptions["onProgress"]
+    maxSamples?: number
+  }): Promise<AnalysisResult<{ points: ProfilePoint[] }>> {
+    return this.runTask<typeof options, { points: ProfilePoint[] }>({
+      algorithm: "terrain.profile",
+      input: options,
+      signal: options.signal,
+      maxSamples: options.maxSamples,
+      onProgress: options.onProgress,
+      spatialReference: WGS84_3D,
+      verticalReference: ELLIPSOID_VERTICAL,
+      execute: async (runner) => {
+        runner.throwIfCancelled("sample terrain profile")
+        const value = await this.profile(options)
+        return {
+          value,
+          units: { length: "m" },
+          artifacts: [{ id: "profile", kind: "profile" }],
+        }
+      },
+    })
   }
 
   setExaggeration(scale: number): void {
