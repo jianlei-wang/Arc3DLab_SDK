@@ -11,6 +11,10 @@
 
 ## 当前
 
+- 公共 API 白名单扩展：Options / Event / 空间与数据语义 / `AnalysisTask` 等类型，根入口与 `@arc3dlab/sdk` 命名导出
+- `Viewer`（兼容入口）标注 `@deprecated`，`Layers.get` 返回资源句柄
+- 拆分 `graphics` / `layers` / `scene` 聚合源文件为职责单一模块（对外符号不变）
+- 质量门禁新增 `lint:api`：禁止消费者深路径导入 `packages/*/src`
 - Sandcastle 左侧底部显示运行控制台
 - Sandcastle 示例通过 gui.addToolbarButton / addToggleButton / addToolbarMenu 在地球上创建交互控件
 

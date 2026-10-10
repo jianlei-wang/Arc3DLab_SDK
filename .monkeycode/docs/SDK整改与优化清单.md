@@ -23,19 +23,19 @@
 | P1-08 | 真实浏览器/WebGL E2E | P1 | DEFERRED |
 | P1-09 | Runtime ready 与资源 ready 语义 | P1 | PARTIAL |
 | P1-10 | 后处理 Bloom/Blur 语义 | P1 | DONE |
-| P1-11 | 公共 API 类型白名单 | P1 | PARTIAL |
+| P1-11 | 公共 API 类型白名单 | P1 | DONE |
 | P1-12 | 领域插件样板脱离产品源码 | P1 | DONE |
 | P1-13 | 统一诊断对象与异步可观测性 | P1 | DONE |
 | P2-01 | 移除包管理器配置冲突 | P2 | DONE |
 | P2-02 | format:check 覆盖 TypeScript 源码 | P2 | DONE |
-| P2-03 | 拆分偏大的聚合源文件 | P2 | TODO |
+| P2-03 | 拆分偏大的聚合源文件 | P2 | DONE |
 | P2-04 | 减少内嵌静态资源影响 | P2 | TODO |
-| P2-05 | 隔离开发预览与库构建配置 | P2 | TODO |
-| P2-06 | Legacy Viewer 映射与废弃策略 | P2 | TODO |
+| P2-05 | 隔离开发预览与库构建配置 | P2 | DONE |
+| P2-06 | Legacy Viewer 映射与废弃策略 | P2 | DONE |
 | P2-07 | 同步架构文档、类型合同与测试 | P2 | DONE |
 | P2-08 | 发布质量门禁 | P2 | PARTIAL |
-| P2-09 | 兼容矩阵与 SemVer | P2 | TODO |
-| P2-10 | 许可证与分发策略 | P2 | TODO |
+| P2-09 | 兼容矩阵与 SemVer | P2 | DONE |
+| P2-10 | 许可证与分发策略 | P2 | DONE |
 | D-01 | 通用数据语义 | P1 | DONE |
 | D-02 | 统一任务与结果语义 | P1 | DONE |
 | D-03 | 插件合同与领域模型分开 | P1 | DONE |
@@ -160,7 +160,7 @@
 - 问题：根入口导出有限，缺完整显式公共类型白名单。
 - 方案：区分 Public/Internal，导出 Options/Result/Event/Error/PluginManifest/AnalysisTask；`app.native.viewer` 标注 advanced/unstable。
 - 验收：consumer 类型编译测试；禁止深路径导入 `packages/*/src`。
-- 状态：PARTIAL（公共 API 与 types 已无 `any`；`NativeContext` 标注 advanced/unstable；白名单与深路径导入禁令写入 11-api，尚未加自动化消费测试）
+- 状态：DONE（`@arc3dlab/sdk` 与根入口扩展命名白名单：Graphic/Layer Options、`Arc3DEvents/LayerEvent/GraphicEvent`、空间与数据语义、`AnalysisTask/AnalysisResult/ResultArtifact` 等；新增 `tests/unit/public-api.test.ts` 消费端运行时与类型编译测试；`release-gate` 新增 `lint:api` 禁止 `src`/`examples`/`demo-vue3` 深路径导入 `packages/*/src`；`NativeContext` 标注 advanced/unstable）
 
 ### [ ] P1-12 领域插件样板脱离产品源码
 
@@ -191,7 +191,7 @@
 ### [ ] P2-03 拆分偏大的聚合源文件
 
 - 拆分 `graphics/layers/scene` 的 `index.ts` 为职责单一文件，`index.ts` 只做导出。
-- 状态：TODO
+- 状态：DONE（graphics → `types/helpers/points/managed-graphic/graphic-manager`；layers → `types/basemap/imagery/terrain/tileset/layer-manager`；scene → `camera/render/viewport/clock/environment/scene-controller`；三个 `index.ts` 只做导出，公开符号与行为不变）
 
 ### [ ] P2-04 减少内嵌静态资源对主包的影响
 
@@ -201,12 +201,12 @@
 ### [ ] P2-05 隔离开发预览与库构建配置
 
 - `server.allowedHosts` 移到 demo/preview 配置；根 `vite.config.ts` 只负责库构建。
-- 状态：TODO
+- 状态：DONE（根 `vite.config.ts` 移除 `server` 块，只保留库构建；`allowedHosts` 由 `demo-vue3/vite.config.ts` 承担）
 
 ### [ ] P2-06 Legacy Viewer 映射与废弃策略
 
 - 明确每个旧方法映射与不支持范围；避免返回不同类别的管理器；补弃用计划。
-- 状态：TODO
+- 状态：DONE（`Viewer` 标注 `@deprecated` 与逃生舱说明；`Layers.get` 修正为返回 Graphic/Layer 句柄而非管理器；`13-migration` 补充方法映射表与 1.x→2.0 废弃计划）
 
 ### [ ] P2-07 同步架构文档、类型合同与自动化测试
 
@@ -216,17 +216,17 @@
 ### [ ] P2-08 完善发布质量门禁
 
 - CI 纳入浏览器 E2E、公共 API 类型消费、覆盖率阈值、bundle size、依赖漏洞扫描、最小权限。
-- 状态：PARTIAL（`gate` 已覆盖 typecheck/test/deps/exports/license/format；浏览器 E2E、覆盖率阈值、bundle size、漏洞扫描待补）
+- 状态：PARTIAL（`gate` 已覆盖 typecheck/test/deps/exports/license/format；新增 `lint:api` 覆盖公共 API 类型消费与深路径导入禁令；浏览器 E2E、覆盖率阈值、bundle size、漏洞扫描待补）
 
 ### [ ] P2-09 建立兼容矩阵与 SemVer 变更管理
 
 - 区分「精确锁定」与「支持范围」；公共 API 变更同步 CHANGELOG 与迁移指南。
-- 状态：TODO
+- 状态：DONE（`COMPATIBILITY.md` 建立兼容矩阵、精确锁定/支持范围策略、SemVer 承诺范围与变更管理流程）
 
 ### [ ] P2-10 明确许可证与分发策略
 
 - 评估 GPL-2.0-only 对商业闭源/二次分发的影响，形成发布策略。
-- 状态：TODO
+- 状态：DONE（`12-engineering` 增加许可证分发策略矩阵：开源集成 / 闭源静态链接 / 独立 Web 服务 / 二次分发；`lint:license` 校验发布文件与许可证一致）
 
 ## 4. 业务语义扩展清单
 

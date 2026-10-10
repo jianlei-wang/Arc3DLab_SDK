@@ -50,7 +50,4 @@ export default defineConfig({
     sourcemap: true,
     emptyOutDir: true,
   },
-  server: {
-    allowedHosts: [".monkeycode-ai.online"],
-  },
 })

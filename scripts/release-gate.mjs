@@ -63,6 +63,24 @@ function walkTs(dir, files = []) {
   return files
 }
 
+const CONSUMER_EXTENSIONS = [".ts", ".tsx", ".js", ".mjs", ".vue"]
+
+function walkFiles(dir, extensions, files = []) {
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name)
+    if (statSync(path).isDirectory()) {
+      if (name === "node_modules" || name === "dist") continue
+      walkFiles(path, extensions, files)
+      continue
+    }
+    if (extensions.some((ext) => name.endsWith(ext))) files.push(path)
+  }
+  return files
+}
+
+const DEEP_IMPORT_RE =
+  /(?:@arc3dlab\/[a-z-]+|packages\/[a-z-]+|arc3dlab)\/src(?:\/|$|["'])/
+
 function extractSpecifiers(source) {
   const specs = []
   const fromRe = /\bfrom\s+["']([^"']+)["']/g
@@ -91,6 +109,28 @@ export function checkDependencyBoundaries(root = ROOT) {
         }
         if (spec.startsWith("@arc3dlab/") && !allowed.has(spec)) {
           violations.push(`${rel} imports ${spec}`)
+        }
+      }
+    }
+  }
+  return violations
+}
+
+export function checkConsumerImports(root = ROOT) {
+  const violations = []
+  const targets = [
+    { dir: "src", extensions: [".ts"] },
+    { dir: "examples", extensions: CONSUMER_EXTENSIONS },
+    { dir: "demo-vue3/src", extensions: CONSUMER_EXTENSIONS },
+  ]
+  for (const target of targets) {
+    const base = join(root, target.dir)
+    if (!existsSync(base)) continue
+    for (const file of walkFiles(base, target.extensions)) {
+      const rel = relative(root, file)
+      for (const spec of extractSpecifiers(readFileSync(file, "utf8"))) {
+        if (DEEP_IMPORT_RE.test(spec)) {
+          violations.push(`${rel} deep-imports ${spec}`)
         }
       }
     }
@@ -167,6 +207,7 @@ export function runAll(root = ROOT) {
     deps: checkDependencyBoundaries(root),
     exports: checkPublicExports(root),
     license: checkLicense(root),
+    api: checkConsumerImports(root),
   }
 }
 
@@ -195,11 +236,13 @@ if (isDirectRun()) {
   if (command === "deps") report("deps", checkDependencyBoundaries())
   else if (command === "exports") report("exports", checkPublicExports())
   else if (command === "license") report("license", checkLicense())
+  else if (command === "api") report("api", checkConsumerImports())
   else if (command === "all") {
     const result = runAll()
     report("deps", result.deps)
     report("exports", result.exports)
     report("license", result.license)
+    report("api", result.api)
   } else {
     console.error(`Unknown command: ${command}`)
     process.exit(1)

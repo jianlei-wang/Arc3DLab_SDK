@@ -10,6 +10,15 @@
 - 文档同步 `05-layers`、`07-data`、`09-analysis`、`11-api`。
 - 测试新增 spatial-reference、data-catalog、analysis-task、plugin-example，共 16 例。
 
+## 2026-10-10（工程化与公共合同）
+
+- P1-11：`@arc3dlab/sdk` 与根入口白名单扩展（Options / Event / 空间数据语义 / `AnalysisTask` 等）；新增 `tests/unit/public-api.test.ts` 消费端类型测试；`release-gate` 新增 `lint:api`，禁止 `src` / `examples` / `demo-vue3` 深路径导入 `packages/*/src`。
+- P2-03：拆分 `graphics` / `layers` / `scene` 的聚合 `index.ts` 为职责单一文件，`index.ts` 只做导出；公开符号与行为保持不变。
+- P2-05：根 `vite.config.ts` 只负责库构建，dev server `allowedHosts` 交由 `demo-vue3` 预览配置。
+- P2-06：`Viewer` 标注 `@deprecated`，修正 `Layers.get` 返回资源句柄而非管理器对象，补充方法映射与废弃计划。
+- P2-09 / P2-10：建立兼容矩阵与 SemVer 变更策略（`COMPATIBILITY.md`），明确 GPL-2.0-only 分发策略（`12-engineering`）。
+- 文档同步 `12-engineering`、`13-migration`、`COMPATIBILITY`、`CHANGES`。
+
 ## 2026-10-09
 
 - 重写整体设计框架 `design.md`：明确 Cesium-first 定位、依赖硬规则、运行时主流程、关键合同、业务语义层、模块清单与质量门禁。

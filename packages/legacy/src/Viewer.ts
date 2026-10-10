@@ -10,6 +10,17 @@ export interface LegacyViewerOptions {
 /**
  * Compatibility adapter around Arc3DApp.
  * New code should use `Arc3D.create()`.
+ *
+ * @deprecated Since 1.0.0-alpha.1. Use `Arc3D.create()` (stable) instead.
+ * This adapter only maps a small subset of the legacy surface:
+ * `Layers.Add.addPoints/addLines/addPolygons`, `Layers.get/remove/show/clear`,
+ * `Terrain`, `EventHandler`, `ReminderTip`, plus `native/scene/camera/canvas`
+ * escape hatches. Legacy-only concepts without a counterpart (Popup tip DOM,
+ * built-in creator factories, mapbox controller flags beyond `controls`) are
+ * intentionally unsupported and map to the closest primitive.
+ *
+ * `native` / `scene` / `camera` / `canvas` are advanced, unstable escape
+ * hatches bound to the Cesium runtime and are excluded from SemVer guarantees.
  */
 export class Viewer {
   readonly app: Arc3DApp
@@ -72,7 +83,8 @@ export class Viewer {
             renderMode: usePrimitive ? "primitive" : "entity",
           }),
       },
-      get: (id: string) => this.app.graphics.get(id) ?? this.app.layers.imagery,
+      get: (id: string) =>
+        this.app.graphics.get(id) ?? this.app.context.registry.get(id),
       remove: (id: string) => this.app.graphics.remove(id),
       show: (id: string, visible: boolean) =>
         this.app.graphics.show(id, visible),

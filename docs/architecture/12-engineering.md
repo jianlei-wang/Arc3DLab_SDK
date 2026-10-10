@@ -19,6 +19,20 @@ Vite library mode + TypeScript + `vite-plugin-dts`。主产物为 ESM。UMD 降�
 
 CesiumJS 采用 Apache-2.0，第三方底图、示例数据需要在 `NOTICE.md` 声明。
 
+## 分发策略
+
+| 分发形态 | 许可证影响 | 结论 |
+|---|---|---|
+| 开源项目集成 | 与 GPL-2.0-only 兼容 | 直接使用 |
+| 闭源商业产品静态链接 | 触发 GPL 传染，需整体 GPL 或商业授权 | 需评估商业授权 |
+| 独立部署的 Web 服务 | 未分发二进制，GPL 义务边界较窄 | 合规审查后使用 |
+| 二次分发 / SaaS 转售 | 受 GPL-2.0-only 约束 | 需商业授权 |
+
+- 发布产物只包含 `dist/`、`LICENSE`、`NOTICE.md`、`README.md`，见 `package.json` 的 `files`。
+- `npm run gate` 的 `lint:license` 校验 `package.json` 与 `LICENSE` / `NOTICE.md` 一致。
+- 商业闭源或二次分发场景需另行获取授权；在完成授权方案前，对外默认按 GPL-2.0-only 分发。
+
+
 ## 测试
 
 - Unit：core 的 EventBus / Lifecycle / Registry / ID
