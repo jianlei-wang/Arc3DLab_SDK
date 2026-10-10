@@ -46,10 +46,13 @@ CesiumJS 采用 Apache-2.0，第三方底图、示例数据需要在 `NOTICE.md`
 - Unit：core 的 EventBus / Lifecycle / Registry / ID
 - Integration：Arc3DApp destroy 回收
 - 覆盖率：`npm run test:coverage`（v8），阈值 lines/statements 60、functions 58、branches 75，CI 以 `test:coverage` 替代 `test`
-- 后续 E2E：Playground 关键路径（Playwright，deferred）
+- E2E：`npm run test:e2e`（Playwright + Chromium，SwiftShader 无头 WebGL），用例 `e2e/app.spec.ts` 覆盖创建 → 添加 Graphic → 拾取 → 测量分析 → 销毁 → 重建 完整路径
 
 ## CI 门禁
 
-`.github/workflows/ci.yml`（`permissions: contents: read`）依次执行：`typecheck` → `test:coverage` → `lint:deps` → `lint:exports` → `lint:license` → `lint:api` → `lint:audit` → `format:check` → `build` → `lint:size` → `test:pack`。
+`.github/workflows/ci.yml`（`permissions: contents: read`）包含两个 job：
+
+- `gate`：`typecheck` → `test:coverage` → `lint:deps` → `lint:exports` → `lint:license` → `lint:api` → `lint:audit` → `format:check` → `build` → `lint:size` → `test:pack`
+- `e2e`：`npm ci` → `playwright install --with-deps chromium` → `test:e2e`，失败时上传 `playwright-report`
 
 开发命令、即时测试、预览、API 文档生成和 npm 发布步骤见 `docs/guides/sdk-development.md`。

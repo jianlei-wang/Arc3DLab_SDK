@@ -1,6 +1,8 @@
 node_modules
 dist
 coverage
+playwright-report
+test-results
 api-docs/*
 # Editor directories and files
 .vscode/*

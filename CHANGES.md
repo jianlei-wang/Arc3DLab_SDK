@@ -11,6 +11,7 @@
 
 ## 当前
 
+- 新增浏览器 E2E（Playwright + Chromium / SwiftShader）：`npm run test:e2e` 覆盖创建 → 添加 Graphic → 拾取 → 测量分析 → 销毁 → 重建；CI 增加独立 `e2e` job
 - 新增覆盖率门禁 `npm run test:coverage`（v8，lines/statements 60、functions 58、branches 75），CI 增加最小权限 `contents: read`
 - 默认底图改为外置 `globe.jpg` 资源按需加载，引擎 chunk 体积从约 126.8 kB 降至 9.3 kB；`lint:size` 增加必需资源存在性与大 base64 内联检查
 - 新增 `app.scene.whenSceneReady()` 首屏就绪信号，返回 `SceneReadyResult`（`remainingTiles / timedOut / destroyed / defaultBaseLayer`），并派发 `sceneReady` 事件；导出 `SceneReadyOptions` / `SceneReadyResult` / `DefaultBaseLayerState`

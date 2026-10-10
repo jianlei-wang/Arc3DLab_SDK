@@ -1,5 +1,13 @@
 # 设计迭代日志
 
+## 2026-10-10（浏览器 E2E 与质量门禁收尾）
+
+- P1-08：新增 Playwright + Chromium（SwiftShader 无头 WebGL）浏览器 E2E；`e2e/app.spec.ts` 覆盖创建 → 添加 Graphic → 拾取 → 测量分析 → 销毁 → 重建完整路径。
+- 新增 `e2e/vite.config.ts`（port 4310 strictPort、cesium 插件、alias）、`e2e/index.html`、`e2e/main.ts`（`Arc3D.create` 后写 `window.__ARC3D_REPORT__` / `__ARC3D_ERROR__`）、`playwright.config.ts`。
+- `package.json` 增加 `test:e2e`；`format` / `format:check` 纳入 `e2e/**/*.ts` 与 `playwright.config.ts`；`.gitignore` 忽略 `playwright-report` / `test-results`。
+- CI 新增独立 `e2e` job（`npm ci` → `playwright install --with-deps chromium` → `test:e2e`，失败上传 `playwright-report`）。
+- P2-08 收尾为 DONE；文档同步 `12-engineering`（测试与 CI 门禁）、清单 P1-08 / P2-08 详情。
+
 ## 2026-10-10（覆盖率与 CI 最小权限）
 
 - P2-08：新增 `@vitest/coverage-v8` 与 `npm run test:coverage`，覆盖率阈值 lines/statements 60、functions 58、branches 75；CI 以 `test:coverage` 替代 `test`。

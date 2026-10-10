@@ -20,7 +20,7 @@
 | P1-05 | GIS 空间参考/高程基准/单位语义 | P1 | DONE |
 | P1-06 | Layer/DataAsset/Feature/Graphic 语义边界 | P1 | DONE |
 | P1-07 | Analysis 统一任务合同 | P1 | DONE |
-| P1-08 | 真实浏览器/WebGL E2E | P1 | DEFERRED |
+| P1-08 | 真实浏览器/WebGL E2E | P1 | DONE |
 | P1-09 | Runtime ready 与资源 ready 语义 | P1 | DONE |
 | P1-10 | 后处理 Bloom/Blur 语义 | P1 | DONE |
 | P1-11 | 公共 API 类型白名单 | P1 | DONE |
@@ -33,7 +33,7 @@
 | P2-05 | 隔离开发预览与库构建配置 | P2 | DONE |
 | P2-06 | Legacy Viewer 映射与废弃策略 | P2 | DONE |
 | P2-07 | 同步架构文档、类型合同与测试 | P2 | DONE |
-| P2-08 | 发布质量门禁 | P2 | PARTIAL |
+| P2-08 | 发布质量门禁 | P2 | DONE |
 | P2-09 | 兼容矩阵与 SemVer | P2 | DONE |
 | P2-10 | 许可证与分发策略 | P2 | DONE |
 | D-01 | 通用数据语义 | P1 | DONE |
@@ -139,7 +139,7 @@
 - 问题：Vitest 环境为 node，浏览器用例被跳过。
 - 方案：增加 Playwright 浏览器工作流；固定 Cesium 版本与静态资源；Token 用 mock。
 - 验收：CI 至少一条浏览器用例完成创建/添加/拾取/分析/销毁/重建。
-- 状态：TODO
+- 状态：DONE（引入 Playwright + Chromium（SwiftShader 无头 WebGL）；`e2e/app.spec.ts` 覆盖创建 → 添加 Graphic → 拾取（`pickKind: "graphic"` 命中）→ 测量分析 → 销毁 → 重建；CI 新增独立 `e2e` job 并上传 `playwright-report`）
 
 ### [ ] P1-09 Runtime ready 与资源 ready 语义
 
@@ -216,7 +216,7 @@
 ### [ ] P2-08 完善发布质量门禁
 
 - CI 纳入浏览器 E2E、公共 API 类型消费、覆盖率阈值、bundle size、依赖漏洞扫描、最小权限。
-- 状态：PARTIAL（`gate` 已覆盖 typecheck/test/deps/exports/license/api/format；CI 新增 `lint:size`（bundle 体积基线 + 资源外置检查）、`lint:audit`（`npm audit --omit=dev --audit-level=high`）、`test:coverage`（v8 覆盖率阈值）、`permissions: contents: read` 最小权限；仅剩浏览器 E2E，跟随 P1-08 DEFERRED 一并处理）
+- 状态：DONE（`gate` 覆盖 typecheck/test/deps/exports/license/api/format；CI 另含 `lint:size`（bundle 体积基线 + 资源外置检查）、`lint:audit`（`npm audit --omit=dev --audit-level=high`）、`test:coverage`（v8 覆盖率阈值）、最小权限 `permissions: contents: read`；独立 `e2e` job 覆盖浏览器/WebGL 关键路径）
 
 ### [ ] P2-09 建立兼容矩阵与 SemVer 变更管理
 
