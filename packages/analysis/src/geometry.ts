@@ -1,5 +1,15 @@
-import { parsePosition, type LngLatHeight, type PositionInput } from "@arc3dlab/core"
-import { MISSING_HEIGHT, WGS84_A, WGS84_E2, type AreaMode, type DistanceMode } from "./units"
+import {
+  parsePosition,
+  type LngLatHeight,
+  type PositionInput,
+} from "@arc3dlab/core"
+import {
+  MISSING_HEIGHT,
+  WGS84_A,
+  WGS84_E2,
+  type AreaMode,
+  type DistanceMode,
+} from "./units"
 
 export interface LngLatLike {
   longitude: number
@@ -25,20 +35,26 @@ function deltaLonRad(from: LngLatLike, to: LngLatLike): number {
 
 export function toMeasurePoint(input: PositionInput): LngLatHeight {
   const point = parsePosition(input)
-  return { ...point, height: Number.isFinite(point.height) ? point.height : MISSING_HEIGHT }
+  return {
+    ...point,
+    height: Number.isFinite(point.height) ? point.height : MISSING_HEIGHT,
+  }
 }
 
 export function closeRing(ring: LngLatLike[]): LngLatLike[] {
   if (ring.length === 0) return []
   const first = ring[0]
   const last = ring[ring.length - 1]
-  if (first.longitude === last.longitude && first.latitude === last.latitude) return ring.slice()
+  if (first.longitude === last.longitude && first.latitude === last.latitude)
+    return ring.slice()
   return [...ring, { longitude: first.longitude, latitude: first.latitude }]
 }
 
 export function unwrapRing(ring: LngLatLike[]): LngLatLike[] {
   if (ring.length === 0) return []
-  const out: LngLatLike[] = [{ longitude: ring[0].longitude, latitude: ring[0].latitude }]
+  const out: LngLatLike[] = [
+    { longitude: ring[0].longitude, latitude: ring[0].latitude },
+  ]
   for (let i = 1; i < ring.length; i += 1) {
     let lon = ring[i].longitude
     const prev = out[i - 1].longitude
@@ -57,7 +73,9 @@ export function splitRectAtAntimeridian(rect: RectQuery): RectQuery[] {
   ]
 }
 
-export function toEcef(point: LngLatLike & { height?: number }): [number, number, number] {
+export function toEcef(
+  point: LngLatLike & { height?: number },
+): [number, number, number] {
   const lon = point.longitude * DEG
   const lat = point.latitude * DEG
   const height = point.height ?? MISSING_HEIGHT
@@ -71,25 +89,32 @@ export function toEcef(point: LngLatLike & { height?: number }): [number, number
   ]
 }
 
-export function cartesianDistanceMeters(from: LngLatLike & { height?: number }, to: LngLatLike & { height?: number }): number {
+export function cartesianDistanceMeters(
+  from: LngLatLike & { height?: number },
+  to: LngLatLike & { height?: number },
+): number {
   const a = toEcef(from)
   const b = toEcef(to)
   return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])
 }
 
-export function geodesicDistanceMeters(from: LngLatLike, to: LngLatLike): number {
+export function geodesicDistanceMeters(
+  from: LngLatLike,
+  to: LngLatLike,
+): number {
   const lat1 = from.latitude * DEG
   const lat2 = to.latitude * DEG
   const dLat = lat2 - lat1
   const dLon = deltaLonRad(from, to)
   const s =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
   return 2 * WGS84_A * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s))
 }
 
 export function pathLengthMeters(
   positions: Array<LngLatLike & { height?: number }>,
-  mode: DistanceMode
+  mode: DistanceMode,
 ): number {
   if (positions.length < 2) return 0
   let meters = 0
@@ -102,8 +127,13 @@ export function pathLengthMeters(
   return meters
 }
 
-export function ellipsoidHeightDelta(from: LngLatLike & { height?: number }, to: LngLatLike & { height?: number }): number {
-  return Math.abs((to.height ?? MISSING_HEIGHT) - (from.height ?? MISSING_HEIGHT))
+export function ellipsoidHeightDelta(
+  from: LngLatLike & { height?: number },
+  to: LngLatLike & { height?: number },
+): number {
+  return Math.abs(
+    (to.height ?? MISSING_HEIGHT) - (from.height ?? MISSING_HEIGHT),
+  )
 }
 
 export function headingDegrees(from: LngLatLike, to: LngLatLike): number {
@@ -112,7 +142,9 @@ export function headingDegrees(from: LngLatLike, to: LngLatLike): number {
   const lat2 = to.latitude * DEG
   const dLon = deltaLonRad(from, to)
   const y = Math.sin(dLon) * Math.cos(lat2)
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon)
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon)
   const degrees = Math.atan2(y, x) * RAD
   return (degrees + 360) % 360
 }
@@ -120,7 +152,7 @@ export function headingDegrees(from: LngLatLike, to: LngLatLike): number {
 export function spaceAngleDegrees(
   from: LngLatLike & { height?: number },
   via: LngLatLike & { height?: number },
-  to: LngLatLike & { height?: number }
+  to: LngLatLike & { height?: number },
 ): number {
   const origin = toEcef(via)
   const a = toEcef(from)
@@ -134,7 +166,10 @@ export function spaceAngleDegrees(
   return Math.acos(Math.min(1, Math.max(-1, cos))) * RAD
 }
 
-function toEastNorth(origin: LngLatLike, point: LngLatLike): { east: number; north: number } {
+function toEastNorth(
+  origin: LngLatLike,
+  point: LngLatLike,
+): { east: number; north: number } {
   const lat = origin.latitude * DEG
   return {
     east: (point.longitude - origin.longitude) * DEG * WGS84_A * Math.cos(lat),
@@ -142,14 +177,17 @@ function toEastNorth(origin: LngLatLike, point: LngLatLike): { east: number; nor
   }
 }
 
-export function toLocalMeters(origin: LngLatLike, point: LngLatLike): { east: number; north: number } {
+export function toLocalMeters(
+  origin: LngLatLike,
+  point: LngLatLike,
+): { east: number; north: number } {
   return toEastNorth(origin, point)
 }
 
 export function fromLocalMeters(
   origin: LngLatLike,
   east: number,
-  north: number
+  north: number,
 ): LngLatLike {
   const lat = origin.latitude * DEG
   const denom = WGS84_A * Math.cos(lat)
@@ -194,7 +232,7 @@ export function geodesicRingArea(ring: LngLatLike[]): number {
 export function polygonAreaSquareMeters(
   outer: LngLatLike[],
   holes: LngLatLike[][] = [],
-  mode: AreaMode = "geodesic"
+  mode: AreaMode = "geodesic",
 ): number {
   const areaOf = mode === "planar" ? planarRingArea : geodesicRingArea
   const outerArea = areaOf(outer)
@@ -208,7 +246,7 @@ export function pointInRect(point: LngLatLike, rect: RectQuery): boolean {
       point.longitude >= part.west &&
       point.longitude <= part.east &&
       point.latitude >= part.south &&
-      point.latitude <= part.north
+      point.latitude <= part.north,
   )
 }
 
@@ -227,14 +265,18 @@ export function pointInPolygon(point: LngLatLike, ring: LngLatLike[]): boolean {
     const yj = pts[j].latitude
     const intersect =
       yi > point.latitude !== yj > point.latitude &&
-      lon < ((xj - xi) * (point.latitude - yi)) / (yj - yi + Number.EPSILON) + xi
+      lon <
+        ((xj - xi) * (point.latitude - yi)) / (yj - yi + Number.EPSILON) + xi
     if (intersect) inside = !inside
   }
   return inside
 }
 
 function orientation(a: LngLatLike, b: LngLatLike, c: LngLatLike): number {
-  return (b.longitude - a.longitude) * (c.latitude - a.latitude) - (b.latitude - a.latitude) * (c.longitude - a.longitude)
+  return (
+    (b.longitude - a.longitude) * (c.latitude - a.latitude) -
+    (b.latitude - a.latitude) * (c.longitude - a.longitude)
+  )
 }
 
 function onSegment(a: LngLatLike, b: LngLatLike, c: LngLatLike): boolean {
@@ -246,7 +288,12 @@ function onSegment(a: LngLatLike, b: LngLatLike, c: LngLatLike): boolean {
   )
 }
 
-export function segmentsIntersect(a: LngLatLike, b: LngLatLike, c: LngLatLike, d: LngLatLike): boolean {
+export function segmentsIntersect(
+  a: LngLatLike,
+  b: LngLatLike,
+  c: LngLatLike,
+  d: LngLatLike,
+): boolean {
   const o1 = orientation(a, b, c)
   const o2 = orientation(a, b, d)
   const o3 = orientation(c, d, a)
@@ -301,13 +348,18 @@ function shiftRectToward(part: RectQuery, refLon: number): RectQuery {
   return { west, south: part.south, east, north: part.north }
 }
 
-export function segmentIntersectsRect(a: LngLatLike, b: LngLatLike, rect: RectQuery): boolean {
+export function segmentIntersectsRect(
+  a: LngLatLike,
+  b: LngLatLike,
+  rect: RectQuery,
+): boolean {
   const unwrapped = unwrapRing([a, b])
   const ua = unwrapped[0]
   const ub = unwrapped[unwrapped.length - 1]
   return splitRectAtAntimeridian(rect).some((part) => {
     const shifted = shiftRectToward(part, ua.longitude)
-    if (pointInUnwrappedRect(ua, shifted) || pointInUnwrappedRect(ub, shifted)) return true
+    if (pointInUnwrappedRect(ua, shifted) || pointInUnwrappedRect(ub, shifted))
+      return true
     return rectEdges(shifted).some(([c, d]) => segmentsIntersect(ua, ub, c, d))
   })
 }
@@ -319,27 +371,43 @@ export function ringEdges(ring: LngLatLike[]): Array<[LngLatLike, LngLatLike]> {
   return edges
 }
 
-export function segmentIntersectsPolygon(a: LngLatLike, b: LngLatLike, ring: LngLatLike[]): boolean {
+export function segmentIntersectsPolygon(
+  a: LngLatLike,
+  b: LngLatLike,
+  ring: LngLatLike[],
+): boolean {
   if (pointInPolygon(a, ring) || pointInPolygon(b, ring)) return true
   return ringEdges(ring).some(([c, d]) => segmentsIntersect(a, b, c, d))
 }
 
-export function polygonIntersectsRect(ring: LngLatLike[], rect: RectQuery): boolean {
+export function polygonIntersectsRect(
+  ring: LngLatLike[],
+  rect: RectQuery,
+): boolean {
   return splitRectAtAntimeridian(rect).some((part) => {
     if (ring.some((point) => pointInRect(point, part))) return true
-    if (rectCorners(part).some((corner) => pointInPolygon(corner, ring))) return true
+    if (rectCorners(part).some((corner) => pointInPolygon(corner, ring)))
+      return true
     return ringEdges(ring).some(([a, b]) => segmentIntersectsRect(a, b, part))
   })
 }
 
-export function polygonContainsRect(ring: LngLatLike[], rect: RectQuery): boolean {
+export function polygonContainsRect(
+  ring: LngLatLike[],
+  rect: RectQuery,
+): boolean {
   return splitRectAtAntimeridian(rect).every((part) => {
-    if (!rectCorners(part).every((corner) => pointInPolygon(corner, ring))) return false
+    if (!rectCorners(part).every((corner) => pointInPolygon(corner, ring)))
+      return false
     return ringEdges(ring).every(([a, b]) => !segmentIntersectsRect(a, b, part))
   })
 }
 
-export function distancePointToSegmentMeters(point: LngLatLike, a: LngLatLike, b: LngLatLike): number {
+export function distancePointToSegmentMeters(
+  point: LngLatLike,
+  a: LngLatLike,
+  b: LngLatLike,
+): number {
   const origin = a
   const p = toEastNorth(origin, point)
   const ab = toEastNorth(origin, b)
@@ -354,19 +422,30 @@ export function distancePointToSegmentMeters(point: LngLatLike, a: LngLatLike, b
   return geodesicDistanceMeters(point, closest)
 }
 
-export function distancePointToRingMeters(point: LngLatLike, ring: LngLatLike[]): number {
+export function distancePointToRingMeters(
+  point: LngLatLike,
+  ring: LngLatLike[],
+): number {
   if (pointInPolygon(point, ring)) return 0
   const edges = ringEdges(ring)
   if (edges.length === 0) return Number.POSITIVE_INFINITY
-  return Math.min(...edges.map(([a, b]) => distancePointToSegmentMeters(point, a, b)))
+  return Math.min(
+    ...edges.map(([a, b]) => distancePointToSegmentMeters(point, a, b)),
+  )
 }
 
-export function minDistanceToPositionsMeters(point: LngLatLike, positions: LngLatLike[]): number {
+export function minDistanceToPositionsMeters(
+  point: LngLatLike,
+  positions: LngLatLike[],
+): number {
   if (positions.length === 0) return Number.POSITIVE_INFINITY
   if (positions.length === 1) return geodesicDistanceMeters(point, positions[0])
   let min = Number.POSITIVE_INFINITY
   for (let i = 1; i < positions.length; i += 1) {
-    min = Math.min(min, distancePointToSegmentMeters(point, positions[i - 1], positions[i]))
+    min = Math.min(
+      min,
+      distancePointToSegmentMeters(point, positions[i - 1], positions[i]),
+    )
   }
   return min
 }
@@ -377,10 +456,11 @@ export function geometryMatchesDistance(
   type: string,
   positions: LngLatLike[],
   center: LngLatLike,
-  meters: number
+  meters: number,
 ): boolean {
   if (positions.length === 0) return false
-  if (type === "polygon") return distancePointToRingMeters(center, positions) <= meters
+  if (type === "polygon")
+    return distancePointToRingMeters(center, positions) <= meters
   return minDistanceToPositionsMeters(center, positions) <= meters
 }
 
@@ -388,7 +468,7 @@ export function geometryMatchesRect(
   type: string,
   positions: LngLatLike[],
   rect: RectQuery,
-  relation: QueryRelation
+  relation: QueryRelation,
 ): boolean {
   if (positions.length === 0) return false
   if (relation === "within") {
@@ -406,7 +486,7 @@ export function geometryMatchesPolygon(
   type: string,
   positions: LngLatLike[],
   ring: LngLatLike[],
-  relation: QueryRelation
+  relation: QueryRelation,
 ): boolean {
   if (positions.length === 0) return false
   if (relation === "within") {
@@ -416,13 +496,16 @@ export function geometryMatchesPolygon(
     if (polygonIntersectsRect(positions, boundsOf(ring))) {
       if (positions.some((point) => pointInPolygon(point, ring))) return true
       if (ring.some((point) => pointInPolygon(point, positions))) return true
-      return ringEdges(positions).some(([a, b]) => segmentIntersectsPolygon(a, b, ring))
+      return ringEdges(positions).some(([a, b]) =>
+        segmentIntersectsPolygon(a, b, ring),
+      )
     }
     return false
   }
   if (positions.length === 1) return pointInPolygon(positions[0], ring)
   for (let i = 1; i < positions.length; i += 1) {
-    if (segmentIntersectsPolygon(positions[i - 1], positions[i], ring)) return true
+    if (segmentIntersectsPolygon(positions[i - 1], positions[i], ring))
+      return true
   }
   return positions.some((point) => pointInPolygon(point, ring))
 }

@@ -28,6 +28,6 @@
       "@arc3dlab/legacy": ["packages/legacy/src/index.ts"]
     }
   },
-  "include": ["src/**/*", "packages/**/*", "tests/**/*"],
+  "include": ["src/**/*", "packages/**/*", "tests/**/*", "examples/**/*"],
   "exclude": ["node_modules", "dist"]
 }

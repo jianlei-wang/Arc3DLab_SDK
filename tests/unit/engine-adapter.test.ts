@@ -70,14 +70,19 @@ describe("Fake Engine adapter", () => {
     viewer.requestRender("after-destroy")
     expect(engine.viewer).toBeUndefined()
     expect((viewer as FakeViewer).destroyed).toBe(true)
-    expect((viewer as FakeViewer).renders).toEqual(["graphic-added", "graphic-style"])
+    expect((viewer as FakeViewer).renders).toEqual([
+      "graphic-added",
+      "graphic-style",
+    ])
   })
 
   it("reports capabilities and maps errors without a renderer", () => {
     const engine = new FakeEngine()
     expect(engine.hasCapability("render:entity")).toBe(true)
     expect(engine.hasCapability("graphic:model")).toBe(false)
-    expect(engine.mapError(new Arc3DError("UNSUPPORTED_CAPABILITY", "no model"))).toEqual({
+    expect(
+      engine.mapError(new Arc3DError("UNSUPPORTED_CAPABILITY", "no model")),
+    ).toEqual({
       message: "no model",
       code: "UNSUPPORTED_CAPABILITY",
     })
@@ -89,23 +94,40 @@ describe("Fake Engine adapter", () => {
 })
 
 describe("CapabilityRegistry", () => {
-  it("allows require() when nothing is registered", () => {
+  it("throws when require() runs against an empty registry", () => {
     const registry = new CapabilityRegistry()
-    expect(() => registry.require("graphic:model", "add model")).not.toThrow()
+    expect(() => registry.require("graphic:model", "add model")).toThrow(
+      Arc3DError,
+    )
   })
 
-  it("rejects unregistered capabilities after core registration", () => {
+  it("derives backend capabilities from the engine instance", () => {
+    const registry = new CapabilityRegistry()
+    registerCoreCapabilities(registry, new FakeEngine())
+    expect(registry.has("render:entity")).toBe(true)
+    expect(registry.has("analysis:measure")).toBe(true)
+    expect(registry.has("engine:cesium")).toBe(false)
+    expect(registry.has("graphic:model")).toBe(false)
+    expect(() => registry.require("analysis:measure", "measure")).not.toThrow()
+    expect(() => registry.require("graphic:model", "add model")).toThrow(
+      Arc3DError,
+    )
+    try {
+      registry.require("graphic:model", "add model")
+    } catch (error) {
+      expect(error).toMatchObject({ code: "UNSUPPORTED_CAPABILITY" })
+    }
+  })
+
+  it("keeps SDK-provided defaults when no engine is supplied", () => {
     const registry = new CapabilityRegistry()
     registerCoreCapabilities(registry)
     expect(registry.has("engine:cesium")).toBe(true)
     expect(registry.has("graphic:model")).toBe(true)
     expect(() => registry.require("graphic:model", "add model")).not.toThrow()
-    expect(() => registry.require("engine:fake", "use fake engine")).toThrow(Arc3DError)
-    try {
-      registry.require("engine:fake", "use fake engine")
-    } catch (error) {
-      expect(error).toMatchObject({ code: "UNSUPPORTED_CAPABILITY" })
-    }
+    expect(() => registry.require("engine:fake", "use fake engine")).toThrow(
+      Arc3DError,
+    )
   })
 })
 
@@ -115,11 +137,12 @@ describe("Runtime with Fake Engine", () => {
     const viewer = engine.createViewer({ container: "app" })
     const context = createContext(
       { container: "app" },
-      { type: engine.type, viewer, native: { viewer: viewer.native } }
+      { type: engine.type, viewer, native: { viewer: viewer.native }, engine },
     )
     context.lifecycle.transition("initializing")
     context.lifecycle.transition("ready")
     expect(() => context.lifecycle.assertUsable("add polyline")).not.toThrow()
+    expect(context.engineAdapter).toBe(engine)
 
     const snapshot = getRuntimeDiagnostics(context)
     expect(snapshot.lifecycle).toBe("ready")
@@ -128,6 +151,8 @@ describe("Runtime with Fake Engine", () => {
     context.lifecycle.transition("destroying")
     context.lifecycle.transition("destroyed")
     engine.destroy()
-    expect(() => context.lifecycle.assertUsable("add polyline")).toThrow(Arc3DError)
+    expect(() => context.lifecycle.assertUsable("add polyline")).toThrow(
+      Arc3DError,
+    )
   })
 })

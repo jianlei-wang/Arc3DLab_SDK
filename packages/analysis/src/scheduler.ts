@@ -18,7 +18,7 @@ export interface AnalysisTaskOptions {
 export function throwIfCancelled(
   context: Arc3DContext,
   signal: AbortSignal | undefined,
-  action: string
+  action: string,
 ): void {
   context.lifecycle.assertUsable(action)
   if (signal?.aborted) {
@@ -30,14 +30,17 @@ export async function afterAnalysisAwait<T>(
   context: Arc3DContext,
   signal: AbortSignal | undefined,
   action: string,
-  value: T
+  value: T,
 ): Promise<T> {
   await afterAwait(context.lifecycle, action, value)
   throwIfCancelled(context, signal, action)
   return value
 }
 
-export function clampSampleCount(requested: number, maxSamples = DEFAULT_MAX_SAMPLES): number {
+export function clampSampleCount(
+  requested: number,
+  maxSamples = DEFAULT_MAX_SAMPLES,
+): number {
   if (!Number.isFinite(requested)) return 1
   return Math.min(Math.max(1, Math.floor(requested)), maxSamples)
 }
@@ -46,7 +49,7 @@ export function reportProgress(
   onProgress: ((progress: AnalysisProgress) => void) | undefined,
   completed: number,
   total: number,
-  stage: string
+  stage: string,
 ): void {
   onProgress?.({ completed, total, stage })
 }
@@ -57,7 +60,7 @@ export async function mapInChunks<T, R>(
   mapper: (item: T, index: number) => Promise<R>,
   context: Arc3DContext,
   action: string,
-  options?: AnalysisTaskOptions
+  options?: AnalysisTaskOptions,
 ): Promise<R[]> {
   const size = Math.max(1, chunkSize)
   const out: R[] = []

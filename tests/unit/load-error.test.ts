@@ -7,10 +7,12 @@ import {
 
 describe("classifyLoadFailure", () => {
   it("maps token and auth failures", () => {
-    expect(classifyLoadFailure({ status: 401, message: "nope" })).toMatchObject({
-      code: "AUTH_FAILED",
-      stage: "token",
-    })
+    expect(classifyLoadFailure({ status: 401, message: "nope" })).toMatchObject(
+      {
+        code: "AUTH_FAILED",
+        stage: "token",
+      },
+    )
     expect(classifyLoadFailure(new Error("Ion access denied"))).toMatchObject({
       code: "AUTH_FAILED",
       stage: "token",
@@ -22,7 +24,9 @@ describe("classifyLoadFailure", () => {
       code: "NETWORK_FAILURE",
       stage: "network",
     })
-    expect(classifyLoadFailure({ status: 500, message: "bad gateway" })).toMatchObject({
+    expect(
+      classifyLoadFailure({ status: 500, message: "bad gateway" }),
+    ).toMatchObject({
       code: "NETWORK_FAILURE",
       stage: "network",
     })

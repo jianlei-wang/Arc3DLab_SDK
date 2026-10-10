@@ -14,15 +14,19 @@ function resolveContainer(container: string | Element): Element {
   if (typeof container !== "string") return container
   const el = document.getElementById(container)
   if (!el) {
-    throw new Arc3DError("INVALID_CONTAINER", `Container element not found: ${container}`)
+    throw new Arc3DError(
+      "INVALID_CONTAINER",
+      `Container element not found: ${container}`,
+    )
   }
   return el
 }
 
-function createDefaultBaseLayer(): Promise<Cesium.ImageryLayer> | Cesium.ImageryLayer {
+function createDefaultBaseLayer():
+  Promise<Cesium.ImageryLayer> | Cesium.ImageryLayer {
   return Cesium.ImageryLayer.fromProviderAsync(
     Cesium.SingleTileImageryProvider.fromUrl(globeImg),
-    {}
+    {},
   )
 }
 
@@ -35,10 +39,6 @@ export class CesiumEngineViewer implements EngineViewer {
 
   constructor(options: EngineViewerOptions) {
     this.container = resolveContainer(options.container)
-    const ionToken = options.ionToken
-    if (ionToken) {
-      Cesium.Ion.defaultAccessToken = ionToken
-    }
 
     const viewer = createCesiumViewer(this.container, options)
 
@@ -60,11 +60,13 @@ export class CesiumEngineViewer implements EngineViewer {
         })
     }
 
-    viewer.scene.globe.depthTestAgainstTerrain = options.depthTestAgainstTerrain ?? true
+    viewer.scene.globe.depthTestAgainstTerrain =
+      options.depthTestAgainstTerrain ?? true
     viewer.clock.multiplier = 1
     viewer.scene.screenSpaceCameraController.enableCollisionDetection = true
     viewer.resolutionScale =
-      options.resolutionScale === "auto" || options.resolutionScale === undefined
+      options.resolutionScale === "auto" ||
+      options.resolutionScale === undefined
         ? window.devicePixelRatio
         : options.resolutionScale
     viewer.scene.debugShowFramesPerSecond = options.fpsShow ?? false
@@ -78,7 +80,12 @@ export class CesiumEngineViewer implements EngineViewer {
     const rect = options.defaultViewRectangle
     if (rect) {
       viewer.camera.setView({
-        destination: Cesium.Rectangle.fromDegrees(rect[0], rect[1], rect[2], rect[3]),
+        destination: Cesium.Rectangle.fromDegrees(
+          rect[0],
+          rect[1],
+          rect[2],
+          rect[3],
+        ),
       })
     }
   }
@@ -107,6 +114,7 @@ export class CesiumEngine implements Engine {
     "render:entity",
     "render:primitive",
     "graphic:model",
+    "effects:postprocess",
   ]
 
   createViewer(options: EngineViewerOptions): EngineViewer {
@@ -129,7 +137,9 @@ export class CesiumEngine implements Engine {
   }
 }
 
-export function createCesiumEngineContext(options: EngineViewerOptions): EngineContext {
+export function createCesiumEngineContext(
+  options: EngineViewerOptions,
+): EngineContext {
   const engine = new CesiumEngine()
   const viewer = engine.createViewer(options)
   return {
@@ -138,6 +148,7 @@ export function createCesiumEngineContext(options: EngineViewerOptions): EngineC
     native: {
       viewer: viewer.native,
     },
+    engine,
   }
 }
 
@@ -147,7 +158,7 @@ export function getCesiumViewer(native: unknown): Cesium.Viewer {
 
 function viewerConstructorOptions(
   options: EngineViewerOptions,
-  webgl: { failIfMajorPerformanceCaveat: boolean; antialias: boolean }
+  webgl: { failIfMajorPerformanceCaveat: boolean; antialias: boolean },
 ): ConstructorParameters<typeof Cesium.Viewer>[1] {
   return {
     animation: false,
@@ -180,11 +191,17 @@ function viewerConstructorOptions(
   }
 }
 
-function createCesiumViewer(container: Element, options: EngineViewerOptions): Cesium.Viewer {
+function createCesiumViewer(
+  container: Element,
+  options: EngineViewerOptions,
+): Cesium.Viewer {
   try {
     return new Cesium.Viewer(
       container,
-      viewerConstructorOptions(options, { failIfMajorPerformanceCaveat: true, antialias: true })
+      viewerConstructorOptions(options, {
+        failIfMajorPerformanceCaveat: true,
+        antialias: true,
+      }),
     )
   } catch (error) {
     options.onError?.({
@@ -195,13 +212,16 @@ function createCesiumViewer(container: Element, options: EngineViewerOptions): C
     try {
       return new Cesium.Viewer(
         container,
-        viewerConstructorOptions(options, { failIfMajorPerformanceCaveat: false, antialias: false })
+        viewerConstructorOptions(options, {
+          failIfMajorPerformanceCaveat: false,
+          antialias: false,
+        }),
       )
     } catch (fallbackError) {
       throw new Arc3DError(
         "ENGINE_FAILURE",
         "WebGL initialization failed. Enable hardware acceleration and confirm the browser supports WebGL2.",
-        fallbackError
+        fallbackError,
       )
     }
   }

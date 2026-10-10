@@ -24,7 +24,9 @@ import {
 export class MeasurementService {
   constructor(private readonly context: Arc3DContext) {}
 
-  async distance(options: { positions: PositionInput[] }): Promise<LengthResult> {
+  async distance(options: {
+    positions: PositionInput[]
+  }): Promise<LengthResult> {
     this.context.lifecycle.assertUsable("measure distance")
     const points = options.positions.map(toMeasurePoint)
     return {
@@ -51,20 +53,32 @@ export class MeasurementService {
     }
   }
 
-  async height(options: { from: PositionInput; to: PositionInput }): Promise<HeightResult> {
+  async height(options: {
+    from: PositionInput
+    to: PositionInput
+  }): Promise<HeightResult> {
     this.context.lifecycle.assertUsable("measure height")
     return {
-      meters: ellipsoidHeightDelta(toMeasurePoint(options.from), toMeasurePoint(options.to)),
+      meters: ellipsoidHeightDelta(
+        toMeasurePoint(options.from),
+        toMeasurePoint(options.to),
+      ),
       units: ANALYSIS_UNITS.length,
       heightDatum: "ellipsoid",
     }
   }
 
-  async verticalDistance(options: { from: PositionInput; to: PositionInput }): Promise<HeightResult> {
+  async verticalDistance(options: {
+    from: PositionInput
+    to: PositionInput
+  }): Promise<HeightResult> {
     return this.height(options)
   }
 
-  async horizontalDistance(options: { from: PositionInput; to: PositionInput }): Promise<LengthResult> {
+  async horizontalDistance(options: {
+    from: PositionInput
+    to: PositionInput
+  }): Promise<LengthResult> {
     this.context.lifecycle.assertUsable("measure horizontal distance")
     const from = toMeasurePoint(options.from)
     const to = toMeasurePoint(options.to)
@@ -74,7 +88,7 @@ export class MeasurementService {
           { ...from, height: 0 },
           { ...to, height: 0 },
         ],
-        "geodesic"
+        "geodesic",
       ),
       units: ANALYSIS_UNITS.length,
       mode: "geodesic",
@@ -82,10 +96,16 @@ export class MeasurementService {
     }
   }
 
-  async heading(options: { from: PositionInput; to: PositionInput }): Promise<AngleResult> {
+  async heading(options: {
+    from: PositionInput
+    to: PositionInput
+  }): Promise<AngleResult> {
     this.context.lifecycle.assertUsable("measure heading")
     return {
-      degrees: headingDegrees(toMeasurePoint(options.from), toMeasurePoint(options.to)),
+      degrees: headingDegrees(
+        toMeasurePoint(options.from),
+        toMeasurePoint(options.to),
+      ),
       units: ANALYSIS_UNITS.angle,
       reference: "north-clockwise",
     }
@@ -101,7 +121,7 @@ export class MeasurementService {
       degrees: spaceAngleDegrees(
         toMeasurePoint(options.from),
         toMeasurePoint(options.via),
-        toMeasurePoint(options.to)
+        toMeasurePoint(options.to),
       ),
       units: ANALYSIS_UNITS.angle,
     }
@@ -186,9 +206,14 @@ export {
   type AnalysisProgress,
 } from "./scheduler"
 export { buildCutFillGrid, accumulateCutFillWeighted } from "./cutfill"
-export { executeAnalysisJob, type AnalysisJob, type AnalysisJobResult } from "./jobs"
 export {
-  AnalysisWorkerHost,
+  executeAnalysisJob,
+  type AnalysisJob,
+  type AnalysisJobResult,
+} from "./jobs"
+export {
+  AnalysisJobHost,
+  AnalysisJobHost as AnalysisWorkerHost,
   serializeAnalysisError,
   restoreAnalysisError,
 } from "./worker-host"

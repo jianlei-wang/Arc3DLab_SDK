@@ -5,6 +5,7 @@ export type MaterialFactory = (options?: Record<string, unknown>) => unknown
 
 export class MaterialRegistry {
   private factories = new Map<string, MaterialFactory>()
+  private owners = new Map<string, string>()
 
   constructor(private readonly context: Arc3DContext) {
     this.register("color", (options) => options?.color ?? "#ffffff")
@@ -13,6 +14,22 @@ export class MaterialRegistry {
   register(type: string, factory: MaterialFactory): void {
     this.context.lifecycle.assertUsable("register material")
     this.factories.set(type, factory)
+    const owner = this.context.scopes?.owner
+    if (owner) {
+      this.owners.set(type, owner)
+      this.context.scopes.get(owner)?.track(() => this.unregister(type))
+    }
+  }
+
+  unregister(type: string): void {
+    this.factories.delete(type)
+    this.owners.delete(type)
+  }
+
+  unregisterByOwner(owner: string): void {
+    for (const [type, registeredOwner] of this.owners) {
+      if (registeredOwner === owner) this.unregister(type)
+    }
   }
 
   has(type: string): boolean {

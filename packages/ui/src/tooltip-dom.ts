@@ -5,12 +5,15 @@ export const TOOLTIP_OWNED_ATTR = "data-arc3d-owned"
 export function hostRelativePosition(
   clientX: number,
   clientY: number,
-  hostRect: { left: number; top: number }
+  hostRect: { left: number; top: number },
 ): WindowPosition {
   return { x: clientX - hostRect.left, y: clientY - hostRect.top }
 }
 
-export function tooltipOffsetStyle(position: WindowPosition): { left: string; top: string } {
+export function tooltipOffsetStyle(position: WindowPosition): {
+  left: string
+  top: string
+} {
   return {
     left: `${position.x + 15}px`,
     top: `${position.y + 20}px`,

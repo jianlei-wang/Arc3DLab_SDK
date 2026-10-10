@@ -6,12 +6,12 @@ export class EventBus<TEvents extends object> {
   constructor(
     private readonly options?: {
       onHandlerError?: (error: unknown, event: PropertyKey) => void
-    }
+    },
   ) {}
 
   on<K extends keyof TEvents>(
     event: K,
-    handler: (payload: TEvents[K]) => void
+    handler: (payload: TEvents[K]) => void,
   ): Unsubscribe {
     let set = this.handlers.get(event)
     if (!set) {
@@ -24,7 +24,7 @@ export class EventBus<TEvents extends object> {
 
   off<K extends keyof TEvents>(
     event: K,
-    handler?: (payload: TEvents[K]) => void
+    handler?: (payload: TEvents[K]) => void,
   ): void {
     if (!handler) {
       this.handlers.delete(event)

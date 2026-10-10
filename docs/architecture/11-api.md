@@ -1,6 +1,6 @@
 # 公共 API
 
-Updated: 2026-10-08
+Updated: 2026-10-09
 
 ## 稳定入口
 
@@ -18,7 +18,16 @@ const app = await Arc3D.create({
 - `Arc3D` / `Arc3DApp`
 - `Graphic` / `Layer`
 - `LngLat` / `LngLatHeight` / `CameraPose`
-- `PickResult` / `Arc3DPlugin` / `Arc3DError`
+- `PickResult` / `Arc3DPlugin` / `NativeContext`
+- `Arc3DError` / `createId`
+
+## 就绪语义
+
+`await Arc3D.create()` 解析时表示 Runtime facade 就绪（Manager 已接线、生命周期进入 `ready`）。底图、地形、数据等异步资源有独立状态，可能在 `ready` 之后才完成加载。默认底图成功 / 失败 / 关闭是三条确定路径；`whenSceneReady()` 作为后续增强（Planned）。
+
+## 公共类型白名单
+
+对外承诺类型通过根入口与 `@arc3dlab/sdk` 命名导出；禁止消费者深路径导入 `packages/*/src`。`app.native.viewer` 为 advanced / unstable 逃生舱，随 Cesium 版本变化，不纳入 SemVer 保证。
 
 P2 能力入口：
 

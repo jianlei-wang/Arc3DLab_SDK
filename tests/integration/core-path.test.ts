@@ -112,18 +112,19 @@ describe("Fake Engine runtime path", () => {
     const viewer = engine.createViewer({ container: "app" })
     const context = createContext(
       { container: "app" },
-      { type: engine.type, viewer, native: { viewer: viewer.native } }
+      { type: engine.type, viewer, native: { viewer: viewer.native }, engine },
     )
     context.lifecycle.transition("initializing")
-    registerCoreCapabilities(context.capabilities)
+    registerCoreCapabilities(context.capabilities, engine)
     context.lifecycle.transition("ready")
 
     const snapshot = getRuntimeDiagnostics(context)
     expect(snapshot.lifecycle).toBe("ready")
-    expect(context.capabilities.has("engine:cesium")).toBe(true)
+    expect(context.capabilities.has("render:entity")).toBe(true)
+    expect(context.capabilities.has("engine:cesium")).toBe(false)
     expect(() =>
-      context.capabilities.require("graphic:model", "add model")
-    ).not.toThrow()
+      context.capabilities.require("graphic:model", "add model"),
+    ).toThrow(Arc3DError)
 
     context.lifecycle.transition("destroying")
     context.lifecycle.transition("destroyed")
@@ -131,7 +132,7 @@ describe("Fake Engine runtime path", () => {
     expect(engine.viewer).toBeUndefined()
     expect((viewer as FakeViewer).destroyed).toBe(true)
     expect(() => context.lifecycle.assertUsable("add graphic")).toThrow(
-      Arc3DError
+      Arc3DError,
     )
   })
 })
@@ -159,14 +160,9 @@ describe("analysis and graphic core path", () => {
     const controller = new AbortController()
     controller.abort()
     await expect(
-      mapInChunks(
-        [1, 2, 3],
-        1,
-        async (value) => value,
-        ctx,
-        "chunk",
-        { signal: controller.signal }
-      )
+      mapInChunks([1, 2, 3], 1, async (value) => value, ctx, "chunk", {
+        signal: controller.signal,
+      }),
     ).rejects.toMatchObject({ code: "CANCELLED" })
   })
 
@@ -177,19 +173,22 @@ describe("analysis and graphic core path", () => {
         count: 2,
         dynamic: true,
         requestedMode: "entity",
-      })
+      }),
     ).toMatchObject({ mode: "entity", editable: true })
     expect(() =>
-      decideRenderPolicy({ type: "point", count: 1, requestedMode: "buffer" })
+      decideRenderPolicy({ type: "point", count: 1, requestedMode: "buffer" }),
     ).toThrow(Arc3DError)
   })
 })
 
 describe("plugin, tooltip, and identifier path", () => {
   it("installs then uninstalls a plugin", async () => {
-    const ctx = {
-      lifecycle: new LifecycleManager(),
-    } as unknown as Arc3DContext
+    const engine = new FakeEngine()
+    const viewer = engine.createViewer({ container: "app" })
+    const ctx = createContext(
+      { container: "app" },
+      { type: engine.type, viewer, native: { viewer: viewer.native }, engine },
+    )
     const manager = new PluginManager({ id: "app" }, ctx)
     let installed = false
     await manager.use({

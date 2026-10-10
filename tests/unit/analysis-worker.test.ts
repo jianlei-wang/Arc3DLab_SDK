@@ -63,7 +63,7 @@ describe("AnalysisWorkerHost", () => {
           [104.2, 30.7],
         ],
       },
-      { signal: controller.signal }
+      { signal: controller.signal },
     )
     controller.abort()
     await expect(pending).rejects.toMatchObject({ code: "CANCELLED" })
@@ -92,13 +92,13 @@ describe("AnalysisWorkerHost", () => {
           [104.2, 30.5],
           [104.2, 30.7],
         ],
-      })
+      }),
     ).rejects.toMatchObject({ code: "CANCELLED" })
   })
 
   it("serializes worker errors back into Arc3DError", () => {
     const payload = serializeAnalysisError(
-      new Arc3DError("INVALID_ARGUMENT", "bad job")
+      new Arc3DError("INVALID_ARGUMENT", "bad job"),
     )
     expect(payload).toEqual({
       code: "INVALID_ARGUMENT",

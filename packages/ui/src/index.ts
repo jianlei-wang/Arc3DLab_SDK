@@ -26,7 +26,9 @@ export class TooltipService {
   constructor(private readonly context: Arc3DContext) {
     const viewer = getCesiumViewer(context.engine.native.viewer)
     const host = viewer.container as HTMLElement
-    this.element = createOwnedTooltipElement(`arc3d-tooltip-${createId("tooltip")}`)
+    this.element = createOwnedTooltipElement(
+      `arc3d-tooltip-${createId("tooltip")}`,
+    )
     this.owned = true
     host.appendChild(this.element)
     this.onMove = (event) => this.place(event)
@@ -72,7 +74,11 @@ export class TooltipService {
     if (!this.visible) return
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
     const host = viewer.container as HTMLElement
-    const position = hostRelativePosition(event.clientX, event.clientY, host.getBoundingClientRect())
+    const position = hostRelativePosition(
+      event.clientX,
+      event.clientY,
+      host.getBoundingClientRect(),
+    )
     this.element.textContent = this.message
     const offset = tooltipOffsetStyle(position)
     this.element.style.left = offset.left

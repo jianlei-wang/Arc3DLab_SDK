@@ -57,9 +57,9 @@ describe("ResourceRegistry", () => {
     const registry = new ResourceRegistry()
     const handle = createHandle({ id: "a", type: "point", native: {} })
     registry.add(handle)
-    expect(() => registry.add(createHandle({ id: "a", type: "point", native: {} }))).toThrow(
-      Arc3DError
-    )
+    expect(() =>
+      registry.add(createHandle({ id: "a", type: "point", native: {} })),
+    ).toThrow(Arc3DError)
   })
 
   it("binds visible through the handle setter", () => {

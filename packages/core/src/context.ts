@@ -1,4 +1,4 @@
-import type { Arc3DConfig, Arc3DEvents, EngineContext } from "./types"
+import type { Arc3DConfig, Arc3DEvents, Engine, EngineContext } from "./types"
 import { CapabilityRegistry } from "./capabilities"
 import { CommandBus } from "./commands"
 import { DisposerStack } from "./disposer"
@@ -6,10 +6,13 @@ import { EventBus } from "./event-bus"
 import { LifecycleManager } from "./lifecycle"
 import { ConsoleLogger, type Logger } from "./logger"
 import { ResourceRegistry, ResourceTracker } from "./resource"
+import { PluginScopeManager } from "./plugin-scope"
 import { ToolRegistry } from "./tools"
 
-function createCoreCommandBus(): CommandBus {
-  const commands = new CommandBus()
+function createCoreCommandBus(
+  ownerProvider?: () => string | undefined,
+): CommandBus {
+  const commands = new CommandBus(ownerProvider)
   commands.register({
     name: "core.ping",
     version: "1.0.0",
@@ -22,6 +25,7 @@ function createCoreCommandBus(): CommandBus {
 export interface Arc3DContext {
   config: Arc3DConfig
   engine: EngineContext
+  engineAdapter: Engine | undefined
   registry: ResourceRegistry
   tracker: ResourceTracker
   events: EventBus<Arc3DEvents>
@@ -31,17 +35,23 @@ export interface Arc3DContext {
   commands: CommandBus
   tools: ToolRegistry
   disposers: DisposerStack
+  scopes: PluginScopeManager
 }
 
 export function createContext(
   config: Arc3DConfig,
   engine: EngineContext,
-  logger?: Logger
+  logger?: Logger,
+  engineAdapter?: Engine,
 ): Arc3DContext {
-  const resolvedLogger = logger ?? new ConsoleLogger(config.logger?.level ?? "warn")
+  const resolvedLogger =
+    logger ?? new ConsoleLogger(config.logger?.level ?? "warn")
+  const scopes = new PluginScopeManager()
+  const ownerProvider = () => scopes.owner
   return {
     config,
     engine,
+    engineAdapter: engineAdapter ?? engine.engine,
     registry: new ResourceRegistry(),
     tracker: new ResourceTracker(),
     events: new EventBus<Arc3DEvents>({
@@ -51,9 +61,10 @@ export function createContext(
     }),
     lifecycle: new LifecycleManager(),
     logger: resolvedLogger,
-    capabilities: new CapabilityRegistry(),
-    commands: createCoreCommandBus(),
-    tools: new ToolRegistry(),
+    capabilities: new CapabilityRegistry(ownerProvider),
+    commands: createCoreCommandBus(ownerProvider),
+    tools: new ToolRegistry(ownerProvider),
     disposers: new DisposerStack(),
+    scopes,
   }
 }

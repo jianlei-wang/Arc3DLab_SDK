@@ -7,7 +7,10 @@ import {
   assertPositions,
   createHandle,
 } from "@arc3dlab/core"
-import { applyNativeStyle, assertMutableStyle } from "../../packages/graphics/src/style"
+import {
+  applyNativeStyle,
+  assertMutableStyle,
+} from "../../packages/graphics/src/style"
 import {
   AUTO_PRIMITIVE_THRESHOLD,
   compareRenderBackends,
@@ -39,13 +42,24 @@ describe("resolveRenderMode", () => {
 
 describe("decideRenderPolicy", () => {
   it("keeps explicit modes and reports them as explicit", () => {
-    expect(decideRenderPolicy({ type: "polyline", count: 100, requestedMode: "entity" })).toEqual({
+    expect(
+      decideRenderPolicy({
+        type: "polyline",
+        count: 100,
+        requestedMode: "entity",
+      }),
+    ).toEqual({
       mode: "entity",
       reason: "explicit-mode",
       editable: true,
     })
     expect(
-      decideRenderPolicy({ type: "point", count: 1, dynamic: true, requestedMode: "primitive" })
+      decideRenderPolicy({
+        type: "point",
+        count: 1,
+        dynamic: true,
+        requestedMode: "primitive",
+      }),
     ).toEqual({
       mode: "primitive",
       reason: "explicit-mode",
@@ -54,7 +68,9 @@ describe("decideRenderPolicy", () => {
   })
 
   it("prefers entity for dynamic editing and models", () => {
-    expect(decideRenderPolicy({ type: "polygon", count: 80, dynamic: true })).toEqual({
+    expect(
+      decideRenderPolicy({ type: "polygon", count: 80, dynamic: true }),
+    ).toEqual({
       mode: "entity",
       reason: "dynamic-editing",
       editable: true,
@@ -104,20 +120,35 @@ describe("graphic child ids", () => {
 describe("graphic parameter validation", () => {
   it("rejects empty and short position lists", () => {
     expect(() => assertPositions([], 1, "point")).toThrow(Arc3DError)
-    expect(() => assertPositions([[120, 30]], 2, "polyline")).toThrow(Arc3DError)
-    expect(() => assertPositions([[120, 30], [121, 31]], 3, "polygon")).toThrow(Arc3DError)
+    expect(() => assertPositions([[120, 30]], 2, "polyline")).toThrow(
+      Arc3DError,
+    )
+    expect(() =>
+      assertPositions(
+        [
+          [120, 30],
+          [121, 31],
+        ],
+        3,
+        "polygon",
+      ),
+    ).toThrow(Arc3DError)
   })
 
   it("rejects illegal coordinates and non-finite values", () => {
     expect(() => assertPositions([[200, 30]], 1, "point")).toThrow(Arc3DError)
     expect(() => assertPositions([[120, 100]], 1, "point")).toThrow(Arc3DError)
-    expect(() => assertPositions([[Number.NaN, 30]], 1, "point")).toThrow(Arc3DError)
+    expect(() => assertPositions([[Number.NaN, 30]], 1, "point")).toThrow(
+      Arc3DError,
+    )
   })
 
   it("rejects invalid colors and negative sizes", () => {
     expect(() => assertGraphicStyle({ color: "  " })).toThrow(Arc3DError)
     expect(() => assertGraphicStyle({ pixelSize: -1 })).toThrow(Arc3DError)
-    expect(() => assertGraphicStyle({ width: Number.POSITIVE_INFINITY })).toThrow(Arc3DError)
+    expect(() =>
+      assertGraphicStyle({ width: Number.POSITIVE_INFINITY }),
+    ).toThrow(Arc3DError)
   })
 })
 
@@ -132,11 +163,18 @@ describe("resource id conflicts", () => {
 
 describe("Graphic.setStyle", () => {
   it("updates entity point color and pixelSize", () => {
-    const native = { point: { color: "red", outlineColor: "yellow", outlineWidth: 1, pixelSize: 10 } }
+    const native = {
+      point: {
+        color: "red",
+        outlineColor: "yellow",
+        outlineWidth: 1,
+        pixelSize: 10,
+      },
+    }
     applyNativeStyle(
       { id: "pt-1", type: "point", renderMode: "entity", native },
       { color: "#00ff00", pixelSize: 18 },
-      { color: (css) => css, colorAttribute: (css) => css }
+      { color: (css) => css, colorAttribute: (css) => css },
     )
     expect(native.point.color).toBe("#00ff00")
     expect(native.point.pixelSize).toBe(18)
@@ -147,7 +185,7 @@ describe("Graphic.setStyle", () => {
     applyNativeStyle(
       { id: "line-1", type: "polyline", renderMode: "entity", native },
       { color: "#0000ff", width: 6 },
-      { color: (css) => css, colorAttribute: (css) => css }
+      { color: (css) => css, colorAttribute: (css) => css },
     )
     expect(native.polyline.material).toBe("#0000ff")
     expect(native.polyline.width).toBe(6)
@@ -161,7 +199,7 @@ describe("Graphic.setStyle", () => {
     applyNativeStyle(
       { id: "poly-1", type: "polygon", renderMode: "entity", native },
       { fill: "#111111", outlineColor: "#222222", outlineWidth: 3 },
-      { color: (css) => css, colorAttribute: (css) => css }
+      { color: (css) => css, colorAttribute: (css) => css },
     )
     expect(native.polygon.material).toBe("#111111")
     expect(native.polyline.material).toBe("#222222")
@@ -173,7 +211,7 @@ describe("Graphic.setStyle", () => {
     applyNativeStyle(
       { id: "model-1", type: "model", renderMode: "entity", native },
       { color: "#abcdef" },
-      { color: (css) => css, colorAttribute: (css) => css }
+      { color: (css) => css, colorAttribute: (css) => css },
     )
     expect(native.model.color).toBe("#abcdef")
   })
@@ -192,7 +230,7 @@ describe("Graphic.setStyle", () => {
     applyNativeStyle(
       { id: "pts", type: "point", renderMode: "primitive", native },
       { color: "#00ffff", pixelSize: 14 },
-      { color: (css) => css, colorAttribute: (css) => css }
+      { color: (css) => css, colorAttribute: (css) => css },
     )
     expect(points[0]?.color).toBe("#00ffff")
     expect(points[1]?.pixelSize).toBe(14)
@@ -209,20 +247,25 @@ describe("Graphic.setStyle", () => {
     applyNativeStyle(
       { id: "line-p", type: "polyline", renderMode: "primitive", native },
       { color: "#ff00ff" },
-      { color: (css) => css, colorAttribute: (css) => `attr:${css}` }
+      { color: (css) => css, colorAttribute: (css) => `attr:${css}` },
     )
     expect(attrs.color).toBe("attr:#ff00ff")
   })
 
   it("rejects immutable primitive width changes", () => {
     expect(() =>
-      assertMutableStyle("polyline", "primitive", { width: 2 }, { width: 8 })
+      assertMutableStyle("polyline", "primitive", { width: 2 }, { width: 8 }),
     ).toThrow(Arc3DError)
   })
 
   it("rejects clampToGround changes after create", () => {
     expect(() =>
-      assertMutableStyle("polygon", "entity", { clampToGround: true }, { clampToGround: false })
+      assertMutableStyle(
+        "polygon",
+        "entity",
+        { clampToGround: true },
+        { clampToGround: false },
+      ),
     ).toThrow(Arc3DError)
   })
 })

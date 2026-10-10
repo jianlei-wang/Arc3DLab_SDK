@@ -24,7 +24,7 @@ export function slopeFromHeights(
   hCenter: number,
   hEast: number,
   hNorth: number,
-  sampleMeters: number
+  sampleMeters: number,
 ): SlopeSample {
   const dx = sampleMeters > 0 ? sampleMeters : 1
   const dzdx = (hEast - hCenter) / dx
@@ -51,20 +51,21 @@ export function destinationLngLat(
   longitude: number,
   latitude: number,
   headingDegrees: number,
-  distanceMeters: number
+  distanceMeters: number,
 ): { longitude: number; latitude: number } {
   const lat1 = (latitude * Math.PI) / 180
   const lon1 = (longitude * Math.PI) / 180
   const brng = (headingDegrees * Math.PI) / 180
   const angular = distanceMeters / EARTH_RADIUS
   const lat2 = Math.asin(
-    Math.sin(lat1) * Math.cos(angular) + Math.cos(lat1) * Math.sin(angular) * Math.cos(brng)
+    Math.sin(lat1) * Math.cos(angular) +
+      Math.cos(lat1) * Math.sin(angular) * Math.cos(brng),
   )
   const lon2 =
     lon1 +
     Math.atan2(
       Math.sin(brng) * Math.sin(angular) * Math.cos(lat1),
-      Math.cos(angular) - Math.sin(lat1) * Math.sin(lat2)
+      Math.cos(angular) - Math.sin(lat1) * Math.sin(lat2),
     )
   return {
     longitude: (lon2 * 180) / Math.PI,
@@ -76,18 +77,24 @@ export function haversineMeters(from: LngLatLike, to: LngLatLike): number {
   return geodesicDistanceMeters(from, to)
 }
 
-export function anyVertexInRect(positions: LngLatLike[], rect: RectQuery): boolean {
+export function anyVertexInRect(
+  positions: LngLatLike[],
+  rect: RectQuery,
+): boolean {
   return positions.some((point) => pointInRect(point, rect))
 }
 
-export function anyVertexInPolygon(positions: LngLatLike[], ring: LngLatLike[]): boolean {
+export function anyVertexInPolygon(
+  positions: LngLatLike[],
+  ring: LngLatLike[],
+): boolean {
   return positions.some((point) => pointInPolygon(point, ring))
 }
 
 export function anyVertexWithinMeters(
   positions: LngLatLike[],
   center: LngLatLike,
-  meters: number
+  meters: number,
 ): boolean {
   return positions.some((point) => haversineMeters(center, point) <= meters)
 }
@@ -95,7 +102,7 @@ export function anyVertexWithinMeters(
 export function rayRangeMeters(
   radius: number,
   sampleCount: number,
-  occludedIndex?: number
+  occludedIndex?: number,
 ): number {
   if (occludedIndex === undefined) return radius
   if (sampleCount <= 1) return 0
@@ -104,7 +111,7 @@ export function rayRangeMeters(
 
 export function accumulateCutFill(
   deltas: number[],
-  cellArea: number
+  cellArea: number,
 ): { cut: number; fill: number } {
   let cut = 0
   let fill = 0
@@ -118,9 +125,14 @@ export function accumulateCutFill(
 export function viewshedEnvelope(
   longitude: number,
   latitude: number,
-  rays: Array<{ heading: number; rangeMeters: number }>
+  rays: Array<{ heading: number; rangeMeters: number }>,
 ): LngLatLike[] {
   return rays.map((ray) =>
-    destinationLngLat(longitude, latitude, ray.heading, Math.max(ray.rangeMeters, 1))
+    destinationLngLat(
+      longitude,
+      latitude,
+      ray.heading,
+      Math.max(ray.rangeMeters, 1),
+    ),
   )
 }

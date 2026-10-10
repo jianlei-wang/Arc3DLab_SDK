@@ -20,9 +20,14 @@ export interface RenderPolicyDecision {
   editable: boolean
 }
 
-export function decideRenderPolicy(input: RenderPolicyInput): RenderPolicyDecision {
+export function decideRenderPolicy(
+  input: RenderPolicyInput,
+): RenderPolicyDecision {
   if (input.requestedMode === "buffer") {
-    throw new Arc3DError("UNSUPPORTED_CAPABILITY", "RenderMode.buffer is not implemented")
+    throw new Arc3DError(
+      "UNSUPPORTED_CAPABILITY",
+      "RenderMode.buffer is not implemented",
+    )
   }
   if (input.requestedMode === "entity" || input.requestedMode === "primitive") {
     return {
@@ -43,11 +48,18 @@ export function decideRenderPolicy(input: RenderPolicyInput): RenderPolicyDecisi
   return { mode: "entity", reason: "small-count", editable: true }
 }
 
-export function resolveRenderMode(mode: RenderMode | undefined, count: number): ConcreteRenderMode {
-  return decideRenderPolicy({ type: "polyline", count, requestedMode: mode }).mode
+export function resolveRenderMode(
+  mode: RenderMode | undefined,
+  count: number,
+): ConcreteRenderMode {
+  return decideRenderPolicy({ type: "polyline", count, requestedMode: mode })
+    .mode
 }
 
-export function graphicChildId(parentId: string, child: string | number): string {
+export function graphicChildId(
+  parentId: string,
+  child: string | number,
+): string {
   return `${parentId}#${child}`
 }
 

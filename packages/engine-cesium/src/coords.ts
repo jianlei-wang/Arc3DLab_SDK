@@ -5,7 +5,11 @@ export function toCartesian3(input: PositionInput): Cartesian3 {
   if (Array.isArray(input)) {
     return Cartesian3.fromDegrees(input[0], input[1], input[2] ?? 0)
   }
-  return Cartesian3.fromDegrees(input.longitude, input.latitude, "height" in input ? input.height : 0)
+  return Cartesian3.fromDegrees(
+    input.longitude,
+    input.latitude,
+    "height" in input ? input.height : 0,
+  )
 }
 
 export function toCartesian3Array(inputs: PositionInput[]): Cartesian3[] {

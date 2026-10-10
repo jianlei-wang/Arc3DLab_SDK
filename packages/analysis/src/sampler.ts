@@ -9,7 +9,8 @@ import {
 } from "./scheduler"
 
 export type TerrainHeightSource = "sampleHeight" | "globe" | "ellipsoid"
-export type TerrainSampleStatus = "sampled" | "fallback" | "unavailable" | "cancelled"
+export type TerrainSampleStatus =
+  "sampled" | "fallback" | "unavailable" | "cancelled"
 
 export interface SampledHeight {
   longitude: number
@@ -25,7 +26,11 @@ export function resolveTerrainSample(input: {
   globeHeight?: number | null
 }): Omit<SampledHeight, "longitude" | "latitude"> {
   if (input.sampleHeightSupported && Number.isFinite(input.detailedHeight)) {
-    return { height: input.detailedHeight as number, source: "sampleHeight", status: "sampled" }
+    return {
+      height: input.detailedHeight as number,
+      source: "sampleHeight",
+      status: "sampled",
+    }
   }
   if (Number.isFinite(input.globeHeight)) {
     return {
@@ -45,14 +50,14 @@ export async function sampleCartographics(
   context: Arc3DContext,
   cartos: Cartographic[],
   options?: AnalysisTaskOptions,
-  action = "sample terrain"
+  action = "sample terrain",
 ): Promise<SampledHeight[]> {
   throwIfCancelled(context, options?.signal, action)
   const viewer = getCesiumViewer(context.engine.native.viewer)
   if (cartos.length === 0) return []
   const limited = cartos.slice(
     0,
-    clampSampleCount(cartos.length, options?.maxSamples ?? cartos.length)
+    clampSampleCount(cartos.length, options?.maxSamples ?? cartos.length),
   )
   const clones = limited.map((item) => item.clone())
   const supported = Boolean(viewer.scene.sampleHeightSupported)
@@ -62,7 +67,7 @@ export async function sampleCartographics(
       context,
       options?.signal,
       action,
-      await viewer.scene.sampleHeightMostDetailed(clones)
+      await viewer.scene.sampleHeightMostDetailed(clones),
     )
   }
   return limited.map((item, index) => {

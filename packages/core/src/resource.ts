@@ -17,7 +17,10 @@ export class ResourceRegistry<T extends ResourceHandle = ResourceHandle> {
 
   add(resource: T): ResourceId {
     if (this.items.has(resource.id)) {
-      throw new Arc3DError("DUPLICATE_RESOURCE", `Resource already exists: ${resource.id}`)
+      throw new Arc3DError(
+        "DUPLICATE_RESOURCE",
+        `Resource already exists: ${resource.id}`,
+      )
     }
     this.items.set(resource.id, resource)
     return resource.id
@@ -59,7 +62,8 @@ export class ResourceRegistry<T extends ResourceHandle = ResourceHandle> {
     const destroyTree = (id: ResourceId): void => {
       if (seen.has(id)) return
       seen.add(id)
-      for (const child of [...(tracker?.childrenOf(id) ?? [])].reverse()) destroyTree(child)
+      for (const child of [...(tracker?.childrenOf(id) ?? [])].reverse())
+        destroyTree(child)
       const item = this.items.get(id)
       if (!item) return
       this.items.delete(id)
@@ -99,16 +103,14 @@ export class ResourceTracker {
   }
 }
 
-export function createHandle<TNative>(
-  options: {
-    id?: string
-    type: string
-    native: TNative
-    owned?: boolean
-    onDestroy?: () => void
-    onVisible?: (visible: boolean) => void
-  }
-): ResourceHandle<TNative> {
+export function createHandle<TNative>(options: {
+  id?: string
+  type: string
+  native: TNative
+  owned?: boolean
+  onDestroy?: () => void
+  onVisible?: (visible: boolean) => void
+}): ResourceHandle<TNative> {
   let visible = true
   let destroyed = false
   const id = options.id ?? createId(options.type)
@@ -137,7 +139,7 @@ export function createHandle<TNative>(
 export function registerAtomically<T extends ResourceHandle>(
   registry: ResourceRegistry,
   resource: T,
-  rollback: () => void
+  rollback: () => void,
 ): T {
   try {
     registry.add(resource)

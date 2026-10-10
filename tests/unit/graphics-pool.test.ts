@@ -41,8 +41,8 @@ describe("diffPositions", () => {
         [
           [104, 30.5],
           [104.1, 30.6],
-        ]
-      ).mode
+        ],
+      ).mode,
     ).toBe("replace")
     expect(
       diffPositions(
@@ -53,8 +53,8 @@ describe("diffPositions", () => {
         [
           [104.2, 30.6],
           [104.3, 30.7],
-        ]
-      ).mode
+        ],
+      ).mode,
     ).toBe("replace")
   })
 })
@@ -74,7 +74,7 @@ describe("applyPositionUpdates", () => {
       [
         { id: "a", positions: [104, 30.5] },
         { id: "missing", positions: [104.1, 30.6] },
-      ]
+      ],
     )
     expect(updated).toBe(1)
     expect(calls).toEqual([{ id: "a", positions: [104, 30.5] }])

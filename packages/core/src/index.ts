@@ -40,6 +40,12 @@ export {
   type CommandSpec,
 } from "./commands"
 export { ToolRegistry, type ToolSpec } from "./tools"
+export {
+  PluginScopeManager,
+  isPluginScope,
+  type PluginScope,
+  type PluginState,
+} from "./plugin-scope"
 export { createContext, type Arc3DContext } from "./context"
 export {
   assertFiniteNumber,

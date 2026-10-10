@@ -40,11 +40,14 @@ function samePoint(left: LngLatHeight, right: LngLatHeight): boolean {
 
 export function diffPositions(
   previous: LngLatHeight[],
-  next: PositionInput[]
+  next: PositionInput[],
 ): PositionPatch {
   const parsed = next.map((item) => parsePosition(item))
   if (previous.length !== parsed.length) {
-    return { mode: "replace", changes: parsed.map((position, index) => ({ index, position })) }
+    return {
+      mode: "replace",
+      changes: parsed.map((position, index) => ({ index, position })),
+    }
   }
   const changes: PositionPatch["changes"] = []
   for (let index = 0; index < parsed.length; index += 1) {
@@ -59,8 +62,12 @@ export function diffPositions(
 }
 
 export function applyPositionUpdates(
-  get: (id: string) => { setPositions: (positions: PositionInput | PositionInput[]) => void } | undefined,
-  updates: Array<{ id: string; positions: PositionInput | PositionInput[] }>
+  get: (
+    id: string,
+  ) =>
+    | { setPositions: (positions: PositionInput | PositionInput[]) => void }
+    | undefined,
+  updates: Array<{ id: string; positions: PositionInput | PositionInput[] }>,
 ): number {
   let updated = 0
   for (const update of updates) {

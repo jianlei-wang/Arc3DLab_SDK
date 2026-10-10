@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { classifyPickedId, normalizeResourceId, parentResourceId } from "../../packages/interaction/src/pick"
+import {
+  classifyPickedId,
+  normalizeResourceId,
+  parentResourceId,
+} from "../../packages/interaction/src/pick"
 import { pickIdentity, resolvePick } from "../../packages/interaction/src/pick"
 
 describe("picking classification", () => {
@@ -15,21 +19,35 @@ describe("picking classification", () => {
   const lookup = (id: string) => resources.get(id)
 
   it("classifies registered entity graphics", () => {
-    expect(classifyPickedId("point-1", lookup)).toEqual({ graphicId: "point-1" })
-    expect(classifyPickedId("model-1", lookup)).toEqual({ graphicId: "model-1" })
+    expect(classifyPickedId("point-1", lookup)).toEqual({
+      graphicId: "point-1",
+    })
+    expect(classifyPickedId("model-1", lookup)).toEqual({
+      graphicId: "model-1",
+    })
   })
 
   it("maps primitive child ids back to the parent graphic", () => {
     expect(parentResourceId("poly-1#fill")).toBe("poly-1")
-    expect(classifyPickedId("poly-1#fill", lookup)).toEqual({ graphicId: "poly-1" })
-    expect(classifyPickedId("poly-1#outline", lookup)).toEqual({ graphicId: "poly-1" })
-    expect(classifyPickedId("points-1#0", lookup)).toEqual({ graphicId: "points-1" })
-    expect(classifyPickedId("model-1#node", lookup)).toEqual({ graphicId: "model-1" })
+    expect(classifyPickedId("poly-1#fill", lookup)).toEqual({
+      graphicId: "poly-1",
+    })
+    expect(classifyPickedId("poly-1#outline", lookup)).toEqual({
+      graphicId: "poly-1",
+    })
+    expect(classifyPickedId("points-1#0", lookup)).toEqual({
+      graphicId: "points-1",
+    })
+    expect(classifyPickedId("model-1#node", lookup)).toEqual({
+      graphicId: "model-1",
+    })
   })
 
   it("classifies layers without writing graphicId", () => {
     expect(classifyPickedId("layer-1", lookup)).toEqual({ layerId: "layer-1" })
-    expect(classifyPickedId("basemap-1", lookup)).toEqual({ layerId: "basemap-1" })
+    expect(classifyPickedId("basemap-1", lookup)).toEqual({
+      layerId: "basemap-1",
+    })
   })
 
   it("leaves unknown native objects unclassified", () => {
@@ -43,22 +61,28 @@ describe("picking classification", () => {
         lookup,
         tilesetId: "layer-1",
         hasNative: true,
-      })
+      }),
     ).toEqual({ kind: "tiles-feature", layerId: "layer-1" })
     expect(
       resolvePick({
         lookup,
         tilesetId: "missing-tileset",
         hasNative: true,
-      })
+      }),
     ).toEqual({ kind: "native" })
-    expect(resolvePick({ lookup, isTerrain: true })).toEqual({ kind: "terrain" })
-    expect(resolvePick({ lookup, rawId: "cesium-orphan", hasNative: true })).toEqual({ kind: "native" })
+    expect(resolvePick({ lookup, isTerrain: true })).toEqual({
+      kind: "terrain",
+    })
+    expect(
+      resolvePick({ lookup, rawId: "cesium-orphan", hasNative: true }),
+    ).toEqual({ kind: "native" })
     expect(resolvePick({ lookup })).toEqual({ kind: "empty" })
   })
 
   it("does not invent graphic ids for unknown objects", () => {
-    expect(resolvePick({ lookup, rawId: "ghost#fill", hasNative: true })).toEqual({ kind: "native" })
+    expect(
+      resolvePick({ lookup, rawId: "ghost#fill", hasNative: true }),
+    ).toEqual({ kind: "native" })
     expect(pickIdentity({ graphicId: "point-1" })).toBe("graphic:point-1")
     expect(pickIdentity({ layerId: "layer-1" })).toBe("layer:layer-1")
     expect(pickIdentity({ kind: "terrain" })).toBe("terrain")

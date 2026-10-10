@@ -17,7 +17,7 @@ export interface CutFillGrid {
 
 function pointInXy(
   point: { east: number; north: number },
-  ring: Array<{ east: number; north: number }>
+  ring: Array<{ east: number; north: number }>,
 ): boolean {
   if (ring.length < 3) return false
   let inside = false
@@ -28,7 +28,8 @@ function pointInXy(
     const yj = ring[j].north
     const intersect =
       yi > point.north !== yj > point.north &&
-      point.east < ((xj - xi) * (point.north - yi)) / (yj - yi + Number.EPSILON) + xi
+      point.east <
+        ((xj - xi) * (point.north - yi)) / (yj - yi + Number.EPSILON) + xi
     if (intersect) inside = !inside
   }
   return inside
@@ -39,7 +40,7 @@ function cellCoverage(
   south: number,
   east: number,
   north: number,
-  ring: Array<{ east: number; north: number }>
+  ring: Array<{ east: number; north: number }>,
 ): number {
   const probes = [
     { east: west, north: south },
@@ -52,9 +53,17 @@ function cellCoverage(
   return hits / probes.length
 }
 
-export function buildCutFillGrid(ring: LngLatLike[], samples: number): CutFillGrid {
+export function buildCutFillGrid(
+  ring: LngLatLike[],
+  samples: number,
+): CutFillGrid {
   if (ring.length < 3 || samples < 1) {
-    return { cells: [], resolutionMeters: 0, cellWidthMeters: 0, cellHeightMeters: 0 }
+    return {
+      cells: [],
+      resolutionMeters: 0,
+      cellWidthMeters: 0,
+      cellHeightMeters: 0,
+    }
   }
   const origin = ring[0]
   const projected = ring.map((point) => toLocalMeters(origin, point))
@@ -66,7 +75,8 @@ export function buildCutFillGrid(ring: LngLatLike[], samples: number): CutFillGr
   const height = Math.max(north - south, 0)
   const cellWidthMeters = width / samples
   const cellHeightMeters = height / samples
-  const resolutionMeters = Math.hypot(cellWidthMeters, cellHeightMeters) / Math.SQRT2
+  const resolutionMeters =
+    Math.hypot(cellWidthMeters, cellHeightMeters) / Math.SQRT2
   const cells: CutFillCell[] = []
   for (let i = 0; i < samples; i += 1) {
     for (let j = 0; j < samples; j += 1) {
@@ -74,14 +84,21 @@ export function buildCutFillGrid(ring: LngLatLike[], samples: number): CutFillGr
       const cellSouth = south + j * cellHeightMeters
       const cellEast = cellWest + cellWidthMeters
       const cellNorth = cellSouth + cellHeightMeters
-      const coverage = cellCoverage(cellWest, cellSouth, cellEast, cellNorth, projected)
+      const coverage = cellCoverage(
+        cellWest,
+        cellSouth,
+        cellEast,
+        cellNorth,
+        projected,
+      )
       if (coverage <= 0) continue
       const center = fromLocalMeters(
         origin,
         (cellWest + cellEast) / 2,
-        (cellSouth + cellNorth) / 2
+        (cellSouth + cellNorth) / 2,
       )
-      if (coverage < 1 && !pointInPolygon(center, ring) && coverage < 0.2) continue
+      if (coverage < 1 && !pointInPolygon(center, ring) && coverage < 0.2)
+        continue
       cells.push({
         longitude: center.longitude,
         latitude: center.latitude,
@@ -94,7 +111,7 @@ export function buildCutFillGrid(ring: LngLatLike[], samples: number): CutFillGr
 }
 
 export function accumulateCutFillWeighted(
-  samples: Array<{ delta: number; area: number }>
+  samples: Array<{ delta: number; area: number }>,
 ): { cut: number; fill: number } {
   let cut = 0
   let fill = 0
@@ -107,7 +124,7 @@ export function accumulateCutFillWeighted(
 
 export function estimateCutFillError(
   cells: CutFillCell[],
-  deltas: number[]
+  deltas: number[],
 ): number {
   let error = 0
   for (let i = 0; i < cells.length; i += 1) {

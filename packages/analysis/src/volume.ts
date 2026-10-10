@@ -2,10 +2,13 @@ import type { Arc3DContext, PositionInput } from "@arc3dlab/core"
 import { Cartographic } from "cesium"
 import type { ClipAnalysis, ExcavationResult } from "./clip"
 import { toMeasurePoint } from "./geometry"
-import { accumulateCutFillWeighted, buildCutFillGrid, estimateCutFillError } from "./cutfill"
+import {
+  accumulateCutFillWeighted,
+  buildCutFillGrid,
+  estimateCutFillError,
+} from "./cutfill"
 import { sampleCartographics } from "./sampler"
 import type { AnalysisTaskOptions } from "./scheduler"
-
 
 export interface CutFillResult {
   cutCubicMeters: number
@@ -19,7 +22,7 @@ export interface CutFillResult {
 export class VolumeAnalysis {
   constructor(
     private readonly context: Arc3DContext,
-    private readonly clip: ClipAnalysis
+    private readonly clip: ClipAnalysis,
   ) {}
 
   async cutFill(options: {
@@ -44,7 +47,10 @@ export class VolumeAnalysis {
     }
 
     const sampleCap = options.maxSamples ?? 10_000
-    const samples = Math.max(1, Math.min(options.samples ?? 16, Math.floor(Math.sqrt(sampleCap))))
+    const samples = Math.max(
+      1,
+      Math.min(options.samples ?? 16, Math.floor(Math.sqrt(sampleCap))),
+    )
     const grid = buildCutFillGrid(ring, samples)
     if (grid.cells.length === 0) {
       return {
@@ -66,14 +72,18 @@ export class VolumeAnalysis {
       this.context,
       cartos,
       { signal: options.signal, onProgress: options.onProgress },
-      "analyze cut fill"
+      "analyze cut fill",
     )
     const heights = sampled.map((item) => item.height)
     const designHeight =
-      options.designHeight ?? heights.reduce((sum, value) => sum + value, 0) / heights.length
+      options.designHeight ??
+      heights.reduce((sum, value) => sum + value, 0) / heights.length
     const deltas = heights.map((value) => value - designHeight)
     const { cut, fill } = accumulateCutFillWeighted(
-      deltas.map((delta, index) => ({ delta, area: grid.cells[index].areaSquareMeters }))
+      deltas.map((delta, index) => ({
+        delta,
+        area: grid.cells[index].areaSquareMeters,
+      })),
     )
     return {
       cutCubicMeters: cut,
@@ -85,9 +95,15 @@ export class VolumeAnalysis {
     }
   }
 
-  async excavate(options: { positions: PositionInput[]; depth: number }): Promise<ExcavationResult> {
+  async excavate(options: {
+    positions: PositionInput[]
+    depth: number
+  }): Promise<ExcavationResult> {
     this.context.lifecycle.assertUsable("excavate volume")
-    return this.clip.setExcavation({ positions: options.positions, depth: options.depth })
+    return this.clip.setExcavation({
+      positions: options.positions,
+      depth: options.depth,
+    })
   }
 
   clear(): void {
@@ -95,6 +111,5 @@ export class VolumeAnalysis {
     if (this.clip.list().includes("excavation")) this.clip.clear()
   }
 
-  destroy(): void {
-  }
+  destroy(): void {}
 }

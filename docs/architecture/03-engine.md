@@ -1,6 +1,6 @@
 # Engine Adapter
 
-Updated: 2026-10-08
+Updated: 2026-10-09
 
 ## 接口
 
@@ -8,6 +8,8 @@ Updated: 2026-10-08
 interface Engine {
   readonly type: string
   createViewer(options: EngineViewerOptions): EngineViewer
+  hasCapability(name: string): boolean
+  mapError(error: unknown): { message: string; code?: string }
   destroy(): void
 }
 ```
@@ -22,9 +24,15 @@ class CesiumEngine implements Engine {
 
 `EngineViewer.native` 暴露底层 Viewer，供高级用户通过 `app.native.viewer` 访问。
 
+## 运行时边界
+
+`createCesiumEngineContext()` 返回的 `EngineContext` 携带 `engine` 实例；`Arc3DContext.engineAdapter` 保存同一实例，`destroy()` 统一经它释放。引擎能力由 `hasCapability()` 在注册时回报，`CapabilityRegistry` 不再无条件宣称全部能力为可用。
+
 ## 实例配置
 
 Ion Token、默认相机矩形、分辨率、深度检测、Mapbox 控件映射都在 `createViewer` 时写入实例，模块 import 保持纯净。
+
+需要临时改写 `Cesium.Ion.defaultAccessToken` 的临界区统一走串行化 Token 作用域（`SerialIonTokenScope`）：任务排队进入，退出即恢复原始值，并发任务不会互相覆盖凭据。Viewer 构造不再永久改写共享 Token。
 
 ## Credits
 

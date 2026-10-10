@@ -15,7 +15,11 @@ import {
   KmlDataSource,
   type DataSource,
 } from "cesium"
-import { createProviderHandle, type ProviderHandle, type ProviderSpec } from "./providers"
+import {
+  createProviderHandle,
+  type ProviderHandle,
+  type ProviderSpec,
+} from "./providers"
 
 export type DataFormat = "geojson" | "kml" | "czml"
 
@@ -45,10 +49,16 @@ export class DataManager {
 
     let source: DataSource
     try {
-      if (spec.type === "geojson") source = await GeoJsonDataSource.load(spec.url)
+      if (spec.type === "geojson")
+        source = await GeoJsonDataSource.load(spec.url)
       else if (spec.type === "kml") source = await KmlDataSource.load(spec.url)
-      else if (spec.type === "czml") source = await CzmlDataSource.load(spec.url)
-      else throw new Arc3DError("INVALID_ARGUMENT", `Unsupported data type: ${String(spec.type)}`)
+      else if (spec.type === "czml")
+        source = await CzmlDataSource.load(spec.url)
+      else
+        throw new Arc3DError(
+          "INVALID_ARGUMENT",
+          `Unsupported data type: ${String(spec.type)}`,
+        )
     } catch (error) {
       throw classifyLoadError(error)
     }

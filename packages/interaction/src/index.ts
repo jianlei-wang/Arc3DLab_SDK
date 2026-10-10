@@ -1,9 +1,33 @@
-import type { Arc3DContext, PickResult, ResourceHandle, Unsubscribe, WindowPosition } from "@arc3dlab/core"
+import type {
+  Arc3DContext,
+  PickResult,
+  ResourceHandle,
+  Unsubscribe,
+  WindowPosition,
+} from "@arc3dlab/core"
 import { fromCartesian3, getCesiumViewer } from "@arc3dlab/engine-cesium"
-import { Cartesian2, Cesium3DTileFeature, ScreenSpaceEventHandler, ScreenSpaceEventType, defined } from "cesium"
-import { HoverGate, normalizeResourceId, pickIdentity, resolvePick } from "./pick"
+import {
+  Cartesian2,
+  Cesium3DTileFeature,
+  ScreenSpaceEventHandler,
+  ScreenSpaceEventType,
+  defined,
+} from "cesium"
+import {
+  HoverGate,
+  normalizeResourceId,
+  pickIdentity,
+  resolvePick,
+} from "./pick"
 
-export { HoverGate, classifyPickedId, normalizeResourceId, parentResourceId, pickIdentity, resolvePick } from "./pick"
+export {
+  HoverGate,
+  classifyPickedId,
+  normalizeResourceId,
+  parentResourceId,
+  pickIdentity,
+  resolvePick,
+} from "./pick"
 
 export interface InteractionPickEvent extends PickResult {
   graphic?: { id: string }
@@ -42,7 +66,10 @@ export class SelectionController {
 
 export class InteractionManager {
   private handler: ScreenSpaceEventHandler | undefined
-  private listeners = new Map<keyof InteractionEvents, Set<(payload: never) => void>>()
+  private listeners = new Map<
+    keyof InteractionEvents,
+    Set<(payload: never) => void>
+  >()
   readonly selection: SelectionController
   private readonly hoverGate = new HoverGate()
   private readonly canvas: HTMLCanvasElement
@@ -56,23 +83,36 @@ export class InteractionManager {
     this.canvas = viewer.canvas
     this.selection = new SelectionController(context)
     this.handler = new ScreenSpaceEventHandler(viewer.canvas)
-    this.handler.setInputAction((movement: { position: { x: number; y: number } }) => {
-      const event = this.pick(movement.position)
-      if (event.graphicId) this.selection.set(event.graphicId)
-      else this.selection.clear()
-      this.emit("click", event)
-      this.context.events.emit("pick", event)
-    }, ScreenSpaceEventType.LEFT_CLICK)
-    this.handler.setInputAction((movement: { endPosition: { x: number; y: number } }) => {
-      const windowPosition = { x: movement.endPosition.x, y: movement.endPosition.y }
-      const event = this.pick(windowPosition)
-      if (this.hoverGate.observe(pickIdentity(event))) this.emit("hover", event)
-      this.emit("move", { windowPosition })
-    }, ScreenSpaceEventType.MOUSE_MOVE)
+    this.handler.setInputAction(
+      (movement: { position: { x: number; y: number } }) => {
+        const event = this.pick(movement.position)
+        if (event.graphicId) this.selection.set(event.graphicId)
+        else this.selection.clear()
+        this.emit("click", event)
+        this.context.events.emit("pick", event)
+      },
+      ScreenSpaceEventType.LEFT_CLICK,
+    )
+    this.handler.setInputAction(
+      (movement: { endPosition: { x: number; y: number } }) => {
+        const windowPosition = {
+          x: movement.endPosition.x,
+          y: movement.endPosition.y,
+        }
+        const event = this.pick(windowPosition)
+        if (this.hoverGate.observe(pickIdentity(event)))
+          this.emit("hover", event)
+        this.emit("move", { windowPosition })
+      },
+      ScreenSpaceEventType.MOUSE_MOVE,
+    )
     this.canvas.addEventListener("mouseleave", this.onCanvasLeave)
   }
 
-  on<K extends keyof InteractionEvents>(event: K, handler: (payload: InteractionEvents[K]) => void): Unsubscribe {
+  on<K extends keyof InteractionEvents>(
+    event: K,
+    handler: (payload: InteractionEvents[K]) => void,
+  ): Unsubscribe {
     let set = this.listeners.get(event)
     if (!set) {
       set = new Set()
@@ -82,7 +122,10 @@ export class InteractionManager {
     return () => this.off(event, handler)
   }
 
-  off<K extends keyof InteractionEvents>(event: K, handler?: (payload: InteractionEvents[K]) => void): void {
+  off<K extends keyof InteractionEvents>(
+    event: K,
+    handler?: (payload: InteractionEvents[K]) => void,
+  ): void {
     if (!handler) {
       this.listeners.delete(event)
       return
@@ -101,13 +144,21 @@ export class InteractionManager {
       cartesian = undefined
     }
     if (!defined(cartesian)) {
-      cartesian = viewer.camera.pickEllipsoid(window, viewer.scene.globe.ellipsoid)
+      cartesian = viewer.camera.pickEllipsoid(
+        window,
+        viewer.scene.globe.ellipsoid,
+      )
     }
-    const hasNative = defined(picked) && typeof picked === "object" && picked !== null
-    const rawId = hasNative ? normalizeResourceId((picked as { id?: unknown }).id) : undefined
+    const hasNative =
+      defined(picked) && typeof picked === "object" && picked !== null
+    const rawId = hasNative
+      ? normalizeResourceId((picked as { id?: unknown }).id)
+      : undefined
     let tilesetId: string | undefined
     if (picked instanceof Cesium3DTileFeature) {
-      tilesetId = this.context.registry.values().find((item) => item.native === picked.tileset)?.id
+      tilesetId = this.context.registry
+        .values()
+        .find((item) => item.native === picked.tileset)?.id
     }
     const resolved = resolvePick({
       rawId,
@@ -149,7 +200,10 @@ export class InteractionManager {
     this.hoverGate.reset()
   }
 
-  private emit<K extends keyof InteractionEvents>(event: K, payload: InteractionEvents[K]): void {
+  private emit<K extends keyof InteractionEvents>(
+    event: K,
+    payload: InteractionEvents[K],
+  ): void {
     const set = this.listeners.get(event)
     if (!set) return
     for (const handler of Array.from(set)) handler(payload as never)
@@ -158,5 +212,4 @@ export class InteractionManager {
   private emptyPick(): InteractionPickEvent {
     return { kind: "empty", windowPosition: { x: -1, y: -1 } }
   }
-
 }

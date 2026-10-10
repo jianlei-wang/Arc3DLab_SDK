@@ -7,8 +7,16 @@ import {
   type Arc3DContext,
   type ResourceHandle,
 } from "@arc3dlab/core"
-import { getCesiumViewer, readIonToken, withIonAccessToken } from "@arc3dlab/engine-cesium"
-import { createImageryProvider, DataManager, type ProviderSpec } from "@arc3dlab/data"
+import {
+  getCesiumViewer,
+  readIonToken,
+  withIonAccessToken,
+} from "@arc3dlab/engine-cesium"
+import {
+  createImageryProvider,
+  DataManager,
+  type ProviderSpec,
+} from "@arc3dlab/data"
 import {
   CesiumTerrainProvider,
   EllipsoidTerrainProvider,
@@ -38,7 +46,10 @@ export class BasemapManager {
   async set(spec: BasemapSpec): Promise<Layer> {
     this.context.lifecycle.assertUsable("set basemap")
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    const provider = await createImageryProvider(spec, this.context.config.tokens?.tdt)
+    const provider = await createImageryProvider(
+      spec,
+      this.context.config.tokens?.tdt,
+    )
     assertAlive(this.context.lifecycle, "set basemap")
     if (this.current) {
       this.current.destroy()
@@ -85,12 +96,17 @@ export class BasemapManager {
 export class ImageryOverlayManager {
   constructor(private readonly context: Arc3DContext) {}
 
-  async add(spec: BasemapSpec & { id?: string; name?: string }): Promise<Layer> {
+  async add(
+    spec: BasemapSpec & { id?: string; name?: string },
+  ): Promise<Layer> {
     this.context.lifecycle.assertUsable("add imagery")
     const id = spec.id ?? createId("imagery")
     assertNewResourceId(this.context.registry, id)
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    const provider = await createImageryProvider(spec, this.context.config.tokens?.tdt)
+    const provider = await createImageryProvider(
+      spec,
+      this.context.config.tokens?.tdt,
+    )
     assertAlive(this.context.lifecycle, "add imagery")
     const imagery = viewer.imageryLayers.addImageryProvider(provider)
     const handle = createHandle({
@@ -147,7 +163,8 @@ export class TerrainManager {
       return
     }
     if (spec.type === "url") {
-      if (!spec.url) throw new Arc3DError("INVALID_ARGUMENT", "Terrain url is required")
+      if (!spec.url)
+        throw new Arc3DError("INVALID_ARGUMENT", "Terrain url is required")
       const provider = await CesiumTerrainProvider.fromUrl(spec.url)
       assertAlive(this.context.lifecycle, "set terrain")
       viewer.terrainProvider = provider
@@ -159,16 +176,22 @@ export class TerrainManager {
       }
       const token = readIonToken(this.context.config)
       if (!token) {
-        throw new Arc3DError("AUTH_FAILED", "Ion terrain requires a runtime ion token")
+        throw new Arc3DError(
+          "AUTH_FAILED",
+          "Ion terrain requires a runtime ion token",
+        )
       }
       const provider = await withIonAccessToken(token, () =>
-        CesiumTerrainProvider.fromIonAssetId(spec.assetId as number)
+        CesiumTerrainProvider.fromIonAssetId(spec.assetId as number),
       )
       assertAlive(this.context.lifecycle, "set terrain")
       viewer.terrainProvider = provider
       return
     }
-    throw new Arc3DError("INVALID_ARGUMENT", `Unsupported terrain type: ${String(spec.type)}`)
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `Unsupported terrain type: ${String(spec.type)}`,
+    )
   }
 
   get exaggeration(): number {
@@ -185,14 +208,20 @@ export class TerrainManager {
 
   set alpha(value: number) {
     this._alpha = value
-    const distance = this.viewer().scene.globe.translucency.frontFaceAlphaByDistance
+    const distance =
+      this.viewer().scene.globe.translucency.frontFaceAlphaByDistance
     distance.nearValue = value
     distance.farValue = value
   }
 
   set translucency(enabled: boolean) {
     const globe = this.viewer().scene.globe
-    globe.translucency.frontFaceAlphaByDistance = new NearFarScalar(1.5e2, 0.5, 8.0e6, 1.0)
+    globe.translucency.frontFaceAlphaByDistance = new NearFarScalar(
+      1.5e2,
+      0.5,
+      8.0e6,
+      1.0,
+    )
     globe.translucency.enabled = enabled
     this.alpha = this._alpha
   }
@@ -202,18 +231,24 @@ export class TerrainManager {
   }
 
   set enableUnderground(enabled: boolean) {
-    this.viewer().scene.screenSpaceCameraController.enableCollisionDetection = !enabled
+    this.viewer().scene.screenSpaceCameraController.enableCollisionDetection =
+      !enabled
   }
 
   get enableUnderground(): boolean {
-    return !this.viewer().scene.screenSpaceCameraController.enableCollisionDetection
+    return !this.viewer().scene.screenSpaceCameraController
+      .enableCollisionDetection
   }
 }
 
 export class TilesetManager {
   constructor(private readonly context: Arc3DContext) {}
 
-  async add(options: { id?: string; url?: string; assetId?: number }): Promise<Layer> {
+  async add(options: {
+    id?: string
+    url?: string
+    assetId?: number
+  }): Promise<Layer> {
     this.context.lifecycle.assertUsable("add tileset")
     const id = options.id ?? createId("tileset")
     assertNewResourceId(this.context.registry, id)
@@ -221,13 +256,17 @@ export class TilesetManager {
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
     let tileset
     if (options.assetId !== undefined) {
-      tileset = await withIonAccessToken(readIonToken(this.context.config), () =>
-        Cesium3DTileset.fromIonAssetId(options.assetId as number)
+      tileset = await withIonAccessToken(
+        readIonToken(this.context.config),
+        () => Cesium3DTileset.fromIonAssetId(options.assetId as number),
       )
     } else if (options.url) {
       tileset = await Cesium3DTileset.fromUrl(options.url)
     } else {
-      throw new Arc3DError("INVALID_ARGUMENT", "Tileset requires url or assetId")
+      throw new Arc3DError(
+        "INVALID_ARGUMENT",
+        "Tileset requires url or assetId",
+      )
     }
     assertAlive(this.context.lifecycle, "add tileset", () => {
       tileset.destroy()

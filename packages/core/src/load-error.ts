@@ -52,7 +52,11 @@ export function classifyLoadFailure(error: unknown): ClassifiedLoadError {
   ) {
     return { code: "NETWORK_FAILURE", stage: "network", message }
   }
-  if (/parse|json|xml|kml|czml|geojson|syntax|malformed|invalid format/.test(lower)) {
+  if (
+    /parse|json|xml|kml|czml|geojson|syntax|malformed|invalid format/.test(
+      lower,
+    )
+  ) {
     return { code: "INVALID_FORMAT", stage: "format", message }
   }
   if (/webgl|gpu|context lost|engine/.test(lower)) {

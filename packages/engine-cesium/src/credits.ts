@@ -10,7 +10,8 @@ export class CreditManager {
   setMode(mode: CreditMode, container?: Element): void {
     this.mode = mode
     this.customContainer = container
-    const creditContainer = this.viewer.cesiumWidget.creditContainer as HTMLElement
+    const creditContainer = this.viewer.cesiumWidget
+      .creditContainer as HTMLElement
     if (mode === "custom" && container instanceof HTMLElement) {
       creditContainer.style.display = "none"
       container.appendChild(creditContainer)
@@ -25,6 +26,9 @@ export class CreditManager {
   }
 
   getContainer(): Element | undefined {
-    return this.customContainer ?? (this.viewer.cesiumWidget.creditContainer as Element)
+    return (
+      this.customContainer ??
+      (this.viewer.cesiumWidget.creditContainer as Element)
+    )
   }
 }

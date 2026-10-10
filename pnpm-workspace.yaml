@@ -1,2 +1,5 @@
+# Canonical package manager for this repository is npm (see packageManager
+# in package.json and the committed package-lock.json). This file is kept only
+# for tooling that probes for a pnpm workspace; do not run pnpm install here.
 packages:
   - "packages/*"

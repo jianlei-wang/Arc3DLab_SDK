@@ -34,8 +34,12 @@ export class Viewer {
       Add: {
         addPoints: (
           positions: Array<[number, number] | [number, number, number]>,
-          style?: { color?: string; pixelSize?: number; clampToGround?: boolean },
-          usePrimitive = false
+          style?: {
+            color?: string
+            pixelSize?: number
+            clampToGround?: boolean
+          },
+          usePrimitive = false,
         ) =>
           this.app.graphics.addPoints({
             positions,
@@ -45,7 +49,7 @@ export class Viewer {
         addLines: (
           positions: Array<[number, number] | [number, number, number]>,
           style?: { color?: string; width?: number; clampToGround?: boolean },
-          usePrimitive = false
+          usePrimitive = false,
         ) =>
           this.app.graphics.addPolyline({
             positions,
@@ -54,8 +58,13 @@ export class Viewer {
           }),
         addPolygons: (
           positions: Array<[number, number] | [number, number, number]>,
-          style?: { fill?: string; outline?: boolean; outlineColor?: string; clampToGround?: boolean },
-          usePrimitive = false
+          style?: {
+            fill?: string
+            outline?: boolean
+            outlineColor?: string
+            clampToGround?: boolean
+          },
+          usePrimitive = false,
         ) =>
           this.app.graphics.addPolygon({
             positions,
@@ -65,7 +74,8 @@ export class Viewer {
       },
       get: (id: string) => this.app.graphics.get(id) ?? this.app.layers.imagery,
       remove: (id: string) => this.app.graphics.remove(id),
-      show: (id: string, visible: boolean) => this.app.graphics.show(id, visible),
+      show: (id: string, visible: boolean) =>
+        this.app.graphics.show(id, visible),
       clear: () => this.app.graphics.clear(),
     }
   }

@@ -1,6 +1,6 @@
 # Runtime Core
 
-Updated: 2026-10-08
+Updated: 2026-10-09
 
 ## Arc3DContext
 
@@ -8,13 +8,21 @@ Updated: 2026-10-08
 interface Arc3DContext {
   config: Arc3DConfig
   engine: EngineContext
+  engineAdapter?: Engine
   registry: ResourceRegistry
   events: EventBus
   lifecycle: LifecycleManager
   logger: Logger
   capabilities: CapabilityRegistry
+  commands: CommandBus
+  tools: ToolRegistry
+  scopes: PluginScopeManager
+  disposers: DisposerStack
+  tracker: ResourceTracker
 }
 ```
+
+`engineAdapter` 持有可注入的 `Engine` 实例，`destroy()` 统一走 `engineAdapter.destroy()`；缺失时回退到 `engine.viewer.destroy()`。`PluginScopeManager` 为每个插件提供隔离作用域，并注入不可伪造的归属标识。
 
 ## 生命周期
 
@@ -23,6 +31,8 @@ created -> initializing -> ready -> destroying -> destroyed
 ```
 
 `destroyed` 之后调用公共 API 会抛出 `Arc3DError`，错误码为 `APP_DESTROYED`。
+
+`ready` 表示 Runtime facade 与各 Manager 就绪，底图、地形、数据等异步资源有各自独立的加载状态（见 `11-api.md`）。
 
 ## EventBus
 
@@ -64,3 +74,24 @@ interface ResourceHandle<TNative = unknown> {
 ## ID
 
 使用 `crypto.randomUUID()`；在不支持的环境回退到单调递增 `arc3d-{timestamp}-{n}`。
+
+## Diagnostics
+
+`getRuntimeDiagnostics(context)` 返回只读快照，`Arc3DApp.getDiagnostics()` 在其基础上追加 `postprocess` 与 `plugins`：
+
+```ts
+interface RuntimeDiagnostics {
+  lifecycle: LifecycleState
+  resources: Record<string, number>
+  disposerCount: number
+  listenerCount: number
+  trackedParents: number
+  capabilities: number
+  commands: number
+  tools: number
+  activeTool: string | null
+  pluginScopes: string[]
+}
+```
+
+销毁、取消、卸载后可用该快照断言无残留；快照复制计数，不暴露可变内部结构。

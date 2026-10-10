@@ -1,5 +1,9 @@
 import type { Arc3DContext, PositionInput } from "@arc3dlab/core"
-import { getCesiumViewer, toCartesian3, toCartesian3Array } from "@arc3dlab/engine-cesium"
+import {
+  getCesiumViewer,
+  toCartesian3,
+  toCartesian3Array,
+} from "@arc3dlab/engine-cesium"
 import {
   Cartesian3,
   Cartographic,
@@ -32,13 +36,23 @@ export class ClipAnalysis {
       "plane",
       new ClippingPlaneCollection({
         modelMatrix: Transforms.eastNorthUpToFixedFrame(origin),
-        planes: [new ClippingPlane(new Cartesian3(Math.sin(heading), Math.cos(heading), 0), 0)],
+        planes: [
+          new ClippingPlane(
+            new Cartesian3(Math.sin(heading), Math.cos(heading), 0),
+            0,
+          ),
+        ],
         enabled: true,
-      })
+      }),
     )
   }
 
-  setBox(options: { west: number; south: number; east: number; north: number }): void {
+  setBox(options: {
+    west: number
+    south: number
+    east: number
+    north: number
+  }): void {
     this.context.lifecycle.assertUsable("set clip box")
     const centerLon = (options.west + options.east) / 2
     const centerLat = (options.south + options.north) / 2
@@ -60,7 +74,7 @@ export class ClipAnalysis {
           new ClippingPlane(new Cartesian3(0, -1, 0), halfY),
         ],
         enabled: true,
-      })
+      }),
     )
   }
 
@@ -69,13 +83,20 @@ export class ClipAnalysis {
     this.clearPlanes()
     const globe = getCesiumViewer(this.context.engine.native.viewer).scene.globe
     globe.clippingPolygons = new ClippingPolygonCollection({
-      polygons: [new ClippingPolygon({ positions: toCartesian3Array(options.positions) })],
+      polygons: [
+        new ClippingPolygon({
+          positions: toCartesian3Array(options.positions),
+        }),
+      ],
       enabled: true,
     })
     this.active = ["polygon"]
   }
 
-  setExcavation(options: { positions: PositionInput[]; depth: number }): ExcavationResult {
+  setExcavation(options: {
+    positions: PositionInput[]
+    depth: number
+  }): ExcavationResult {
     this.context.lifecycle.assertUsable("set excavation")
     const cartesians = toCartesian3Array(options.positions)
     if (cartesians.length < 3) {
@@ -88,7 +109,10 @@ export class ClipAnalysis {
       this.active = []
       return empty
     }
-    const origin = cartesians.reduce((sum, point) => Cartesian3.add(sum, point, sum), new Cartesian3())
+    const origin = cartesians.reduce(
+      (sum, point) => Cartesian3.add(sum, point, sum),
+      new Cartesian3(),
+    )
     Cartesian3.multiplyByScalar(origin, 1 / cartesians.length, origin)
     const globe = getCesiumViewer(this.context.engine.native.viewer).scene.globe
     globe.clippingPolygons = new ClippingPolygonCollection({

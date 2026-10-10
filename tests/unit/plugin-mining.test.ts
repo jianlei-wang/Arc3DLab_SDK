@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { createPluginHarness } from "../../packages/sdk/src/plugin-harness"
-import { createMiningPlugin } from "../../packages/sdk/src/mining-plugin"
+import { createPluginHarness } from "../fixtures/plugin-harness"
+import { createMiningPlugin } from "../../examples/domain-plugins/mining-plugin"
 
 describe("mining domain plugin", () => {
   it("loads sample graphics, layers, analysis, and UI on install", async () => {
@@ -12,7 +12,7 @@ describe("mining domain plugin", () => {
     expect(host.layers.list()).toEqual(["mining-site"])
     expect(host.ui.status).toContain("mining ready")
     const area = await host.context.commands.execute<{ squareMeters: number }>(
-      "mining.analyze"
+      "mining.analyze",
     )
     expect(area.squareMeters).toBeGreaterThan(0)
     await host.context.tools.activate("mining.inspect")
@@ -30,7 +30,9 @@ describe("mining domain plugin", () => {
     expect(host.context.commands.has("mining.load")).toBe(false)
     expect(host.context.tools.has("mining.inspect")).toBe(false)
     expect(host.context.capabilities.has("plugin:mining")).toBe(false)
-    await expect(host.context.commands.execute("core.ping")).resolves.toBe("pong")
+    await expect(host.context.commands.execute("core.ping")).resolves.toBe(
+      "pong",
+    )
     expect(host.context.capabilities.has("analysis:measure")).toBe(true)
 
     await host.plugins.use(createMiningPlugin())
@@ -48,17 +50,17 @@ describe("mining domain plugin", () => {
       host.context.commands.execute("mining.load", {
         source: "network",
         offline: true,
-      })
+      }),
     ).rejects.toMatchObject({ code: "NETWORK_FAILURE" })
     expect(plugin.status).toEqual({ state: "offline" })
 
     await expect(
-      host.context.commands.execute("mining.load", { source: "network" })
+      host.context.commands.execute("mining.load", { source: "network" }),
     ).rejects.toMatchObject({ code: "AUTH_FAILED" })
     expect(plugin.status.state).toBe("failed")
 
     await expect(
-      host.context.commands.execute("mining.load", { format: "invalid" })
+      host.context.commands.execute("mining.load", { format: "invalid" }),
     ).rejects.toMatchObject({ code: "INVALID_FORMAT" })
 
     const partial = await host.context.commands.execute("mining.load", {

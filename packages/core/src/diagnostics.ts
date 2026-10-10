@@ -7,9 +7,16 @@ export interface RuntimeDiagnostics {
   disposerCount: number
   listenerCount: number
   trackedParents: number
+  capabilities: number
+  commands: number
+  tools: number
+  activeTool: string | null
+  pluginScopes: string[]
 }
 
-export function getRuntimeDiagnostics(context: Arc3DContext): RuntimeDiagnostics {
+export function getRuntimeDiagnostics(
+  context: Arc3DContext,
+): RuntimeDiagnostics {
   const resources: Record<string, number> = {}
   for (const item of context.registry.values()) {
     resources[item.type] = (resources[item.type] ?? 0) + 1
@@ -20,5 +27,10 @@ export function getRuntimeDiagnostics(context: Arc3DContext): RuntimeDiagnostics
     disposerCount: context.disposers.size,
     listenerCount: context.events.listenerCount,
     trackedParents: context.tracker.size,
+    capabilities: context.capabilities.list().length,
+    commands: context.commands.list().length,
+    tools: context.tools.list().length,
+    activeTool: context.tools.activeTool ?? null,
+    pluginScopes: context.scopes.list(),
   }
 }

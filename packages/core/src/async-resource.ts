@@ -6,10 +6,17 @@ export interface LifecycleGate {
   assertUsable(action: string): void
 }
 
-export function assertAlive(lifecycle: LifecycleGate, action: string, dispose?: () => void): void {
+export function assertAlive(
+  lifecycle: LifecycleGate,
+  action: string,
+  dispose?: () => void,
+): void {
   if (lifecycle.isTerminating || lifecycle.isDestroyed) {
     dispose?.()
-    throw new Arc3DError("APP_DESTROYED", `Cannot ${action} after Arc3DApp has been destroyed`)
+    throw new Arc3DError(
+      "APP_DESTROYED",
+      `Cannot ${action} after Arc3DApp has been destroyed`,
+    )
   }
   try {
     lifecycle.assertUsable(action)
@@ -23,8 +30,12 @@ export async function afterAwait<T>(
   lifecycle: LifecycleGate,
   action: string,
   value: T,
-  dispose?: (value: T) => void
+  dispose?: (value: T) => void,
 ): Promise<T> {
-  assertAlive(lifecycle, action, value !== undefined && dispose ? () => dispose(value) : undefined)
+  assertAlive(
+    lifecycle,
+    action,
+    value !== undefined && dispose ? () => dispose(value) : undefined,
+  )
   return value
 }

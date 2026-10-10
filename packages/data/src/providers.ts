@@ -11,7 +11,8 @@ import {
   type ImageryProvider,
 } from "cesium"
 
-export type ProviderType = "xyz" | "wms" | "wmts" | "tdt" | "arcgis" | "ion" | "single" | "tms"
+export type ProviderType =
+  "xyz" | "wms" | "wmts" | "tdt" | "arcgis" | "ion" | "single" | "tms"
 
 export interface ProviderSpec {
   type: ProviderType
@@ -41,7 +42,7 @@ export function tdtUrl(mode: string, token: string): string {
 
 export async function createImageryProvider(
   spec: ProviderSpec,
-  fallbackToken?: string
+  fallbackToken?: string,
 ): Promise<ImageryProvider> {
   try {
     return await createImageryProviderUnchecked(spec, fallbackToken)
@@ -52,20 +53,30 @@ export async function createImageryProvider(
 
 async function createImageryProviderUnchecked(
   spec: ProviderSpec,
-  fallbackToken?: string
+  fallbackToken?: string,
 ): Promise<ImageryProvider> {
   const credit = spec.credit ? new Credit(spec.credit) : undefined
   if (spec.type === "xyz") {
-    return new UrlTemplateImageryProvider({ url: spec.urlTemplate ?? spec.url ?? "", credit })
+    return new UrlTemplateImageryProvider({
+      url: spec.urlTemplate ?? spec.url ?? "",
+      credit,
+    })
   }
   if (spec.type === "tms") {
-    return TileMapServiceImageryProvider.fromUrl(spec.url ?? spec.urlTemplate ?? "", { credit })
+    return TileMapServiceImageryProvider.fromUrl(
+      spec.url ?? spec.urlTemplate ?? "",
+      { credit },
+    )
   }
   if (spec.type === "wms") {
     return new WebMapServiceImageryProvider({
       url: spec.url ?? "",
       layers: spec.layers ?? "",
-      parameters: { transparent: true, format: "image/png", ...spec.parameters },
+      parameters: {
+        transparent: true,
+        format: "image/png",
+        ...spec.parameters,
+      },
       credit,
     })
   }
@@ -82,7 +93,10 @@ async function createImageryProviderUnchecked(
   if (spec.type === "tdt") {
     const token = spec.token ?? fallbackToken ?? ""
     if (!token) {
-      throw new Arc3DError("AUTH_FAILED", "Tianditu basemap requires a runtime token")
+      throw new Arc3DError(
+        "AUTH_FAILED",
+        "Tianditu basemap requires a runtime token",
+      )
     }
     return new WebMapTileServiceImageryProvider({
       url: tdtUrl(spec.mode ?? "img", token),
@@ -106,12 +120,15 @@ async function createImageryProviderUnchecked(
   if (spec.type === "single") {
     return SingleTileImageryProvider.fromUrl(spec.url ?? "")
   }
-  throw new Arc3DError("INVALID_ARGUMENT", `Unsupported provider type: ${String((spec as ProviderSpec).type)}`)
+  throw new Arc3DError(
+    "INVALID_ARGUMENT",
+    `Unsupported provider type: ${String((spec as ProviderSpec).type)}`,
+  )
 }
 
 export async function createProviderHandle(
   spec: ProviderSpec,
-  fallbackToken?: string
+  fallbackToken?: string,
 ): Promise<ProviderHandle> {
   const native = await createImageryProvider(spec, fallbackToken)
   return {

@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest"
-import { LifecycleManager, ResourceRegistry, createHandle, type Arc3DContext } from "@arc3dlab/core"
+import {
+  LifecycleManager,
+  ResourceRegistry,
+  createHandle,
+  type Arc3DContext,
+} from "@arc3dlab/core"
 import { SelectionController } from "@arc3dlab/interaction"
 
-function selection(): { controller: SelectionController; registry: ResourceRegistry } {
+function selection(): {
+  controller: SelectionController
+  registry: ResourceRegistry
+} {
   const registry = new ResourceRegistry()
   const controller = new SelectionController({
     lifecycle: new LifecycleManager(),

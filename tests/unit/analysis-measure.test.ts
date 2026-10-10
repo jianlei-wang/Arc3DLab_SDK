@@ -40,7 +40,12 @@ describe("MeasurementService", () => {
   })
 
   it("returns zero area for fewer than 3 positions", async () => {
-    const result = await measure().area({ positions: [[120, 30], [121, 30]] })
+    const result = await measure().area({
+      positions: [
+        [120, 30],
+        [121, 30],
+      ],
+    })
     expect(result.squareMeters).toBe(0)
   })
 

@@ -3,7 +3,9 @@ import { LifecycleManager, type Arc3DContext } from "@arc3dlab/core"
 import { VisibilityAnalysis } from "@arc3dlab/analysis"
 import { Cartographic } from "cesium"
 
-function visibility(heightAt: (longitude: number, latitude: number) => number): VisibilityAnalysis {
+function visibility(
+  heightAt: (longitude: number, latitude: number) => number,
+): VisibilityAnalysis {
   return new VisibilityAnalysis({
     lifecycle: new LifecycleManager(),
     engine: {
@@ -15,7 +17,7 @@ function visibility(heightAt: (longitude: number, latitude: number) => number): 
               getHeight(carto: Cartographic) {
                 return heightAt(
                   (carto.longitude * 180) / Math.PI,
-                  (carto.latitude * 180) / Math.PI
+                  (carto.latitude * 180) / Math.PI,
                 )
               },
             },
@@ -39,7 +41,9 @@ describe("VisibilityAnalysis", () => {
   })
 
   it("detects a ridge that blocks the sight line", async () => {
-    const result = await visibility((longitude) => (longitude > 120.008 && longitude < 120.012 ? 80 : 0)).lineOfSight({
+    const result = await visibility((longitude) =>
+      longitude > 120.008 && longitude < 120.012 ? 80 : 0,
+    ).lineOfSight({
       from: [120, 30, 10],
       to: [120.02, 30, 10],
       samples: 16,
@@ -65,7 +69,9 @@ describe("VisibilityAnalysis", () => {
   })
 
   it("shortens rangeMeters when a ridge occludes a ray", async () => {
-    const result = await visibility((longitude) => (longitude > 120.002 ? 80 : 0)).viewshed({
+    const result = await visibility((longitude) =>
+      longitude > 120.002 ? 80 : 0,
+    ).viewshed({
       observer: [120, 30],
       radius: 500,
       rays: 4,
@@ -79,7 +85,11 @@ describe("VisibilityAnalysis", () => {
   })
 
   it("draws a ground primitive when draw is true", async () => {
-    const primitives: { items: unknown[]; add(item: unknown): unknown; remove(item: unknown): void } = {
+    const primitives: {
+      items: unknown[]
+      add(item: unknown): unknown
+      remove(item: unknown): void
+    } = {
       items: [],
       add(item) {
         this.items.push(item)

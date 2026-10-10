@@ -44,7 +44,7 @@ describe("lineOfSightFromSamples", () => {
         { lineHeight: 10, terrainHeight: 0 },
         { lineHeight: 10, terrainHeight: 4 },
         { lineHeight: 10, terrainHeight: 0 },
-      ]).visible
+      ]).visible,
     ).toBe(true)
   })
 
@@ -69,7 +69,12 @@ describe("destinationLngLat", () => {
 
 describe("pointInRect", () => {
   it("includes interior points", () => {
-    expect(pointInRect({ longitude: 120.1, latitude: 30.1 }, { west: 120, south: 30, east: 121, north: 31 })).toBe(true)
+    expect(
+      pointInRect(
+        { longitude: 120.1, latitude: 30.1 },
+        { west: 120, south: 30, east: 121, north: 31 },
+      ),
+    ).toBe(true)
   })
 })
 
@@ -88,7 +93,12 @@ describe("pointInPolygon", () => {
 
 describe("haversineMeters", () => {
   it("is near zero for the same point", () => {
-    expect(haversineMeters({ longitude: 120, latitude: 30 }, { longitude: 120, latitude: 30 })).toBeCloseTo(0, 5)
+    expect(
+      haversineMeters(
+        { longitude: 120, latitude: 30 },
+        { longitude: 120, latitude: 30 },
+      ),
+    ).toBeCloseTo(0, 5)
   })
 })
 

@@ -1,39 +1,113 @@
 import { Arc3DError } from "./errors"
+import type { Engine } from "./types"
+
+export type CapabilitySource = "sdk" | "backend"
 
 export interface CapabilityRecord {
   name: string
   provider: string
   version: string
   available: boolean
+  source?: CapabilitySource
 }
 
 export const CORE_CAPABILITIES: CapabilityRecord[] = [
-  { name: "engine:cesium", provider: "arc3dlab", version: "1.0.0", available: true },
-  { name: "render:entity", provider: "arc3dlab", version: "1.0.0", available: true },
-  { name: "render:primitive", provider: "arc3dlab", version: "1.0.0", available: true },
-  { name: "graphic:model", provider: "arc3dlab", version: "1.0.0", available: true },
-  { name: "analysis:measure", provider: "arc3dlab", version: "1.0.0", available: true },
-  { name: "analysis:terrain", provider: "arc3dlab", version: "1.0.0", available: true },
-  { name: "analysis:visibility", provider: "arc3dlab", version: "1.0.0", available: true },
-  { name: "analysis:query", provider: "arc3dlab", version: "1.0.0", available: true },
-  { name: "analysis:clip", provider: "arc3dlab", version: "1.0.0", available: true },
-  { name: "analysis:volume", provider: "arc3dlab", version: "1.0.0", available: true },
-  { name: "effects:postprocess", provider: "arc3dlab", version: "1.0.0", available: true },
+  {
+    name: "engine:cesium",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "backend",
+  },
+  {
+    name: "render:entity",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "backend",
+  },
+  {
+    name: "render:primitive",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "backend",
+  },
+  {
+    name: "graphic:model",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "backend",
+  },
+  {
+    name: "effects:postprocess",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "backend",
+  },
+  {
+    name: "analysis:measure",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "sdk",
+  },
+  {
+    name: "analysis:terrain",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "sdk",
+  },
+  {
+    name: "analysis:visibility",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "sdk",
+  },
+  {
+    name: "analysis:query",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "sdk",
+  },
+  {
+    name: "analysis:clip",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "sdk",
+  },
+  {
+    name: "analysis:volume",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "sdk",
+  },
 ]
 
 export class CapabilityRegistry {
   private items = new Map<string, CapabilityRecord>()
 
+  constructor(private readonly ownerProvider?: () => string | undefined) {}
+
   register(name: string | CapabilityRecord): void {
-    const record: CapabilityRecord =
+    const base: CapabilityRecord =
       typeof name === "string"
         ? { name, provider: "arc3dlab", version: "1.0.0", available: true }
-        : name
+        : { ...name }
+    const owner = this.ownerProvider?.()
+    const record: CapabilityRecord = owner ? { ...base, provider: owner } : base
     const existing = this.items.get(record.name)
     if (existing && existing.provider !== record.provider) {
       throw new Arc3DError(
         "DUPLICATE_RESOURCE",
-        `Capability already registered: ${record.name} by ${existing.provider}`
+        `Capability already registered: ${record.name} by ${existing.provider}`,
       )
     }
     this.items.set(record.name, record)
@@ -48,9 +122,11 @@ export class CapabilityRegistry {
   }
 
   require(name: string, action: string): void {
-    if (this.items.size === 0) return
     if (this.has(name)) return
-    throw new Arc3DError("UNSUPPORTED_CAPABILITY", `Capability not available: ${name} (${action})`)
+    throw new Arc3DError(
+      "UNSUPPORTED_CAPABILITY",
+      `Capability not available: ${name} (${action})`,
+    )
   }
 
   list(): string[] {
@@ -74,9 +150,19 @@ export class CapabilityRegistry {
       if (record.provider === provider) this.items.delete(name)
     }
   }
-
 }
 
-export function registerCoreCapabilities(registry: CapabilityRegistry): void {
-  for (const capability of CORE_CAPABILITIES) registry.register(capability)
+export function registerCoreCapabilities(
+  registry: CapabilityRegistry,
+  engine?: Engine,
+): void {
+  for (const capability of CORE_CAPABILITIES) {
+    const available =
+      capability.source === "backend"
+        ? engine
+          ? engine.hasCapability(capability.name)
+          : capability.available
+        : capability.available
+    registry.register({ ...capability, available })
+  }
 }

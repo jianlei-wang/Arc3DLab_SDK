@@ -24,7 +24,7 @@ describe("polygonAreaSquareMeters", () => {
         { longitude: 0, latitude: 0 },
         { longitude: 1, latitude: 0 },
         { longitude: 2, latitude: 0 },
-      ])
+      ]),
     ).toBeCloseTo(0, 3)
   })
 
@@ -70,18 +70,35 @@ describe("polygonAreaSquareMeters", () => {
 
 describe("headingDegrees", () => {
   it("is 0 heading north and 90 heading east", () => {
-    expect(headingDegrees({ longitude: 0, latitude: 0 }, { longitude: 0, latitude: 1 })).toBeCloseTo(0, 5)
-    expect(headingDegrees({ longitude: 0, latitude: 0 }, { longitude: 1, latitude: 0 })).toBeCloseTo(90, 5)
+    expect(
+      headingDegrees(
+        { longitude: 0, latitude: 0 },
+        { longitude: 0, latitude: 1 },
+      ),
+    ).toBeCloseTo(0, 5)
+    expect(
+      headingDegrees(
+        { longitude: 0, latitude: 0 },
+        { longitude: 1, latitude: 0 },
+      ),
+    ).toBeCloseTo(90, 5)
   })
 
   it("takes the short arc across the antimeridian", () => {
-    expect(headingDegrees({ longitude: 179, latitude: 0 }, { longitude: -179, latitude: 0 })).toBeCloseTo(90, 1)
+    expect(
+      headingDegrees(
+        { longitude: 179, latitude: 0 },
+        { longitude: -179, latitude: 0 },
+      ),
+    ).toBeCloseTo(90, 1)
   })
 })
 
 describe("antimeridian rect split", () => {
   it("splits west>east rectangles into two parts", () => {
-    expect(splitRectAtAntimeridian({ west: 170, south: 0, east: -170, north: 1 })).toEqual([
+    expect(
+      splitRectAtAntimeridian({ west: 170, south: 0, east: -170, north: 1 }),
+    ).toEqual([
       { west: 170, south: 0, east: 180, north: 1 },
       { west: -180, south: 0, east: -170, north: 1 },
     ])
@@ -133,7 +150,9 @@ describe("geometryMatchesPolygon", () => {
       { longitude: 120.3, latitude: 30.1 },
       { longitude: 120.1, latitude: 30.1 },
     ]
-    expect(geometryMatchesPolygon("polygon", graphic, query, "intersect")).toBe(true)
+    expect(geometryMatchesPolygon("polygon", graphic, query, "intersect")).toBe(
+      true,
+    )
   })
 })
 
@@ -153,14 +172,19 @@ describe("geometryMatchesDistance", () => {
           { longitude: 119.91, latitude: 30 },
         ],
         center,
-        200
-      )
+        200,
+      ),
     ).toBe(false)
   })
 
   it("treats a point inside a polygon as distance zero", () => {
     expect(
-      geometryMatchesDistance("polygon", equatorSquare, { longitude: 0.4, latitude: 0.4 }, 1)
+      geometryMatchesDistance(
+        "polygon",
+        equatorSquare,
+        { longitude: 0.4, latitude: 0.4 },
+        1,
+      ),
     ).toBe(true)
   })
 })

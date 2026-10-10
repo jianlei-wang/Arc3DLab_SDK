@@ -13,7 +13,12 @@ import {
   type RenderMode,
   type ResourceHandle,
 } from "@arc3dlab/core"
-import { fromCartesian3, getCesiumViewer, toCartesian3, toCartesian3Array } from "@arc3dlab/engine-cesium"
+import {
+  fromCartesian3,
+  getCesiumViewer,
+  toCartesian3,
+  toCartesian3Array,
+} from "@arc3dlab/engine-cesium"
 import { applyPositionUpdates } from "./pool"
 import {
   Color,
@@ -36,8 +41,16 @@ import {
   Transforms,
   type Viewer,
 } from "cesium"
-import { decideRenderPolicy, graphicChildId, type ConcreteRenderMode } from "./policy"
-import { applyNativeStyle, assertMutableStyle, mergeGraphicStyle } from "./style"
+import {
+  decideRenderPolicy,
+  graphicChildId,
+  type ConcreteRenderMode,
+} from "./policy"
+import {
+  applyNativeStyle,
+  assertMutableStyle,
+  mergeGraphicStyle,
+} from "./style"
 
 export interface Graphic extends ResourceHandle {
   readonly renderMode: ConcreteRenderMode
@@ -76,7 +89,11 @@ export {
   AUTO_PRIMITIVE_THRESHOLD,
   compareRenderBackends,
 } from "./policy"
-export { applyNativeStyle, assertMutableStyle, mergeGraphicStyle } from "./style"
+export {
+  applyNativeStyle,
+  assertMutableStyle,
+  mergeGraphicStyle,
+} from "./style"
 export {
   createPositionPool,
   diffPositions,
@@ -87,13 +104,22 @@ export {
 function parseColor(value: string | undefined, fallback: string): Color {
   const parsed = Color.fromCssColorString(value ?? fallback)
   if (!parsed) {
-    throw new Arc3DError("INVALID_ARGUMENT", `Invalid color: ${value ?? fallback}`)
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `Invalid color: ${value ?? fallback}`,
+    )
   }
   return parsed
 }
 
 function asList(positions: PositionInput | PositionInput[]): PositionInput[] {
-  if (Array.isArray(positions) && positions.length > 0 && (Array.isArray(positions[0]) || typeof (positions[0] as PositionInput & { longitude?: number }).longitude === "number")) {
+  if (
+    Array.isArray(positions) &&
+    positions.length > 0 &&
+    (Array.isArray(positions[0]) ||
+      typeof (positions[0] as PositionInput & { longitude?: number })
+        .longitude === "number")
+  ) {
     return positions as PositionInput[]
   }
   return [positions as PositionInput]
@@ -112,7 +138,12 @@ export function syncPointCollection(
   },
   groupId: string,
   positions: PositionInput[],
-  style: { color: unknown; outlineColor: unknown; pixelSize: number; outlineWidth: number }
+  style: {
+    color: unknown
+    outlineColor: unknown
+    pixelSize: number
+    outlineWidth: number
+  },
 ): void {
   const cartesians = positions.map((position) => toCartesian3(position))
   while (collection.length > cartesians.length) {
@@ -151,7 +182,7 @@ class ManagedGraphic implements Graphic {
     positions: LngLatHeight[],
     private currentStyle: GraphicStyle,
     private readonly applyPositions?: (positions: PositionInput[]) => void,
-    private readonly onChange?: (reason: string) => void
+    private readonly onChange?: (reason: string) => void,
   ) {
     this.native = native
     this.currentPositions = positions
@@ -181,12 +212,18 @@ class ManagedGraphic implements Graphic {
     assertGraphicStyle(style)
     assertMutableStyle(this.type, this.renderMode, this.currentStyle, style)
     applyNativeStyle(
-      { id: this.id, type: this.type, renderMode: this.renderMode, native: this.native },
+      {
+        id: this.id,
+        type: this.type,
+        renderMode: this.renderMode,
+        native: this.native,
+      },
       style,
       {
         color: (css) => parseColor(css, "#ffffff"),
-        colorAttribute: (css) => ColorGeometryInstanceAttribute.toValue(parseColor(css, "#ffffff")),
-      }
+        colorAttribute: (css) =>
+          ColorGeometryInstanceAttribute.toValue(parseColor(css, "#ffffff")),
+      },
     )
     this.currentStyle = mergeGraphicStyle(this.currentStyle, style)
     this.onChange?.("graphic-style")
@@ -199,7 +236,7 @@ class ManagedGraphic implements Graphic {
     if (!this.applyPositions) {
       throw new Arc3DError(
         "UNSUPPORTED_CAPABILITY",
-        `${this.renderMode} ${this.type} positions cannot be changed after create`
+        `${this.renderMode} ${this.type} positions cannot be changed after create`,
       )
     }
     this.applyPositions(list)
@@ -227,7 +264,10 @@ export class GraphicManager {
   private claimId(id: string): void {
     assertNewResourceId(this.context.registry, id)
     if (this.items.has(id)) {
-      throw new Arc3DError("DUPLICATE_RESOURCE", `Resource already exists: ${id}`)
+      throw new Arc3DError(
+        "DUPLICATE_RESOURCE",
+        `Resource already exists: ${id}`,
+      )
     }
   }
 
@@ -283,7 +323,10 @@ export class GraphicManager {
         entity.show = visible
       }
       applyPositions = (next) => {
-        if (entity.polyline) entity.polyline.positions = new ConstantProperty(toCartesian3Array(next))
+        if (entity.polyline)
+          entity.polyline.positions = new ConstantProperty(
+            toCartesian3Array(next),
+          )
       }
     } else {
       const instance = new GeometryInstance({
@@ -296,11 +339,17 @@ export class GraphicManager {
       const primitive = onGround
         ? new GroundPolylinePrimitive({
             geometryInstances: instance,
-            appearance: new PerInstanceColorAppearance({ flat: true, translucent: color.alpha < 1 }),
+            appearance: new PerInstanceColorAppearance({
+              flat: true,
+              translucent: color.alpha < 1,
+            }),
           })
         : new Primitive({
             geometryInstances: instance,
-            appearance: new PerInstanceColorAppearance({ flat: true, translucent: color.alpha < 1 }),
+            appearance: new PerInstanceColorAppearance({
+              flat: true,
+              translucent: color.alpha < 1,
+            }),
           })
       viewer.scene.primitives.add(primitive)
       native = primitive
@@ -319,7 +368,7 @@ export class GraphicManager {
       setVisible,
       toLngLatHeights(positions),
       style,
-      applyPositions
+      applyPositions,
     )
   }
 
@@ -352,7 +401,9 @@ export class GraphicManager {
         polygon: {
           hierarchy: cartesians,
           material: fill,
-          heightReference: onGround ? HeightReference.CLAMP_TO_GROUND : HeightReference.NONE,
+          heightReference: onGround
+            ? HeightReference.CLAMP_TO_GROUND
+            : HeightReference.NONE,
         },
         polyline: outline
           ? {
@@ -372,17 +423,19 @@ export class GraphicManager {
         () => viewer.entities.remove(entity),
         (visible) => {
           entity.show = visible
-        }
-        ,
+        },
         toLngLatHeights(asList(options.positions)),
         style,
         (next) => {
           const nextCartesians = toCartesian3Array(next)
           if (entity.polygon) {
-            entity.polygon.hierarchy = new ConstantProperty(new PolygonHierarchy(nextCartesians))
+            entity.polygon.hierarchy = new ConstantProperty(
+              new PolygonHierarchy(nextCartesians),
+            )
           }
-          if (entity.polyline) entity.polyline.positions = new ConstantProperty(nextCartesians)
-        }
+          if (entity.polyline)
+            entity.polyline.positions = new ConstantProperty(nextCartesians)
+        },
       )
     }
 
@@ -413,8 +466,8 @@ export class GraphicManager {
       new HeadingPitchRoll(
         CesiumMath.toRadians(options.heading ?? 0),
         CesiumMath.toRadians(options.pitch ?? 0),
-        CesiumMath.toRadians(options.roll ?? 0)
-      )
+        CesiumMath.toRadians(options.roll ?? 0),
+      ),
     )
     const entity = viewer.entities.add({
       id,
@@ -435,13 +488,12 @@ export class GraphicManager {
       () => viewer.entities.remove(entity),
       (visible) => {
         entity.show = visible
-      }
-      ,
+      },
       toLngLatHeights([options.position]),
       {},
       (next) => {
         entity.position = new ConstantPositionProperty(toCartesian3(next[0]))
-      }
+      },
     )
   }
 
@@ -479,7 +531,7 @@ export class GraphicManager {
         ...item,
         renderMode: item.renderMode ?? policy.mode,
         dynamic: item.dynamic,
-      })
+      }),
     )
   }
 
@@ -495,7 +547,7 @@ export class GraphicManager {
         ...item,
         renderMode: item.renderMode ?? policy.mode,
         dynamic: item.dynamic,
-      })
+      }),
     )
   }
 
@@ -516,7 +568,7 @@ export class GraphicManager {
   }
 
   updatePositionsBatch(
-    updates: Array<{ id: string; positions: PositionInput | PositionInput[] }>
+    updates: Array<{ id: string; positions: PositionInput | PositionInput[] }>,
   ): number {
     this.context.lifecycle.assertUsable("update graphic positions")
     return applyPositionUpdates((id) => this.items.get(id), updates)
@@ -526,7 +578,10 @@ export class GraphicManager {
     for (const graphic of Array.from(this.items.values())) graphic.destroy()
   }
 
-  private createPoints(positions: PositionInput[], options: GraphicCreateOptions): Graphic[] {
+  private createPoints(
+    positions: PositionInput[],
+    options: GraphicCreateOptions,
+  ): Graphic[] {
     this.context.lifecycle.assertUsable("add point")
     assertPositions(positions, 1, "point")
     assertGraphicStyle(options.style)
@@ -547,7 +602,8 @@ export class GraphicManager {
 
     if (mode === "entity") {
       positions.forEach((position, index) => {
-        const id = options.id && positions.length === 1 ? options.id : createId("point")
+        const id =
+          options.id && positions.length === 1 ? options.id : createId("point")
         this.claimId(id)
         const entity = viewer.entities.add({
           id,
@@ -557,7 +613,9 @@ export class GraphicManager {
             outlineColor,
             pixelSize,
             outlineWidth: style.outlineWidth ?? 1,
-            heightReference: onGround ? HeightReference.CLAMP_TO_GROUND : HeightReference.NONE,
+            heightReference: onGround
+              ? HeightReference.CLAMP_TO_GROUND
+              : HeightReference.NONE,
             show: true,
           },
           properties: options.properties,
@@ -571,14 +629,15 @@ export class GraphicManager {
             () => viewer.entities.remove(entity),
             (visible) => {
               entity.show = visible
-            }
-            ,
+            },
             toLngLatHeights([position]),
             style,
             (next) => {
-              entity.position = new ConstantPositionProperty(toCartesian3(next[0]))
-            }
-          )
+              entity.position = new ConstantPositionProperty(
+                toCartesian3(next[0]),
+              )
+            },
+          ),
         )
         void index
       })
@@ -614,8 +673,7 @@ export class GraphicManager {
         },
         (visible) => {
           collection.show = visible
-        }
-        ,
+        },
         toLngLatHeights(positions),
         style,
         (next) => {
@@ -625,8 +683,8 @@ export class GraphicManager {
             pixelSize,
             outlineWidth: style.outlineWidth ?? 1,
           })
-        }
-      )
+        },
+      ),
     )
     return graphics
   }
@@ -642,7 +700,7 @@ export class GraphicManager {
       outlineWidth: number
       onGround: boolean
       style: GraphicStyle
-    }
+    },
   ): Graphic {
     const fillInstance = new GeometryInstance({
       geometry: new PolygonGeometry({
@@ -650,17 +708,25 @@ export class GraphicManager {
         vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
         height: options.onGround ? undefined : 0,
       }),
-      attributes: { color: ColorGeometryInstanceAttribute.fromColor(options.fill) },
+      attributes: {
+        color: ColorGeometryInstanceAttribute.fromColor(options.fill),
+      },
       id: graphicChildId(options.id, "fill"),
     })
     const fillPrimitive = options.onGround
       ? new GroundPrimitive({
           geometryInstances: fillInstance,
-          appearance: new PerInstanceColorAppearance({ translucent: true, flat: true }),
+          appearance: new PerInstanceColorAppearance({
+            translucent: true,
+            flat: true,
+          }),
         })
       : new Primitive({
           geometryInstances: fillInstance,
-          appearance: new PerInstanceColorAppearance({ translucent: true, flat: true }),
+          appearance: new PerInstanceColorAppearance({
+            translucent: true,
+            flat: true,
+          }),
         })
     viewer.scene.primitives.add(fillPrimitive)
 
@@ -668,25 +734,43 @@ export class GraphicManager {
     if (options.outline) {
       const lineInstance = new GeometryInstance({
         geometry: options.onGround
-          ? new GroundPolylineGeometry({ positions: options.cartesians, width: options.outlineWidth })
-          : new PolylineGeometry({ positions: options.cartesians, width: options.outlineWidth }),
-        attributes: { color: ColorGeometryInstanceAttribute.fromColor(options.outlineColor) },
+          ? new GroundPolylineGeometry({
+              positions: options.cartesians,
+              width: options.outlineWidth,
+            })
+          : new PolylineGeometry({
+              positions: options.cartesians,
+              width: options.outlineWidth,
+            }),
+        attributes: {
+          color: ColorGeometryInstanceAttribute.fromColor(options.outlineColor),
+        },
         id: graphicChildId(options.id, "outline"),
       })
       outlinePrimitive = options.onGround
         ? new GroundPolylinePrimitive({
             geometryInstances: lineInstance,
-            appearance: new PerInstanceColorAppearance({ flat: true, translucent: false }),
+            appearance: new PerInstanceColorAppearance({
+              flat: true,
+              translucent: false,
+            }),
           })
         : new Primitive({
             geometryInstances: lineInstance,
-            appearance: new PerInstanceColorAppearance({ flat: true, translucent: false }),
+            appearance: new PerInstanceColorAppearance({
+              flat: true,
+              translucent: false,
+            }),
           })
       viewer.scene.primitives.add(outlinePrimitive)
     }
 
     this.context.tracker.link(options.id, graphicChildId(options.id, "fill"))
-    if (outlinePrimitive) this.context.tracker.link(options.id, graphicChildId(options.id, "outline"))
+    if (outlinePrimitive)
+      this.context.tracker.link(
+        options.id,
+        graphicChildId(options.id, "outline"),
+      )
 
     return this.register(
       options.id,
@@ -701,10 +785,9 @@ export class GraphicManager {
       (visible) => {
         fillPrimitive.show = visible
         if (outlinePrimitive) outlinePrimitive.show = visible
-      }
-      ,
+      },
       options.cartesians.map((item) => fromCartesian3(item)),
-      options.style
+      options.style,
     )
   }
 
@@ -717,7 +800,7 @@ export class GraphicManager {
     setVisible: (visible: boolean) => void,
     positions: LngLatHeight[] = [],
     style: GraphicStyle = {},
-    applyPositions?: (positions: PositionInput[]) => void
+    applyPositions?: (positions: PositionInput[]) => void,
   ): Graphic {
     const graphic = new ManagedGraphic(
       id,
@@ -736,7 +819,7 @@ export class GraphicManager {
       positions,
       style,
       applyPositions,
-      (reason) => this.invalidate(reason)
+      (reason) => this.invalidate(reason),
     )
     this.items.set(id, graphic)
     registerAtomically(this.context.registry, graphic, () => {

@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest"
 import {
   Arc3DError,
+  CapabilityRegistry,
+  CommandBus,
   DisposerStack,
   EventBus,
   LifecycleManager,
+  PluginScopeManager,
   ResourceRegistry,
   ResourceTracker,
+  ToolRegistry,
   createHandle,
   getRuntimeDiagnostics,
   registerAtomically,
@@ -87,7 +91,10 @@ describe("borrowed resources", () => {
 describe("EventBus isolation", () => {
   it("keeps remaining handlers running after one throws", () => {
     const seen: string[] = []
-    const bus = new EventBus<{ ping: { n: number }; error: { message: string } }>({
+    const bus = new EventBus<{
+      ping: { n: number }
+      error: { message: string }
+    }>({
       onHandlerError: () => {
         seen.push("logged")
       },
@@ -134,7 +141,7 @@ describe("resource registration", () => {
         onDestroy: () => {
           order.push("parent")
         },
-      })
+      }),
     )
     registry.add(
       createHandle({
@@ -144,7 +151,7 @@ describe("resource registration", () => {
         onDestroy: () => {
           order.push("fill")
         },
-      })
+      }),
     )
     tracker.link("parent", "parent#fill")
     registry.clear(tracker)
@@ -162,8 +169,8 @@ describe("resource registration", () => {
         createHandle({ id: "dup", type: "point", native: {} }),
         () => {
           rolledBack = true
-        }
-      )
+        },
+      ),
     ).toThrow(Arc3DError)
     expect(rolledBack).toBe(true)
   })
@@ -186,11 +193,18 @@ describe("runtime diagnostics", () => {
       tracker,
       events,
       disposers,
+      capabilities: new CapabilityRegistry(),
+      commands: new CommandBus(),
+      tools: new ToolRegistry(),
+      scopes: new PluginScopeManager(),
     } as unknown as Arc3DContext)
     expect(snapshot.lifecycle).toBe("created")
     expect(snapshot.resources).toEqual({ polygon: 2 })
     expect(snapshot.listenerCount).toBe(1)
     expect(snapshot.disposerCount).toBe(1)
     expect(snapshot.trackedParents).toBe(1)
+    expect(snapshot.tools).toBe(0)
+    expect(snapshot.activeTool).toBeNull()
+    expect(snapshot.pluginScopes).toEqual([])
   })
 })

@@ -1,5 +1,15 @@
-import type { Arc3DContext, CameraPose, CameraState, SceneModeName } from "@arc3dlab/core"
-import { fromCartesian3, getCesiumViewer, toCartesian3, toRadians } from "@arc3dlab/engine-cesium"
+import type {
+  Arc3DContext,
+  CameraPose,
+  CameraState,
+  SceneModeName,
+} from "@arc3dlab/core"
+import {
+  fromCartesian3,
+  getCesiumViewer,
+  toCartesian3,
+  toRadians,
+} from "@arc3dlab/engine-cesium"
 import { HeadingPitchRange, Math as CesiumMath, SceneMode } from "cesium"
 import { createFlyToPromise } from "./fly-to"
 import { scheduleSceneRestore } from "./morph"
@@ -14,7 +24,11 @@ export class CameraController {
     return getCesiumViewer(this.context.engine.native.viewer)
   }
 
-  flyTo(position: CameraPose["position"] | [number, number] | [number, number, number], duration = 2): Promise<void> {
+  flyTo(
+    position:
+      CameraPose["position"] | [number, number] | [number, number, number],
+    duration = 2,
+  ): Promise<void> {
     const destination = Array.isArray(position)
       ? toCartesian3(position)
       : toCartesian3(position)
@@ -28,7 +42,7 @@ export class CameraController {
           cancel: callbacks.cancel,
         })
       },
-      () => this.context.lifecycle.isTerminating
+      () => this.context.lifecycle.isTerminating,
     )
   }
 
@@ -44,8 +58,14 @@ export class CameraController {
     })
   }
 
-  lookAt(target: CameraPose["position"] | [number, number, number], range = 1000): void {
-    this.viewer().camera.lookAt(toCartesian3(target), new HeadingPitchRange(0, CesiumMath.toRadians(-45), range))
+  lookAt(
+    target: CameraPose["position"] | [number, number, number],
+    range = 1000,
+  ): void {
+    this.viewer().camera.lookAt(
+      toCartesian3(target),
+      new HeadingPitchRange(0, CesiumMath.toRadians(-45), range),
+    )
   }
 
   getState(): CameraState {

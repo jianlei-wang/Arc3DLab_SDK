@@ -3,7 +3,9 @@ import { LifecycleManager, type Arc3DContext } from "@arc3dlab/core"
 import { TerrainAnalysis, resolveTerrainSample } from "@arc3dlab/analysis"
 import { Cartographic } from "cesium"
 
-function terrain(heightAt: (longitude: number, latitude: number) => number): TerrainAnalysis {
+function terrain(
+  heightAt: (longitude: number, latitude: number) => number,
+): TerrainAnalysis {
   return new TerrainAnalysis({
     lifecycle: new LifecycleManager(),
     engine: {
@@ -15,7 +17,7 @@ function terrain(heightAt: (longitude: number, latitude: number) => number): Ter
               getHeight(carto: Cartographic) {
                 return heightAt(
                   (carto.longitude * 180) / Math.PI,
-                  (carto.latitude * 180) / Math.PI
+                  (carto.latitude * 180) / Math.PI,
                 )
               },
             },
@@ -28,7 +30,9 @@ function terrain(heightAt: (longitude: number, latitude: number) => number): Ter
 
 describe("TerrainAnalysis", () => {
   it("samples globe height when sampleHeight is unavailable", async () => {
-    const result = await terrain(() => 321).sampleHeight({ position: [120, 30] })
+    const result = await terrain(() => 321).sampleHeight({
+      position: [120, 30],
+    })
     expect(result.height).toBe(321)
     expect(result.source).toBe("globe")
     expect(result.status).toBe("sampled")
@@ -95,12 +99,18 @@ describe("TerrainAnalysis", () => {
     const controller = new AbortController()
     controller.abort()
     await expect(
-      terrain(() => 10).sampleHeight({ position: [120, 30], signal: controller.signal })
+      terrain(() => 10).sampleHeight({
+        position: [120, 30],
+        signal: controller.signal,
+      }),
     ).rejects.toMatchObject({ code: "CANCELLED" })
   })
 
   it("returns near-zero slope on a horizontal plane", async () => {
-    const result = await terrain(() => 140).slope({ position: [120, 30], sampleMeters: 20 })
+    const result = await terrain(() => 140).slope({
+      position: [120, 30],
+      sampleMeters: 20,
+    })
     expect(result.slopeDegrees).toBeCloseTo(0, 5)
   })
 
@@ -120,14 +130,21 @@ describe("TerrainAnalysis", () => {
 
   it("computes a west-facing slope from east-high samples", async () => {
     const analysis = terrain((longitude) => longitude * 1e6)
-    const result = await analysis.slope({ position: [120, 30], sampleMeters: 20 })
+    const result = await analysis.slope({
+      position: [120, 30],
+      sampleMeters: 20,
+    })
     expect(result.slopeDegrees).toBeGreaterThan(80)
     expect(result.aspectDegrees).toBeGreaterThan(240)
     expect(result.aspectDegrees).toBeLessThan(300)
   })
 
   it("writes vertical exaggeration onto the scene", () => {
-    const scene = { verticalExaggeration: 1, sampleHeightSupported: false, globe: { getHeight: () => 0 } }
+    const scene = {
+      verticalExaggeration: 1,
+      sampleHeightSupported: false,
+      globe: { getHeight: () => 0 },
+    }
     const analysis = new TerrainAnalysis({
       lifecycle: new LifecycleManager(),
       engine: { native: { viewer: { scene } } },
@@ -141,13 +158,24 @@ describe("TerrainAnalysis", () => {
 describe("resolveTerrainSample", () => {
   it("classifies detailed, globe fallback, and ellipsoid unavailable", () => {
     expect(
-      resolveTerrainSample({ sampleHeightSupported: true, detailedHeight: 12, globeHeight: 3 })
+      resolveTerrainSample({
+        sampleHeightSupported: true,
+        detailedHeight: 12,
+        globeHeight: 3,
+      }),
     ).toEqual({ height: 12, source: "sampleHeight", status: "sampled" })
     expect(
-      resolveTerrainSample({ sampleHeightSupported: true, detailedHeight: null, globeHeight: 3 })
+      resolveTerrainSample({
+        sampleHeightSupported: true,
+        detailedHeight: null,
+        globeHeight: 3,
+      }),
     ).toEqual({ height: 3, source: "globe", status: "fallback" })
     expect(
-      resolveTerrainSample({ sampleHeightSupported: false, globeHeight: undefined })
+      resolveTerrainSample({
+        sampleHeightSupported: false,
+        globeHeight: undefined,
+      }),
     ).toEqual({ height: 0, source: "ellipsoid", status: "unavailable" })
   })
 })

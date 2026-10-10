@@ -32,7 +32,7 @@ describe("compareRenderBackends", () => {
     expect(compareRenderBackends(64).prefer).toBe("entity")
     expect(compareRenderBackends(65).prefer).toBe("primitive")
     expect(compareRenderBackends(256).primitiveOps).toBeLessThan(
-      compareRenderBackends(256).entityOps
+      compareRenderBackends(256).entityOps,
     )
   })
 })
@@ -46,7 +46,9 @@ describe("scripts/benchmark.mjs", () => {
     })
     const report = JSON.parse(output)
     expect(report.threshold).toBe(AUTO_PRIMITIVE_THRESHOLD)
-    expect(report.scene.graphicCounts).toEqual([...BENCHMARK_SCENE.graphicCounts])
+    expect(report.scene.graphicCounts).toEqual([
+      ...BENCHMARK_SCENE.graphicCounts,
+    ])
     expect(report.runs).toHaveLength(3)
     expect(report.runs[0].picked).toBe(64)
     expect(report.runs[2].backend.prefer).toBe("primitive")

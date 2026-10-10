@@ -5,7 +5,7 @@ export interface MorphCompleteLike {
 export function scheduleSceneRestore(
   restore: () => void,
   morphComplete?: MorphCompleteLike,
-  timeoutMs = 1100
+  timeoutMs = 1100,
 ): () => void {
   let cancelled = false
   let timer: ReturnType<typeof setTimeout> | undefined

@@ -29,12 +29,22 @@ export class PerformanceManager {
   constructor(private readonly context: Arc3DContext) {}
 
   get fpsVisible(): boolean {
-    return Boolean((this.context.engine.native.viewer as { scene: { debugShowFramesPerSecond: boolean } }).scene.debugShowFramesPerSecond)
+    return Boolean(
+      (
+        this.context.engine.native.viewer as {
+          scene: { debugShowFramesPerSecond: boolean }
+        }
+      ).scene.debugShowFramesPerSecond,
+    )
   }
 
   setFpsVisible(visible: boolean): void {
     this.context.lifecycle.assertUsable("toggle fps")
-    ;(this.context.engine.native.viewer as { scene: { debugShowFramesPerSecond: boolean } }).scene.debugShowFramesPerSecond = visible
+    ;(
+      this.context.engine.native.viewer as {
+        scene: { debugShowFramesPerSecond: boolean }
+      }
+    ).scene.debugShowFramesPerSecond = visible
   }
 }
 
@@ -89,13 +99,17 @@ export class Arc3DApp {
     this.camera.rememberHome()
   }
 
-  on: Arc3DContext["events"]["on"] = (event, handler) => this.context.events.on(event, handler)
+  on: Arc3DContext["events"]["on"] = (event, handler) =>
+    this.context.events.on(event, handler)
 
   async use(plugin: Arc3DPlugin<Arc3DApp>): Promise<void> {
     await this.plugins.use(plugin)
   }
 
-  getDiagnostics(): RuntimeDiagnostics & { postprocess: number; plugins: string[] } {
+  getDiagnostics(): RuntimeDiagnostics & {
+    postprocess: number
+    plugins: string[]
+  } {
     return {
       ...getRuntimeDiagnostics(this.context),
       postprocess: this.effects.postprocess.list().length,
@@ -124,15 +138,26 @@ export class Arc3DApp {
     await this.runDestroyStep("analysis", () => this.analysis.destroy())
     await this.runDestroyStep("scene", () => this.scene.destroy())
     await this.runDestroyStep("graphics", () => this.graphics.clear())
-    await this.runDestroyStep("registry", () => this.context.registry.clear(this.context.tracker))
+    await this.runDestroyStep("registry", () =>
+      this.context.registry.clear(this.context.tracker),
+    )
     await this.runDestroyStep("tracker", () => this.context.tracker.clear())
-    await this.runDestroyStep("engine", () => this.context.engine.viewer.destroy())
+    await this.runDestroyStep("engine", () => {
+      if (this.context.engineAdapter) {
+        this.context.engineAdapter.destroy()
+      } else {
+        this.context.engine.viewer.destroy()
+      }
+    })
     this.context.events.emit("destroy", {})
     this.context.events.clear()
     this.context.lifecycle.transition("destroyed")
   }
 
-  private async runDestroyStep(label: string, step: () => void | Promise<void>): Promise<void> {
+  private async runDestroyStep(
+    label: string,
+    step: () => void | Promise<void>,
+  ): Promise<void> {
     try {
       await step()
     } catch (error) {
@@ -141,7 +166,11 @@ export class Arc3DApp {
   }
 }
 
-export function createApp(config: Arc3DConfig, engine: EngineContext, context: Arc3DContext): Arc3DApp {
+export function createApp(
+  config: Arc3DConfig,
+  engine: EngineContext,
+  context: Arc3DContext,
+): Arc3DApp {
   void config
   void engine
   const app = new Arc3DApp(context)

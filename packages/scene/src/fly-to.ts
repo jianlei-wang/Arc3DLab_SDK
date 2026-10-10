@@ -7,12 +7,17 @@ export interface FlyToCallbacks {
 
 export function createFlyToPromise(
   run: (callbacks: FlyToCallbacks) => void,
-  isDestroyed: () => boolean
+  isDestroyed: () => boolean,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const finish = (): void => {
       if (isDestroyed()) {
-        reject(new Arc3DError("APP_DESTROYED", "Camera flyTo aborted because Arc3DApp has been destroyed"))
+        reject(
+          new Arc3DError(
+            "APP_DESTROYED",
+            "Camera flyTo aborted because Arc3DApp has been destroyed",
+          ),
+        )
         return
       }
       resolve()

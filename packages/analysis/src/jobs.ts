@@ -1,4 +1,9 @@
-import { Arc3DError, parsePosition, type LngLatHeight, type PositionInput } from "@arc3dlab/core"
+import {
+  Arc3DError,
+  parsePosition,
+  type LngLatHeight,
+  type PositionInput,
+} from "@arc3dlab/core"
 import {
   geometryMatchesPolygon,
   geometryMatchesRect,
@@ -52,7 +57,9 @@ export function executeAnalysisJob(job: AnalysisJob): AnalysisJobResult {
     return {
       type: "query",
       graphics: job.graphics
-        .filter((item) => geometryMatchesRect(item.type, item.positions, job.rect, relation))
+        .filter((item) =>
+          geometryMatchesRect(item.type, item.positions, job.rect, relation),
+        )
         .map((item) => ({ id: item.id, type: item.type })),
     }
   }
@@ -62,7 +69,9 @@ export function executeAnalysisJob(job: AnalysisJob): AnalysisJobResult {
     return {
       type: "query",
       graphics: job.graphics
-        .filter((item) => geometryMatchesPolygon(item.type, item.positions, ring, relation))
+        .filter((item) =>
+          geometryMatchesPolygon(item.type, item.positions, ring, relation),
+        )
         .map((item) => ({ id: item.id, type: item.type })),
     }
   }
@@ -71,7 +80,11 @@ export function executeAnalysisJob(job: AnalysisJob): AnalysisJobResult {
     const holes = (job.holes ?? []).map((ring) => ring.map(toMeasurePoint))
     return {
       type: "area",
-      squareMeters: polygonAreaSquareMeters(outer, holes, job.mode ?? "geodesic"),
+      squareMeters: polygonAreaSquareMeters(
+        outer,
+        holes,
+        job.mode ?? "geodesic",
+      ),
     }
   }
   if (job.type === "cutfill-grid") {
@@ -80,5 +93,8 @@ export function executeAnalysisJob(job: AnalysisJob): AnalysisJobResult {
       grid: buildCutFillGrid(job.polygon.map(parsePosition), job.samples),
     }
   }
-  throw new Arc3DError("INVALID_ARGUMENT", `Unknown analysis job: ${String((job as AnalysisJob).type)}`)
+  throw new Arc3DError(
+    "INVALID_ARGUMENT",
+    `Unknown analysis job: ${String((job as AnalysisJob).type)}`,
+  )
 }

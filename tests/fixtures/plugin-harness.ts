@@ -7,7 +7,7 @@ import {
   type EngineViewerOptions,
 } from "@arc3dlab/core"
 import { executeAnalysisJob } from "@arc3dlab/analysis"
-import { PluginManager } from "./plugins"
+import { PluginManager } from "../../packages/sdk/src/plugins"
 
 class HarnessViewer implements EngineViewer {
   readonly canvas = {} as HTMLCanvasElement
@@ -80,9 +80,9 @@ export function createPluginHarness(): PluginHarness {
   const viewer = engine.createViewer({ container: "plugin-harness" })
   const context = createContext(
     { container: "plugin-harness" },
-    { type: engine.type, viewer, native: { viewer: viewer.native } }
+    { type: engine.type, viewer, native: { viewer: viewer.native }, engine },
   )
-  registerCoreCapabilities(context.capabilities)
+  registerCoreCapabilities(context.capabilities, engine)
   context.lifecycle.transition("initializing")
   context.lifecycle.transition("ready")
 

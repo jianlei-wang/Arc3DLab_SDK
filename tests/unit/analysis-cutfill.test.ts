@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { accumulateCutFillWeighted, buildCutFillGrid, clampSampleCount } from "@arc3dlab/analysis"
+import {
+  accumulateCutFillWeighted,
+  buildCutFillGrid,
+  clampSampleCount,
+} from "@arc3dlab/analysis"
 
 describe("buildCutFillGrid", () => {
   it("weights interior cells at full coverage on a local-meter grid", () => {
@@ -10,7 +14,7 @@ describe("buildCutFillGrid", () => {
         { longitude: 0.01, latitude: 0.01 },
         { longitude: 0, latitude: 0.01 },
       ],
-      8
+      8,
     )
     expect(grid.cells.length).toBeGreaterThan(0)
     expect(grid.resolutionMeters).toBeGreaterThan(0)
@@ -25,7 +29,7 @@ describe("accumulateCutFillWeighted", () => {
       accumulateCutFillWeighted([
         { delta: 2, area: 10 },
         { delta: -3, area: 4 },
-      ])
+      ]),
     ).toEqual({ cut: 20, fill: 12 })
   })
 })

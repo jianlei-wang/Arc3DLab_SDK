@@ -8,7 +8,10 @@ function volume(heightAt: (longitude: number, latitude: number) => number) {
     clippingPlanes: { enabled: false, removeAll() {}, destroy() {} },
     clippingPolygons: { enabled: false, removeAll() {} },
     getHeight(carto: Cartographic) {
-      return heightAt((carto.longitude * 180) / Math.PI, (carto.latitude * 180) / Math.PI)
+      return heightAt(
+        (carto.longitude * 180) / Math.PI,
+        (carto.latitude * 180) / Math.PI,
+      )
     },
   }
   const context = {

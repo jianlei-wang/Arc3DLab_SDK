@@ -8,8 +8,14 @@ import {
 
 describe("tooltip positioning", () => {
   it("places the tooltip relative to the host box", () => {
-    expect(hostRelativePosition(140, 90, { left: 40, top: 20 })).toEqual({ x: 100, y: 70 })
-    expect(tooltipOffsetStyle({ x: 100, y: 70 })).toEqual({ left: "115px", top: "90px" })
+    expect(hostRelativePosition(140, 90, { left: 40, top: 20 })).toEqual({
+      x: 100,
+      y: 70,
+    })
+    expect(tooltipOffsetStyle({ x: 100, y: 70 })).toEqual({
+      left: "115px",
+      top: "90px",
+    })
   })
 })
 

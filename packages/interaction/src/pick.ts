@@ -1,7 +1,14 @@
 import type { PickKind } from "@arc3dlab/core"
 
 const GRAPHIC_TYPES = new Set(["point", "polyline", "polygon", "model"])
-const LAYER_TYPES = new Set(["imagery", "tileset", "basemap", "geojson", "kml", "czml"])
+const LAYER_TYPES = new Set([
+  "imagery",
+  "tileset",
+  "basemap",
+  "geojson",
+  "kml",
+  "czml",
+])
 
 export function normalizeResourceId(raw: unknown): string | undefined {
   if (typeof raw === "string") return raw
@@ -20,16 +27,19 @@ export function parentResourceId(id: string): string | undefined {
 
 export function classifyPickedId(
   rawId: string | undefined,
-  lookup: (id: string) => { id: string; type: string } | undefined
+  lookup: (id: string) => { id: string; type: string } | undefined,
 ): { graphicId?: string; layerId?: string } {
   if (!rawId) return {}
   const resource = lookup(rawId)
-  if (resource && GRAPHIC_TYPES.has(resource.type)) return { graphicId: resource.id }
-  if (resource && LAYER_TYPES.has(resource.type)) return { layerId: resource.id }
+  if (resource && GRAPHIC_TYPES.has(resource.type))
+    return { graphicId: resource.id }
+  if (resource && LAYER_TYPES.has(resource.type))
+    return { layerId: resource.id }
   const parentId = parentResourceId(rawId)
   if (parentId) {
     const parent = lookup(parentId)
-    if (parent && GRAPHIC_TYPES.has(parent.type)) return { graphicId: parent.id }
+    if (parent && GRAPHIC_TYPES.has(parent.type))
+      return { graphicId: parent.id }
     if (parent && LAYER_TYPES.has(parent.type)) return { layerId: parent.id }
   }
   return {}
@@ -73,7 +83,11 @@ export function resolvePick(input: ResolvePickInput): ResolvedPick {
   return { kind: "empty" }
 }
 
-export function pickIdentity(result: { graphicId?: string; layerId?: string; kind?: string }): string {
+export function pickIdentity(result: {
+  graphicId?: string
+  layerId?: string
+  kind?: string
+}): string {
   if (result.graphicId) return `graphic:${result.graphicId}`
   if (result.layerId) return `layer:${result.layerId}`
   return result.kind ?? "empty"

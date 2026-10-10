@@ -5,7 +5,7 @@ import {
   type Arc3DContext,
   type ResourceHandle,
 } from "@arc3dlab/core"
-import type { Arc3DPlugin } from "./plugins"
+import type { Arc3DPlugin } from "@arc3dlab/sdk"
 
 export interface MiningHost {
   graphics: {
@@ -144,7 +144,7 @@ export function createMiningPlugin(): MiningPlugin {
   async function load(
     app: MiningHost,
     context: Arc3DContext,
-    input: MiningLoadInput
+    input: MiningLoadInput,
   ): Promise<MiningStatus> {
     const controller = new AbortController()
     loadTask = controller

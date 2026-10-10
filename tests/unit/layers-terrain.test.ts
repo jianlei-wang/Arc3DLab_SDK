@@ -39,7 +39,9 @@ describe("TerrainManager ion contract", () => {
   })
 
   it("requires a runtime token for ion terrain", async () => {
-    await expect(terrain().set({ type: "ion", assetId: 1 })).rejects.toMatchObject({
+    await expect(
+      terrain().set({ type: "ion", assetId: 1 }),
+    ).rejects.toMatchObject({
       code: "AUTH_FAILED",
     })
   })

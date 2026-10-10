@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { Arc3DError, LifecycleManager, afterAwait, assertAlive } from "@arc3dlab/core"
+import {
+  Arc3DError,
+  LifecycleManager,
+  afterAwait,
+  assertAlive,
+} from "@arc3dlab/core"
 
 describe("async resource gate", () => {
   it("allows work while the app is usable", () => {
@@ -15,7 +20,7 @@ describe("async resource gate", () => {
     await expect(
       afterAwait(lifecycle, "add tileset", { id: "t-1" }, () => {
         disposed = true
-      })
+      }),
     ).rejects.toMatchObject({ code: "APP_DESTROYED" })
     expect(disposed).toBe(true)
   })

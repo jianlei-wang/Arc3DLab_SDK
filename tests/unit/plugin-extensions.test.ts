@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { Arc3DError, CommandBus, ToolRegistry } from "@arc3dlab/core"
-import { createPluginHarness } from "../../packages/sdk/src/plugin-harness"
+import { createPluginHarness } from "../fixtures/plugin-harness"
 
 describe("CommandBus", () => {
   it("rejects reserved core command names from plugins", () => {
@@ -11,7 +11,7 @@ describe("CommandBus", () => {
         version: "1.0.0",
         plugin: "mining",
         execute: () => undefined,
-      })
+      }),
     ).toThrow(Arc3DError)
     try {
       bus.register({
@@ -34,7 +34,9 @@ describe("CommandBus", () => {
       params: { value: { type: "string", required: true } },
       execute: (input) => input.value,
     })
-    await expect(bus.execute("mining.echo", { value: "ok" })).resolves.toBe("ok")
+    await expect(bus.execute("mining.echo", { value: "ok" })).resolves.toBe(
+      "ok",
+    )
     await expect(bus.execute("mining.echo", {})).rejects.toMatchObject({
       code: "INVALID_ARGUMENT",
     })
@@ -44,7 +46,7 @@ describe("CommandBus", () => {
         version: "1.0.0",
         plugin: "mining",
         execute: () => undefined,
-      })
+      }),
     ).toThrow(Arc3DError)
     try {
       bus.register({
@@ -87,6 +89,55 @@ describe("ToolRegistry", () => {
     expect(tools.activeTool).toBe("mining.measure")
     expect(order).toEqual(["inspect-on", "inspect-off", "measure-on"])
   })
+
+  it("clears active state when activation fails", async () => {
+    const tools = new ToolRegistry()
+    const order: string[] = []
+    tools.register({
+      name: "x.a",
+      version: "1.0.0",
+      plugin: "x",
+      activate: () => {
+        order.push("a-on")
+      },
+      deactivate: () => {
+        order.push("a-off")
+      },
+    })
+    tools.register({
+      name: "x.b",
+      version: "1.0.0",
+      plugin: "x",
+      activate: () => {
+        throw new Error("fail")
+      },
+    })
+    await tools.activate("x.a")
+    await expect(tools.activate("x.b")).rejects.toThrow("fail")
+    expect(tools.activeTool).toBeUndefined()
+    expect(tools.state).toBe("idle")
+    expect(order).toEqual(["a-on", "a-off"])
+  })
+
+  it("deactivates the active tool before unregistering it", async () => {
+    const tools = new ToolRegistry()
+    const order: string[] = []
+    tools.register({
+      name: "x.a",
+      version: "1.0.0",
+      plugin: "x",
+      activate: () => {
+        order.push("on")
+      },
+      deactivate: () => {
+        order.push("off")
+      },
+    })
+    await tools.activate("x.a")
+    await tools.unregister("x.a")
+    expect(order).toEqual(["on", "off"])
+    expect(tools.activeTool).toBeUndefined()
+  })
 })
 
 describe("plugin isolation harness", () => {
@@ -112,8 +163,11 @@ describe("plugin isolation harness", () => {
     await host.plugins.uninstall("temp")
     expect(host.context.commands.has("temp.hello")).toBe(false)
     expect(host.graphics.list()).toEqual([])
-    await expect(host.context.commands.execute("core.ping")).resolves.toBe("pong")
-    expect(host.context.capabilities.has("engine:cesium")).toBe(true)
+    await expect(host.context.commands.execute("core.ping")).resolves.toBe(
+      "pong",
+    )
+    expect(host.context.capabilities.has("render:entity")).toBe(true)
+    expect(host.context.capabilities.has("engine:cesium")).toBe(false)
     expect(host.viewer).toBeDefined()
     await host.destroy()
     expect(host.engine.viewer).toBeUndefined()
@@ -127,7 +181,7 @@ describe("plugin isolation harness", () => {
         provider: "mining",
         version: "9.0.0",
         available: true,
-      })
+      }),
     ).toThrow(Arc3DError)
     try {
       host.context.capabilities.register({

@@ -2,6 +2,11 @@
 
 ## 2026-10-09
 
+- 重写整体设计框架 `design.md`：明确 Cesium-first 定位、依赖硬规则、运行时主流程、关键合同、业务语义层、模块清单与质量门禁。
+- 建立 `SDK整改与优化清单.md`，跟踪 P0/P1/P2 与业务语义扩展项。
+- P0：Engine 保存进 Context 并可注入（`engineAdapter`）；Ion Token 改为串行化作用域；Capability 由 Engine 回报真实可用性并移除空表放行；插件作用域与卸载 `try / finally` 清理。
+- P1：ToolRegistry 状态机；Command 参数 Schema（必填/枚举/有限数值/嵌套/额外字段/数组项，错误含字段路径）；插件依赖拆分为 `requiresCapabilities` 与 `dependsOnPlugins`；Bloom 使用真实后处理着色器；`AnalysisWorkerHost` 正名 `AnalysisJobHost`（保留兼容别名）；诊断对象补齐能力/命令/工具/活动工具/插件作用域；领域插件样板迁出产品源码到 `examples/` 与 `tests/fixtures`。
+- 文档同步：`02-runtime`、`03-engine`、`10-effects-ui-plugin`、`11-api` 标注实现状态与就绪语义。
 - Sandcastle 示例通过 gui 在地球左上角创建按钮、开关和下拉菜单。
 - 左侧底部增加运行控制台，捕获示例 console 输出。
 

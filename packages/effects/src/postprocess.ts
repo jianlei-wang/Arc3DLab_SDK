@@ -1,6 +1,6 @@
 import type { Arc3DContext } from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
-import { PostProcessStageLibrary } from "cesium"
+import { PostProcessStage, PostProcessStageLibrary } from "cesium"
 
 export interface BloomOptions {
   sigma?: number
@@ -32,7 +32,37 @@ export interface PostProcessStageFactory {
   createColorCorrection(options?: ColorCorrectionOptions): StageLike
 }
 
-function applyUniforms(stage: StageLike, values: Record<string, number | undefined>): StageLike {
+const BLOOM_FRAGMENT_SHADER = `
+uniform sampler2D colorTexture;
+in vec2 v_textureCoordinates;
+uniform float sigma;
+uniform float delta;
+uniform float stepSize;
+uniform float threshold;
+void main() {
+  vec2 texel = vec2(delta * stepSize) / vec2(textureSize(colorTexture, 0));
+  vec4 base = texture(colorTexture, v_textureCoordinates);
+  vec3 bloom = vec3(0.0);
+  float total = 0.0;
+  for (int x = -3; x <= 3; x++) {
+    for (int y = -3; y <= 3; y++) {
+      vec2 offset = vec2(float(x), float(y)) * texel;
+      vec4 sampleColor = texture(colorTexture, v_textureCoordinates + offset);
+      float luminance = dot(sampleColor.rgb, vec3(0.299, 0.587, 0.114));
+      float weight = exp(-float(x * x + y * y) / (2.0 * sigma * sigma));
+      bloom += sampleColor.rgb * weight * max(luminance - threshold, 0.0);
+      total += weight;
+    }
+  }
+  bloom /= max(total, 1.0);
+  out_FragColor = vec4(base.rgb + bloom, base.a);
+}
+`
+
+function applyUniforms(
+  stage: StageLike,
+  values: Record<string, number | undefined>,
+): StageLike {
   if (!stage.uniforms) return stage
   for (const [key, value] of Object.entries(values)) {
     if (value !== undefined) stage.uniforms[key] = value
@@ -43,7 +73,16 @@ function applyUniforms(stage: StageLike, values: Record<string, number | undefin
 export function createCesiumStageFactory(): PostProcessStageFactory {
   return {
     createBloom(options) {
-      return applyUniforms(PostProcessStageLibrary.createBlurStage() as StageLike, {
+      const stage = new PostProcessStage({
+        fragmentShader: BLOOM_FRAGMENT_SHADER,
+        uniforms: {
+          sigma: options?.sigma ?? 2.0,
+          delta: options?.delta ?? 1.0,
+          stepSize: options?.stepSize ?? 1.0,
+          threshold: 0.6,
+        },
+      })
+      return applyUniforms(stage as unknown as StageLike, {
         sigma: options?.sigma,
         delta: options?.delta,
         stepSize: options?.stepSize,
@@ -53,14 +92,20 @@ export function createCesiumStageFactory(): PostProcessStageFactory {
       return PostProcessStageLibrary.createSilhouetteStage() as StageLike
     },
     createDepthOfField(options) {
-      return applyUniforms(PostProcessStageLibrary.createDepthOfFieldStage() as StageLike, {
-        focalDistance: options?.focalDistance,
-      })
+      return applyUniforms(
+        PostProcessStageLibrary.createDepthOfFieldStage() as StageLike,
+        {
+          focalDistance: options?.focalDistance,
+        },
+      )
     },
     createColorCorrection(options) {
-      return applyUniforms(PostProcessStageLibrary.createBrightnessStage() as StageLike, {
-        brightness: options?.brightness,
-      })
+      return applyUniforms(
+        PostProcessStageLibrary.createBrightnessStage() as StageLike,
+        {
+          brightness: options?.brightness,
+        },
+      )
     },
   }
 }
@@ -72,16 +117,16 @@ export class PostProcessManager {
 
   constructor(
     private readonly context: Arc3DContext,
-    factory?: PostProcessStageFactory
+    factory?: PostProcessStageFactory,
   ) {
     this.factory = factory ?? createCesiumStageFactory()
   }
 
   setBloom(enabled: boolean, options?: BloomOptions): void {
     this.context.lifecycle.assertUsable("toggle bloom")
-    const bloom = getCesiumViewer(this.context.engine.native.viewer).scene.postProcessStages.bloom as
-      | (StageLike & { enabled?: boolean })
-      | undefined
+    const bloom = getCesiumViewer(this.context.engine.native.viewer).scene
+      .postProcessStages.bloom as
+      (StageLike & { enabled?: boolean }) | undefined
     if (bloom && typeof bloom === "object" && "enabled" in bloom) {
       bloom.enabled = enabled
       applyUniforms(bloom, {
@@ -101,7 +146,9 @@ export class PostProcessManager {
   }
 
   setDepthOfField(enabled: boolean, options?: DepthOfFieldOptions): void {
-    this.setStage("depthOfField", enabled, () => this.factory.createDepthOfField(options))
+    this.setStage("depthOfField", enabled, () =>
+      this.factory.createDepthOfField(options),
+    )
   }
 
   setFog(enabled: boolean, options?: FogOptions): void {
@@ -114,7 +161,9 @@ export class PostProcessManager {
   }
 
   setColorCorrection(enabled: boolean, options?: ColorCorrectionOptions): void {
-    this.setStage("colorCorrection", enabled, () => this.factory.createColorCorrection(options))
+    this.setStage("colorCorrection", enabled, () =>
+      this.factory.createColorCorrection(options),
+    )
   }
 
   list(): string[] {
@@ -130,9 +179,14 @@ export class PostProcessManager {
     this.removeAll()
   }
 
-  private setStage(name: string, enabled: boolean, create: () => StageLike): void {
+  private setStage(
+    name: string,
+    enabled: boolean,
+    create: () => StageLike,
+  ): void {
     this.context.lifecycle.assertUsable(`toggle ${name}`)
-    const collection = getCesiumViewer(this.context.engine.native.viewer).scene.postProcessStages
+    const collection = getCesiumViewer(this.context.engine.native.viewer).scene
+      .postProcessStages
     const existing = this.stages.get(name)
     if (existing) {
       collection.remove(existing as never)
@@ -148,7 +202,8 @@ export class PostProcessManager {
 
   private removeAll(): void {
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    const bloom = viewer.scene.postProcessStages.bloom as (StageLike & { enabled?: boolean }) | undefined
+    const bloom = viewer.scene.postProcessStages.bloom as
+      (StageLike & { enabled?: boolean }) | undefined
     if (bloom && typeof bloom === "object" && "enabled" in bloom) {
       bloom.enabled = false
     }

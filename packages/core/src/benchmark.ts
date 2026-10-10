@@ -76,16 +76,16 @@ function nowMs(): number {
   return performance.now()
 }
 
-function measure(name: BenchmarkPhase["name"], work: () => void): BenchmarkPhase {
+function measure(
+  name: BenchmarkPhase["name"],
+  work: () => void,
+): BenchmarkPhase {
   const started = nowMs()
   work()
   return { name, durationMs: nowMs() - started }
 }
 
-function pointInScene(
-  longitude: number,
-  latitude: number
-): boolean {
+function pointInScene(longitude: number, latitude: number): boolean {
   return (
     longitude >= BENCHMARK_SCENE.west &&
     longitude <= BENCHMARK_SCENE.east &&
@@ -95,7 +95,7 @@ function pointInScene(
 }
 
 export function runRuntimeBenchmark(
-  graphicCount = BENCHMARK_SCENE.graphicCounts[0]
+  graphicCount = BENCHMARK_SCENE.graphicCounts[0],
 ): RuntimeBenchmarkReport {
   const engine = new BenchmarkEngine()
   let picked = 0
@@ -106,10 +106,10 @@ export function runRuntimeBenchmark(
     const viewer = engine.createViewer({ container: "benchmark" })
     context = createContext(
       { container: "benchmark" },
-      { type: engine.type, viewer, native: { viewer: viewer.native } }
+      { type: engine.type, viewer, native: { viewer: viewer.native }, engine },
     )
     context.lifecycle.transition("initializing")
-    registerCoreCapabilities(context.capabilities)
+    registerCoreCapabilities(context.capabilities, engine)
     context.lifecycle.transition("ready")
     const spanLng = BENCHMARK_SCENE.east - BENCHMARK_SCENE.west
     const spanLat = BENCHMARK_SCENE.north - BENCHMARK_SCENE.south
@@ -123,7 +123,9 @@ export function runRuntimeBenchmark(
         positions: [
           {
             longitude: BENCHMARK_SCENE.west + ((i % 16) / 15) * spanLng,
-            latitude: BENCHMARK_SCENE.south + ((Math.floor(i / 16) % 16) / 15) * spanLat,
+            latitude:
+              BENCHMARK_SCENE.south +
+              ((Math.floor(i / 16) % 16) / 15) * spanLat,
             height: 0,
           },
         ],
@@ -141,18 +143,19 @@ export function runRuntimeBenchmark(
     measure("firstFrame", () => {
       engine.viewer?.requestRender("benchmark-first-frame")
       void getRuntimeDiagnostics(runtime)
-    })
+    }),
   )
 
   phases.push(
     measure("pick", () => {
       picked = runtime.registry.values().filter((item) => {
-        const positions = (item as { positions?: Array<{ longitude: number; latitude: number }> })
-          .positions
+        const positions = (
+          item as { positions?: Array<{ longitude: number; latitude: number }> }
+        ).positions
         const point = positions?.[0]
         return point ? pointInScene(point.longitude, point.latitude) : false
       }).length
-    })
+    }),
   )
 
   phases.push(
@@ -161,7 +164,7 @@ export function runRuntimeBenchmark(
       runtime.lifecycle.transition("destroying")
       runtime.lifecycle.transition("destroyed")
       engine.destroy()
-    })
+    }),
   )
 
   return {

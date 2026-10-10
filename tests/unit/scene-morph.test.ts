@@ -42,7 +42,7 @@ describe("scheduleSceneRestore", () => {
             removed = true
           }
         },
-      }
+      },
     )
     cancel()
     fire()

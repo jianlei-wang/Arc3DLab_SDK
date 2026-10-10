@@ -28,7 +28,8 @@ export type CreditMode = "default" | "compact" | "custom"
 
 export type RenderMode = "auto" | "entity" | "primitive" | "buffer"
 
-export type PositionInput = LngLat | LngLatHeight | [number, number] | [number, number, number]
+export type PositionInput =
+  LngLat | LngLatHeight | [number, number] | [number, number, number]
 
 export interface GraphicStyle {
   fill?: string
@@ -51,7 +52,8 @@ export interface GraphicEvent {
   type: string
 }
 
-export type PickKind = "graphic" | "layer" | "tiles-feature" | "terrain" | "native" | "empty"
+export type PickKind =
+  "graphic" | "layer" | "tiles-feature" | "terrain" | "native" | "empty"
 
 export interface PickResult {
   kind?: PickKind
@@ -115,6 +117,7 @@ export interface EngineContext {
   readonly native: {
     viewer: unknown
   }
+  readonly engine?: Engine
 }
 
 export interface Arc3DConfig {
