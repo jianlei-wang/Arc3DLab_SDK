@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { gzipSync } from "node:zlib"
@@ -38,6 +38,34 @@ export function checkBundleSize(root = ROOT) {
       issues.push(
         `${file} gzip ${formatKb(gzip)} exceeds baseline ${formatKb(expected.gzipBytes)} (+${tolerance}% = ${formatKb(gzipLimit)})`,
       )
+    }
+  }
+
+  for (const asset of baseline.requiredAssets ?? []) {
+    if (!existsSync(join(root, asset))) {
+      issues.push(
+        `required asset ${asset} is missing; it must be emitted, not inlined`,
+      )
+    }
+  }
+
+  const inlineLimit = baseline.inlineImageLimitBytes ?? 0
+  if (inlineLimit > 0) {
+    const distDir = join(root, "dist")
+    if (existsSync(distDir)) {
+      for (const name of readdirSync(distDir)) {
+        if (!name.endsWith(".js")) continue
+        const source = readFileSync(join(distDir, name), "utf8")
+        const inlineRe = /data:image\/[a-z+]+;base64,([A-Za-z0-9+/=]+)/g
+        let match
+        while ((match = inlineRe.exec(source))) {
+          if (match[1].length > inlineLimit) {
+            issues.push(
+              `dist/${name} inlines a ${formatKb(match[1].length)} base64 image; emit it as a standalone asset instead`,
+            )
+          }
+        }
+      }
     }
   }
   return issues

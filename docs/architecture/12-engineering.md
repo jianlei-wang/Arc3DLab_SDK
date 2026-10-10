@@ -1,10 +1,18 @@
 # 工程化
 
-Updated: 2026-10-08
+Updated: 2026-10-10
 
 ## 构建
 
 Vite library mode + TypeScript + `vite-plugin-dts`。主产物为 ESM。UMD 降为可选 legacy bundle。
+
+库构建 `base: "./"`，静态资源以 `new URL(..., import.meta.url)` 生成模块相对 URL，兼容直接 ESM 引用与消费端打包。
+
+## 体积与静态资源
+
+- `bundle-baseline.json` 记录 `dist/arc3dlab.esm.js` 与 `dist/engine-cesium.js` 的 raw / gzip 基线；`npm run lint:size`（CI 在 `build` 后执行）超出基线 5% 时失败。
+- 默认底图 `globe.jpg` 以 `?url&no-inline` 单独产出到 `dist/`，仅在创建默认底图时按需加载，不再内联进 JS chunk；`lint:size` 校验必需资源存在且禁止在大 JS 中内联超过阈值（`inlineImageLimitBytes`）的 base64 图片。
+- `npm run lint:audit`（`npm audit --omit=dev --audit-level=high`）扫描运行时依赖漏洞。
 
 ## 包版本
 

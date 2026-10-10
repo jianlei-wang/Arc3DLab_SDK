@@ -1,5 +1,12 @@
 # 设计迭代日志
 
+## 2026-10-10（静态资源外置）
+
+- P2-04：默认底图 `globe.jpg` 从内联 base64 改为 `?url&no-inline` 独立资源，`vite.config.ts` 增加 `base: "./"`，产物用 `new URL("globe.jpg", import.meta.url)` 模块相对引用并按需加载；引擎 chunk 从约 126.8 kB 降至 9.3 kB，`dist/globe.jpg`（88.1 kB）单独发布。
+- `bundle-baseline.json` 增加 `requiredAssets` 与 `inlineImageLimitBytes`；`lint:size` 校验必需资源存在并禁止在大 JS 中内联超过阈值的 base64 图片。
+- 源码 `assets/globe-img.ts` 改为转发 `globe.jpg?url&no-inline`，新增 `vite-env.d.ts` 引用 `vite/client` 类型。
+- 文档同步 `12-engineering`（体积与静态资源）、清单。
+
 ## 2026-10-10（首屏就绪语义）
 
 - P1-09：新增 `SceneReadyResult` / `SceneReadyOptions` / `DefaultBaseLayerState` 合同；`EngineViewer` 增加可选 `whenSceneReady()`。

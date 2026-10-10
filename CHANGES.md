@@ -11,6 +11,7 @@
 
 ## 当前
 
+- 默认底图改为外置 `globe.jpg` 资源按需加载，引擎 chunk 体积从约 126.8 kB 降至 9.3 kB；`lint:size` 增加必需资源存在性与大 base64 内联检查
 - 新增 `app.scene.whenSceneReady()` 首屏就绪信号，返回 `SceneReadyResult`（`remainingTiles / timedOut / destroyed / defaultBaseLayer`），并派发 `sceneReady` 事件；导出 `SceneReadyOptions` / `SceneReadyResult` / `DefaultBaseLayerState`
 - 内置分析新增任务化方法（`measure` / `terrain` / `visibility` / `query` / `volume.*Task`），返回统一 `AnalysisResult` 并登记到 `app.analysis.tasks`；导出 `createTaskExecutor` / `AnalysisTaskExecutor`
 - 新增 bundle 体积门禁 `lint:size`（`bundle-baseline.json` + `scripts/check-bundle-size.mjs`）与依赖漏洞审计 `lint:audit`

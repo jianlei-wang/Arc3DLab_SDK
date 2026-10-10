@@ -29,7 +29,7 @@
 | P2-01 | 移除包管理器配置冲突 | P2 | DONE |
 | P2-02 | format:check 覆盖 TypeScript 源码 | P2 | DONE |
 | P2-03 | 拆分偏大的聚合源文件 | P2 | DONE |
-| P2-04 | 减少内嵌静态资源影响 | P2 | PARTIAL |
+| P2-04 | 减少内嵌静态资源影响 | P2 | DONE |
 | P2-05 | 隔离开发预览与库构建配置 | P2 | DONE |
 | P2-06 | Legacy Viewer 映射与废弃策略 | P2 | DONE |
 | P2-07 | 同步架构文档、类型合同与测试 | P2 | DONE |
@@ -196,7 +196,7 @@
 ### [ ] P2-04 减少内嵌静态资源对主包的影响
 
 - 记录 bundle size 基线，评估独立静态资源或按需加载。
-- 状态：PARTIAL（已建立 `bundle-baseline.json` 基线并用 `lint:size` 在 CI `build` 后校验原始/gzip 体积；内嵌静态资源拆分或按需加载待评估）
+- 状态：DONE（`bundle-baseline.json` + `lint:size` 在 CI `build` 后校验 raw/gzip 体积；默认底图 `globe.jpg` 由 `?url&no-inline` 独立产出并按需加载，engine chunk 从约 126.8 kB 降至 9.3 kB；`lint:size` 额外校验必需资源存在并禁止大 base64 内联）
 
 ### [ ] P2-05 隔离开发预览与库构建配置
 

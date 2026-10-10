@@ -4,12 +4,18 @@ import { resolve } from "node:path"
 
 const alias = {
   "@arc3dlab/core": resolve(__dirname, "packages/core/src/index.ts"),
-  "@arc3dlab/engine-cesium": resolve(__dirname, "packages/engine-cesium/src/index.ts"),
+  "@arc3dlab/engine-cesium": resolve(
+    __dirname,
+    "packages/engine-cesium/src/index.ts",
+  ),
   "@arc3dlab/scene": resolve(__dirname, "packages/scene/src/index.ts"),
   "@arc3dlab/layers": resolve(__dirname, "packages/layers/src/index.ts"),
   "@arc3dlab/graphics": resolve(__dirname, "packages/graphics/src/index.ts"),
   "@arc3dlab/data": resolve(__dirname, "packages/data/src/index.ts"),
-  "@arc3dlab/interaction": resolve(__dirname, "packages/interaction/src/index.ts"),
+  "@arc3dlab/interaction": resolve(
+    __dirname,
+    "packages/interaction/src/index.ts",
+  ),
   "@arc3dlab/analysis": resolve(__dirname, "packages/analysis/src/index.ts"),
   "@arc3dlab/effects": resolve(__dirname, "packages/effects/src/index.ts"),
   "@arc3dlab/ui": resolve(__dirname, "packages/ui/src/index.ts"),
@@ -18,6 +24,7 @@ const alias = {
 }
 
 export default defineConfig({
+  base: "./",
   resolve: { alias },
   plugins: [
     dts({
@@ -32,7 +39,10 @@ export default defineConfig({
     lib: {
       entry: {
         index: resolve(__dirname, "src/index.ts"),
-        "engine-cesium": resolve(__dirname, "packages/engine-cesium/src/index.ts"),
+        "engine-cesium": resolve(
+          __dirname,
+          "packages/engine-cesium/src/index.ts",
+        ),
       },
       name: "Arc3DLab",
       formats: ["es"],
@@ -49,5 +59,6 @@ export default defineConfig({
     },
     sourcemap: true,
     emptyOutDir: true,
+    assetsInlineLimit: 0,
   },
 })
