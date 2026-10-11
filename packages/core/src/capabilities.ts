@@ -153,13 +153,6 @@ export const CORE_CAPABILITIES: CapabilityRecord[] = [
     available: true,
     source: "sdk",
   },
-  {
-    name: "effects:water",
-    provider: "arc3dlab",
-    version: "1.0.0",
-    available: true,
-    source: "sdk",
-  },
 ]
 
 /** 管理能力注册、查询与按提供方注销的注册表。 */

@@ -158,13 +158,10 @@ export {
 export {
   DynamicSpreadMaterialProperty,
   PolylineTrailMaterialProperty,
-  WaterMaterialProperty,
   registerArc3DMaterials,
   DYNAMIC_SPREAD_MATERIAL,
   POLYLINE_TRAIL_MATERIAL,
-  WATER_MATERIAL,
   type DynamicSpreadMaterialOptions,
   type PolylineTrailMaterialOptions,
-  type WaterMaterialOptions,
   type MaterialValueResult,
 } from "./materials"

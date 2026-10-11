@@ -5,8 +5,6 @@ import {
   DynamicSpreadMaterialProperty,
   POLYLINE_TRAIL_MATERIAL,
   PolylineTrailMaterialProperty,
-  WATER_MATERIAL,
-  WaterMaterialProperty,
   registerArc3DMaterials,
 } from "@arc3dlab/effects"
 
@@ -51,16 +49,6 @@ describe("PolylineTrailMaterialProperty", () => {
     const b = new PolylineTrailMaterialProperty({ image: "texture.png" })
     expect(a.getValue(epoch).image).toBe("texture.png")
     expect(a.equals(b)).toBe(true)
-  })
-})
-
-describe("WaterMaterialProperty", () => {
-  it("produces wave parameters", () => {
-    const property = new WaterMaterialProperty({ frequency: 80 })
-    const value = property.getValue(epoch)
-    expect(value.frequency).toBe(80)
-    expect(value.animationSpeed).toBe(800)
-    expect(property.getType()).toBe(WATER_MATERIAL)
   })
 })
 

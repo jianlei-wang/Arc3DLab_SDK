@@ -4,8 +4,6 @@ import { Color, Event, type JulianDate, Material } from "cesium"
 export const DYNAMIC_SPREAD_MATERIAL = "Arc3DDynamicSpread"
 /** 线尾迹流动材质的类型名。 */
 export const POLYLINE_TRAIL_MATERIAL = "Arc3DPolylineTrailLink"
-/** 水面材质的类型名。 */
-export const WATER_MATERIAL = "Arc3DWater"
 
 const DYNAMIC_SPREAD_SHADER = `
 czm_material czm_getMaterial(czm_materialInput materialInput){
@@ -31,18 +29,6 @@ czm_material czm_getMaterial(czm_materialInput materialInput){
   material.alpha=colorImage.a*color.a;
   float factor=colorImage.a;
   material.diffuse=mix(color.rgb,colorImage.rgb,factor);
-  return material;
-}
-`
-
-const WATER_SHADER = `
-czm_material czm_getMaterial(czm_materialInput materialInput){
-  czm_material material=czm_getDefaultMaterial(materialInput);
-  vec2 st=materialInput.st;
-  float t=czm_frameNumber*animationSpeed/1000.0;
-  float wave=sin(st.x*frequency+t)*0.5+cos(st.y*frequency*1.3-t)*0.5;
-  material.diffuse=mix(color.rgb*0.65,color.rgb,wave*amplitude);
-  material.alpha=color.a;
   return material;
 }
 `
@@ -82,18 +68,6 @@ export function registerArc3DMaterials(): void {
       source: POLYLINE_TRAIL_SHADER,
     },
   })
-  cache.addMaterial(WATER_MATERIAL, {
-    fabric: {
-      type: WATER_MATERIAL,
-      uniforms: {
-        color: new Color(0.1, 0.35, 0.6, 0.9),
-        frequency: 60,
-        animationSpeed: 800,
-        amplitude: 0.6,
-      },
-      source: WATER_SHADER,
-    },
-  })
 }
 
 /** 动态扩散材质的选项。 */
@@ -116,12 +90,6 @@ export interface MaterialValueResult {
   gradient?: number
   /** 纹理图像。 */
   image?: string
-  /** 频率参数。 */
-  frequency?: number
-  /** 动画速度参数。 */
-  animationSpeed?: number
-  /** 振幅参数。 */
-  amplitude?: number
 }
 
 /**
@@ -322,97 +290,6 @@ export class PolylineTrailMaterialProperty {
       (other instanceof PolylineTrailMaterialProperty &&
         Color.equals(this.colorValue, other.colorValue) &&
         this.imageValue === other.imageValue)
-    )
-  }
-}
-
-/** 水面材质的选项。 */
-export interface WaterMaterialOptions {
-  /** 水面颜色（CSS 颜色）。 */
-  color?: string
-  /** 波纹频率。 */
-  frequency?: number
-  /** 动画速度。 */
-  animationSpeed?: number
-  /** 波纹振幅，取值位于 `[0, 1]`。 */
-  amplitude?: number
-}
-
-/**
- * 水面材质属性，提供随时间起伏的波纹效果。
- */
-export class WaterMaterialProperty {
-  private readonly definitionChangedEvent = new Event()
-  private readonly colorValue: Color
-  private readonly frequencyValue: number
-  private readonly animationSpeedValue: number
-  private readonly amplitudeValue: number
-
-  /**
-   * 创建水面材质属性。
-   * @param options - 材质选项。
-   */
-  constructor(options: WaterMaterialOptions = {}) {
-    this.colorValue = Color.fromCssColorString(options.color ?? "#1a5999")
-    this.frequencyValue = options.frequency ?? 60
-    this.animationSpeedValue = options.animationSpeed ?? 800
-    this.amplitudeValue = options.amplitude ?? 0.6
-  }
-
-  /** 水面颜色。 */
-  get color(): Color {
-    return this.colorValue
-  }
-
-  /** 属性定义变化事件。 */
-  get definitionChanged(): Event {
-    return this.definitionChangedEvent
-  }
-
-  /** 属性是否为常量。 */
-  get isConstant(): boolean {
-    return false
-  }
-
-  /**
-   * 返回属性所属的材质类型。
-   * @returns 材质类型名。
-   */
-  getType(): string {
-    return WATER_MATERIAL
-  }
-
-  /**
-   * 计算指定时刻的材质取值。
-   * @param _time - 当前时刻，本材质忽略该参数。
-   * @param result - 可选的结果对象。
-   * @returns 材质取值。
-   */
-  getValue(
-    _time: JulianDate,
-    result?: MaterialValueResult,
-  ): MaterialValueResult {
-    const value: MaterialValueResult = result ?? {}
-    value.color = this.colorValue
-    value.frequency = this.frequencyValue
-    value.animationSpeed = this.animationSpeedValue
-    value.amplitude = this.amplitudeValue
-    return value
-  }
-
-  /**
-   * 判断与另一属性是否相等。
-   * @param other - 另一属性。
-   * @returns 相等时返回 true。
-   */
-  equals(other: unknown): boolean {
-    return (
-      this === other ||
-      (other instanceof WaterMaterialProperty &&
-        Color.equals(this.colorValue, other.colorValue) &&
-        this.frequencyValue === other.frequencyValue &&
-        this.animationSpeedValue === other.animationSpeedValue &&
-        this.amplitudeValue === other.amplitudeValue)
     )
   }
 }

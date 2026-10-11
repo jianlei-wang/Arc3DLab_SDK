@@ -686,7 +686,10 @@ export {
 export {
   FloodAnalysis,
   computeFloodGrid,
+  FLOOD_WATER_DEFAULTS,
+  FLOOD_WATER_MATERIAL,
   type FloodGridOptions,
   type FloodGridResult,
+  type FloodWaterOptions,
 } from "./flood"
 export { SwipeComparison, type SwipeOrientation, type SwipeSide } from "./split"

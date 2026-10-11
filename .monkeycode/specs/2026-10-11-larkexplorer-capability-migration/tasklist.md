@@ -125,13 +125,13 @@ Updated: 2026-10-11
   - `DynamicSpreadMaterialProperty`、`PolylineTrailLinkMaterialProperty`，注册 `MaterialRegistry`
   - Requirement: 19；Design: effects 扩展
   - Verify: 单测验证 `definitionChanged` 与 `equals`
-  - 实现说明：新增 `registerArc3DMaterials()` 向 Cesium `Material._materialCache` 注册动态扩散、线尾迹、水面三类材质（幂等、无缓存时静默跳过）；`EffectsManager` 构造时自动注册。
+  - 实现说明：新增 `registerArc3DMaterials()` 向 Cesium `Material._materialCache` 注册动态扩散与线尾迹两类材质（幂等、无缓存时静默跳过）；`EffectsManager` 构造时自动注册。
 
-- [ ] T2-4 水面着色器
+- [x] T2-4 水面着色器
   - 为洪水提供水面 `PostProcessStage` / 材质，与区域裁剪协同
   - Requirement: 11；Design: effects 扩展
   - Verify: E2E 水面渲染无异常
-  - 实现说明：已提供 `WaterMaterialProperty` 与 `Arc3DWater` 材质源；`FloodAnalysis` 仍用半透明矩形，接入水面材质与区域裁剪待后续
+  - 实现说明：水面着色器归属 `flood.ts`（`Arc3DFloodWater` 材质 + `PostProcessStage` 由 `Primitive`+`MaterialAppearance` 近似）；`setRegion(positions)`/`setExtent(extent)` 定义范围，`setWaterLevel(height, options)` 渲染动画水面，`options.clippingPlanes` 与 `ClipAnalysis` 裁剪面协同
 
 ## Phase 3: 态势标绘
 
