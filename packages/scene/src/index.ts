@@ -13,3 +13,15 @@ export {
   extentFromCenter,
   metersPerPixelAtHeight,
 } from "./viewport-metrics"
+export {
+  SyncViewer,
+  type SyncableView,
+  type SyncableCamera,
+  type CameraChangeEvent,
+} from "./sync-viewer"
+export {
+  captureGrid,
+  subdivideExtent,
+  type ShotGridOptions,
+  type ShotGridShot,
+} from "./shot-grid"

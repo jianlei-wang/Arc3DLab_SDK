@@ -19,3 +19,40 @@ export {
   applyPositionUpdates,
   type PositionPool,
 } from "./pool"
+export {
+  addBillboard,
+  addSpreadPoint,
+  addRadarNormal,
+  addRiver,
+  addCircleDiffusion,
+  addDynamicPolyline,
+  addPanel,
+} from "./dynamic/index"
+export {
+  RadarNormalMaterialProperty,
+  registerRadarNormalMaterial,
+  RADAR_NORMAL_MATERIAL,
+  type RadarNormalMaterialOptions,
+} from "./dynamic/materials"
+export type {
+  DynamicGraphicHandle,
+  DynamicGraphicOptions,
+  BillboardOptions,
+  SpreadPointOptions,
+  RadarNormalOptions,
+  RiverOptions,
+  CircleDiffusionOptions,
+  DynamicPolylineOptions,
+  PanelOptions,
+} from "./dynamic/types"
+export {
+  MultiTileVoxel,
+  type VoxelPoint,
+  type VoxelOptions,
+  type VoxelTileRequest,
+} from "./voxel"
+export {
+  ModelFlatten,
+  type FlattenTarget,
+  type ModelFlattenOptions,
+} from "./flatten"

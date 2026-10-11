@@ -22,7 +22,7 @@ const ALLOWED_INTERNAL = {
   data: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],
   scene: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],
   layers: ["@arc3dlab/core", "@arc3dlab/engine-cesium", "@arc3dlab/data"],
-  graphics: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],
+  graphics: ["@arc3dlab/core", "@arc3dlab/engine-cesium", "@arc3dlab/effects"],
   interaction: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],
   analysis: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],
   effects: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],

@@ -166,30 +166,35 @@ Updated: 2026-10-11
 
 ## Phase 4: 动态图形与可视化
 
-- [ ] T4-1 动态图形 `packages/graphics/src/dynamic/*`
+- [x] T4-1 动态图形 `packages/graphics/src/dynamic/*`
   - `addBillboard`、`addSpreadPoint`、`addRadarNormal`、`addRiver`、`addCircleDiffusion`、`addDynamicPolyline`、`addPanel`
   - Requirement: 14；Design: graphics 扩展
   - Verify: 契约测试验证动画监听销毁归零
+  - 实现说明：`dynamic/{types,materials,index}.ts`；7 个函数返回 `DynamicGraphicHandle`，销毁逻辑登记到 `context.disposers`，`destroy()` 同时解除登记并移除图元/后处理；扩散点复用 effects 的 `DynamicSpreadMaterialProperty`，雷达新增 `RadarNormalMaterialProperty`；`graphics` 依赖新增 `@arc3dlab/effects`
 
-- [ ] T4-2 体素 `packages/graphics/src/voxel.ts`
+- [x] T4-2 体素 `packages/graphics/src/voxel.ts`
   - `MultiTileVoxel`：`showPoints`、`interpolate`、`requestData`、`destroy`
   - Requirement: 17；Design: graphics 扩展
   - Verify: 单测验证插值与资源释放
+  - 实现说明：`MultiTileVoxel` 最近邻插值 + `GridVoxelProvider`（实现 Cesium `VoxelProvider`，`requestData` 返回 `VoxelContent`）+ `VoxelPrimitive` + `CustomShader`；`showPoints` 使用 `PointPrimitiveCollection`；`destroy` 释放两者
 
-- [ ] T4-3 模型压平 `packages/graphics/src/flatten.ts`
+- [x] T4-3 模型压平 `packages/graphics/src/flatten.ts`
   - `ModelFlatten`：`addPolygon`、`setEnabled`、`clear`、`destroy`
   - Requirement: 18；Design: graphics 扩展
   - Verify: 契约测试
+  - 实现说明：基于 Cesium `ClippingPolygonCollection`/`ClippingPolygon`，`addPolygon` 追加并合入集合，`setEnabled` 控制 `enabled`，`clear`/`destroy` 清空并解除与目标的关联
 
-- [ ] T4-4 多屏联动 `packages/scene/src/sync-viewer.ts`
+- [x] T4-4 多屏联动 `packages/scene/src/sync-viewer.ts`
   - `SyncViewer` 相机同步与 `destroy`
   - Requirement: 20；Design: scene 扩展
   - Verify: 契约测试验证同步与解除
+  - 实现说明：`SyncViewer(primary, views)` 通过 `primary.camera.changed` 监听同步位置/朝向，`destroy` 移除监听；以最小 `SyncableCamera` 接口便于桩测试
 
-- [ ] T4-5 场景出图 `packages/scene/src/shot-grid.ts`
+- [x] T4-5 场景出图 `packages/scene/src/shot-grid.ts`
   - `captureGrid` 按网格分幅导出
   - Requirement: 20；Design: scene 扩展
   - Verify: E2E 验证输出图片数量与尺寸
+  - 实现说明：`subdivideExtent` 纯函数拆分范围，`captureGrid(context, options)` 逐格 `camera.setView` 后经 `scene.canvas.toDataURL` 出图并返回 `{row,column,extent,image}` 集合
 
 ## Phase 5: 组件与数据
 
