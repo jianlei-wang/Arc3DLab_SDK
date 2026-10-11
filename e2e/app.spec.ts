@@ -40,6 +40,12 @@ test("runs the runtime path: create, add, pick, analyse, destroy, rebuild", asyn
   expect(report?.pickKind).toBe("graphic")
   expect(report?.pickGraphicId).toBe(report?.graphicId)
   expect(report?.distanceMeters as number).toBeGreaterThan(0)
+  expect(typeof report?.plotId).toBe("string")
+  expect(report?.plotShapeCount as number).toBeGreaterThan(0)
+  expect(report?.weatherEnabled).toBe(true)
+  expect(report?.weatherDisabled).toBe(true)
+  expect(report?.swipePosition).toBeCloseTo(0.35, 5)
+  expect(report?.swipeDestroyed).toBe(true)
   expect(report?.destroyed).toBe(true)
   expect(report?.rebuiltReady).toBe(true)
 

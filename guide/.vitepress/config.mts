@@ -98,6 +98,17 @@ const sidebar = [
     ],
   },
   {
+    text: "迁移能力",
+    collapsed: false,
+    items: [
+      { text: "军事标绘", link: "/migration/plotting" },
+      { text: "动态图形与特效", link: "/migration/dynamic-graphics" },
+      { text: "空间分析增强", link: "/migration/analysis-extras" },
+      { text: "多屏联动与网格出图", link: "/migration/scene-multiview" },
+      { text: "导航组件与外部服务", link: "/migration/navigation-services" },
+    ],
+  },
+  {
     text: "扩展与迁移",
     collapsed: false,
     items: [

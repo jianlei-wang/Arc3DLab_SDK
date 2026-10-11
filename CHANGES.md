@@ -13,7 +13,13 @@
 
 ### feat
 
-- 新增 VitePress **开发指南站**（`guide/`）：按类别分组（简介、运行时、相机、场景、影像地形、图层、图形、交互、分析、特效 UI、扩展与迁移）的 38 个章节，代码示例与实际公共 API 一致；`npm run guide:dev` / `guide:build` / `guide:preview`（独立端口 5175）
+- 按分阶段方案全量迁移旧 LarkExplorer-SDK 能力（P0–P5）：核心几何与坐标基准（`geo` / `datum`）、交互事件与工具栏、场景视口度量与渲染后回调、兼容 `Map` 类
+- 空间分析增强：`buffer`、`measure-tools`、`path`、`heatmap` / `dynamic-heatmap`、`flood` 洪水水面、`split` 卷帘；新增 `analysis:*` 能力
+- 特效：`weather` 天气、`particles` 粒子、`materials` 扩展；新增 `effects:*` 能力
+- 新增私有包 `@arc3dlab/plotting`：24 类军事标绘符号与纯几何算法；新增 `plotting:draw` 能力
+- 动态图形与可视化：`graphics/dynamic`（7 类动态图元）、`voxel` 多瓦片体素、`flatten` 模型压平、`scene` 多屏联动 `SyncViewer` 与网格出图 `captureGrid`；新增 `graphics:*` / `scene:*` 能力
+- 组件与数据：`@arc3dlab/ui` 导航条 `NavigationBar`、`@arc3dlab/data` 可注入 Web 服务提供者 `WebServiceProvider` / `createGaodeProvider` 与 `WebServiceManager`、`@arc3dlab/core` 高亮语义 `ActiveStyle`；新增 `data:web` / `ui:navigation` / `highlight:active` 能力
+- 新增 VitePress **开发指南站**（`guide/`）：按类别分组（简介、运行时、相机、场景、影像地形、图层、图形、交互、分析、特效 UI、迁移能力、扩展与迁移）的 43 个章节，代码示例与实际公共 API 一致；`npm run guide:dev` / `guide:build` / `guide:preview`（独立端口 5175）
 - 开发指南顶栏通过运行时计算兄弟端口，与 Sandcastle（5173）、API 文档（5174）互链；CI 新增 `guide` job 构建并上传 `guide-dist` 构件
 - 新增 Cesium 风格 API 文档站：自研生成器（`typedoc --json` → normalize → render）替换 TypeDoc + Material 主题，覆盖 13 个包、JSDoc-default 结构类名与包命名空间侧边栏；`npm run docs:build` / `npm run lint:docs` / `npm run docs:preview`
 - 全量补齐 13 个包公共导出的中文 TSDoc；公共符号摘要覆盖率 100%、参数覆盖率 100%，`lint:docs` 纳入 `gate` 与 CI

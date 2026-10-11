@@ -38,3 +38,24 @@ feat: 内置分析新增任务化方法，返回统一 AnalysisResult
 test: 新增浏览器 E2E（Playwright + Chromium / SwiftShader）
 build: 新增 bundle 体积门禁与依赖漏洞审计
 ```
+
+### $\colorbox{green}{002 能力迁移（LarkExplorer）}$
+
+#### 更新时间
+
+```time
+2026-10-11
+```
+
+#### 更新内容
+
+```content
+feat: 迁移核心几何与坐标基准、交互事件、场景视口度量与兼容 Map 类（P0）
+feat: 空间分析增强 buffer / path / heatmap / flood / split（P1）
+feat: 天气、粒子与材质特效（P2）
+feat: 新增 @arc3dlab/plotting 军事标绘包（24 类符号）（P3）
+feat: 动态图形、体素、模型压平、多屏联动与网格出图（P4）
+feat: 导航条、Web 服务提供者与图层高亮语义（P5）
+docs: 开发指南新增「迁移能力」5 章
+build: 修复 api-extractor 在 TypeScript 5.9 下的构建阻塞，更新 bundle 基线
+```

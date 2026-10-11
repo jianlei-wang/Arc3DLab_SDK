@@ -221,27 +221,31 @@ Updated: 2026-10-11
 
 ## Phase 6: 文档与门禁
 
-- [ ] T6-1 开发指南章节 `guide/**`
+- [x] T6-1 开发指南章节 `guide/**`
   - 新增迁移能力章节，正文中文、示例英文标识符
   - Requirement: 24；Design: 文档
   - Verify: `npm run guide:build` 通过
+  - 实现说明：新增「迁移能力」分组 5 章（`guide/migration/{plotting,dynamic-graphics,analysis-extras,scene-multiview,navigation-services}.md`）并接入 `guide/.vitepress/config.mts` 侧边栏；构建通过。
 
-- [ ] T6-2 API 文档与 TSDoc 覆盖
+- [x] T6-2 API 文档与 TSDoc 覆盖
   - 新公共符号补齐中文 TSDoc；必要时补充文档示例
   - Requirement: 24；Design: 文档
   - Verify: `npm run lint:docs` 覆盖率达标
+  - 实现说明：`lint:docs` 摘要 100%（265/265）、参数 100%（453/453）。
 
-- [ ] T6-3 E2E 扩展 `e2e/app.spec.ts`
+- [x] T6-3 E2E 扩展 `e2e/app.spec.ts`
   - 覆盖创建 → 标绘/量测 → 天气特效开关 → 卷帘 → 销毁 → 重建
   - Requirement: 24；Design: 测试策略
-  - Verify: `npm run e2e` 关键路径通过
+  - Verify: `npm run test:e2e` 关键路径通过
+  - 实现说明：`e2e/main.ts` 增加标绘绘制、天气启停、卷帘对比，断言扩展；补齐 `e2e/vite.config.ts` 缺失的 `@arc3dlab/plotting` 别名（P3 后未跑过 E2E 的遗留问题）；单条 chromium 用例 36.7s 通过。
 
-- [ ] T6-4 体积基线与变更日志
+- [x] T6-4 体积基线与变更日志
   - 更新 `bundle-baseline.json`、`CHANGES.md`、`LOG.md`
   - Requirement: 24；Design: 门禁
   - Verify: `npm run lint:size` 通过，文档更新齐全
+  - 实现说明：基线更新为 `arc3dlab.esm.js` 229446/58727、`engine-cesium.js` 611/341；`CHANGES.md`／`LOG.md`／`docs/architecture/CHANGELOG.md` 同步；`lint:size` 通过。
 
-- [ ] T6-5 全量门禁
+- [x] T6-5 全量门禁
   - 运行 `npm run gate` 与 CI 对应步骤（含 `test:coverage`、`lint:audit`、`lint:size`、`test:pack`）
   - Requirement: 24；Design: 门禁
   - Verify: 全部通过

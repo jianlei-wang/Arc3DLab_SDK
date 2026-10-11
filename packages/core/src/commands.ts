@@ -236,8 +236,8 @@ export class CommandBus {
    * @param plugin - 插件名称。
    */
   unregisterByPlugin(plugin: string): void {
-    for (const [name, spec] of this.items) {
-      if (spec.plugin === plugin) this.items.delete(name)
+    for (const name of Array.from(this.items.keys())) {
+      if (this.items.get(name)?.plugin === plugin) this.items.delete(name)
     }
   }
 

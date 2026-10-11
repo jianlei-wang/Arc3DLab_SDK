@@ -120,8 +120,9 @@ export class PluginManager<TApp = unknown> {
         `Plugin not installed: ${name}`,
       )
     }
-    for (const [other, candidate] of this.plugins) {
-      if (candidate.plugin.dependsOnPlugins?.includes(name)) {
+    for (const other of Array.from(this.plugins.keys())) {
+      const candidate = this.plugins.get(other)
+      if (candidate?.plugin.dependsOnPlugins?.includes(name)) {
         throw new Arc3DError(
           "INVALID_ARGUMENT",
           `Cannot uninstall plugin ${name}: plugin ${other} depends on it`,

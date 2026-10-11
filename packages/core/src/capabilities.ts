@@ -325,8 +325,8 @@ export class CapabilityRegistry {
    */
   unregisterByProvider(provider: string): void {
     if (provider === "arc3dlab" || provider === "core") return
-    for (const [name, record] of this.items) {
-      if (record.provider === provider) this.items.delete(name)
+    for (const name of Array.from(this.items.keys())) {
+      if (this.items.get(name)?.provider === provider) this.items.delete(name)
     }
   }
 }

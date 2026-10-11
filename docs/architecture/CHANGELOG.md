@@ -1,5 +1,12 @@
 # 设计迭代日志
 
+## 2026-10-11（能力迁移 P6：文档与门禁）
+
+- 开发指南新增「迁移能力」分组 5 章：军事标绘、动态图形与特效、空间分析增强、多屏联动与网格出图、导航组件与外部服务；`guide/.vitepress/config.mts` 同步侧边栏，`npm run guide:build` 通过。
+- 修复构建阻塞：`vite-plugin-dts` 的 `rollupTypes`（api-extractor 7.59.4 + TypeScript 5.9.3）在解析导出类内「解构 `Map` 的 `for...of`」时触发内部缺陷（`Unable to determine semantic information for declaration`）。将 `core/capabilities`、`core/commands`、`sdk/plugins`、`effects` 四处循环改写为 `Array.from(...keys())` + `get()`，`npm run build` 恢复通过。
+- 更新 `bundle-baseline.json`：`dist/arc3dlab.esm.js` raw 229446 / gzip 58727，`dist/engine-cesium.js` raw 611 / gzip 341。
+- 同步 `CHANGES.md`、`LOG.md`。
+
 ## 2026-10-11（能力迁移 P5：组件与数据）
 
 - 迁移 spec：`.monkeycode/specs/2026-10-11-larkexplorer-capability-migration/`（tasklist P5）。
@@ -13,7 +20,7 @@
 ## 2026-10-11（开发指南站）
 
 - 新增面向使用者的 **开发指南站**，基于 VitePress（`vitepress@^1.6.4` 开发依赖），源码位于 `guide/`，与 API 参考、Sandcastle 互补。
-- 内容按类别分组共 38 个章节：简介（3）、运行时（4）、相机（2）、场景（3）、影像地形（3）、图层与数据（4）、图形（5）、交互（3）、空间分析（7）、特效与 UI（2）、插件（1）、迁移（1）；正文中文、代码示例英文标识符。
+- 内容按类别分组共 43 个章节：简介（3）、运行时（4）、相机（2）、场景（3）、影像地形（3）、图层与数据（4）、图形（5）、交互（3）、空间分析（7）、特效与 UI（2）、迁移能力（5）、插件（1）、迁移（1）；正文中文、代码示例英文标识符。
 - 站内结构：`guide/.vitepress/config.mts`（标题、nav、按类别分组 sidebar、页内目录、中文界面文案、`vite.server.allowedHosts` 含 `.monkeycode-ai.online`），`guide/.vitepress/theme/`（继承默认主题 + `PeerLinks.vue`）。
 - 顶栏互链：`PeerLinks.vue` 在客户端按当前 host 计算兄弟端口——本机用 `localhost:5173/5174`，在线预览按 `<port>-<suffix>.monkeycode-ai.online` 改写，指向 Sandcastle 与 API 文档。
 - `package.json` 新增 `guide:dev` / `guide:build` / `guide:preview`（独立端口 5175）；`.gitignore` 忽略 `guide/.vitepress/dist` 与 `guide/.vitepress/cache`；`.prettierignore` 同步忽略。

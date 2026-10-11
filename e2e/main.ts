@@ -1,5 +1,6 @@
 import { Arc3D } from "../src/index"
-import type { SceneReadyResult } from "../src/index"
+import type { LngLat, SceneReadyResult } from "../src/index"
+import { SwipeComparison } from "@arc3dlab/analysis"
 
 declare global {
   interface Window {
@@ -11,6 +12,12 @@ declare global {
 
 const POINT: [number, number, number] = [116.391, 39.906, 0]
 const FAR_POINT: [number, number, number] = [116.401, 39.916, 0]
+
+const PLOT_ANCHORS: LngLat[] = [
+  { longitude: 116.386, latitude: 39.902 },
+  { longitude: 116.396, latitude: 39.91 },
+  { longitude: 116.402, latitude: 39.9 },
+]
 
 function nextFrames(count = 2): Promise<void> {
   return new Promise((resolve) => {
@@ -54,6 +61,26 @@ async function boot(): Promise<void> {
       positions: [POINT, FAR_POINT],
     })
     report.distanceMeters = distance.meters
+
+    const plot = app.plotting.draw("attackArrow", {
+      positions: PLOT_ANCHORS,
+      style: { color: "#00e5ff", fillColor: "#00e5ff" },
+    })
+    report.plotId = plot.id
+    report.plotShapeCount = plot.shapes.length
+
+    app.effects.weather.enable("rain")
+    report.weatherEnabled = true
+    app.effects.weather.disable("rain")
+    report.weatherDisabled = true
+
+    const swipe = new SwipeComparison(app.context, "vertical")
+    swipe.setPosition(0.35)
+    report.swipePosition = swipe.getPosition()
+    swipe.setActive(false)
+    swipe.setActive(true)
+    swipe.destroy()
+    report.swipeDestroyed = true
 
     await app.destroy()
     report.destroyed = true

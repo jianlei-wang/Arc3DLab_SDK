@@ -52,8 +52,8 @@ export class MaterialRegistry {
    * @param owner - 归属者标识
    */
   unregisterByOwner(owner: string): void {
-    for (const [type, registeredOwner] of this.owners) {
-      if (registeredOwner === owner) this.unregister(type)
+    for (const type of Array.from(this.owners.keys())) {
+      if (this.owners.get(type) === owner) this.unregister(type)
     }
   }
 
