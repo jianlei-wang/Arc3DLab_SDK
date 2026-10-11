@@ -19,6 +19,7 @@ import {
   pickIdentity,
   resolvePick,
 } from "./pick"
+import { ScreenEventController } from "./event-handler"
 
 export {
   HoverGate,
@@ -28,6 +29,17 @@ export {
   pickIdentity,
   resolvePick,
 } from "./pick"
+export {
+  ScreenEventController,
+  type ScreenEventPayload,
+  type ScreenEventHandler,
+  type ScreenPoint,
+} from "./event-handler"
+export {
+  isScreenEventName,
+  listScreenEventNames,
+  type ScreenEventName,
+} from "./event-names"
 
 /**
  * 交互拾取事件，在通用拾取结果之上附加图形与图层信息。
@@ -99,6 +111,8 @@ export class InteractionManager {
   >()
   /** 选中状态控制器。 */
   readonly selection: SelectionController
+  /** 屏幕事件控制器。 */
+  readonly events: ScreenEventController
   private readonly hoverGate = new HoverGate()
   private readonly canvas: HTMLCanvasElement
   private readonly onCanvasLeave = (): void => {
@@ -114,6 +128,7 @@ export class InteractionManager {
     const viewer = getCesiumViewer(context.engine.native.viewer)
     this.canvas = viewer.canvas
     this.selection = new SelectionController(context)
+    this.events = new ScreenEventController(context)
     this.handler = new ScreenSpaceEventHandler(viewer.canvas)
     this.handler.setInputAction(
       (movement: { position: { x: number; y: number } }) => {
@@ -250,6 +265,7 @@ export class InteractionManager {
    */
   destroy(): void {
     this.canvas.removeEventListener("mouseleave", this.onCanvasLeave)
+    this.events.destroy()
     if (this.handler && !this.handler.isDestroyed()) {
       this.handler.removeInputAction(ScreenSpaceEventType.LEFT_CLICK)
       this.handler.removeInputAction(ScreenSpaceEventType.MOUSE_MOVE)

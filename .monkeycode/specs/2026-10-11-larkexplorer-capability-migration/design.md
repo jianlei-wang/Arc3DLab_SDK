@@ -49,8 +49,9 @@ graph TD
 
 ### core 扩展（`@arc3dlab/core`）
 
-- `geo.ts`：`cartesianFromPixel`、`pixelToLngLat`、`wgs84ToCartesian`、`cartesianToWgs84`、`wgs84ToCartographic`、`interpolatePolyline`、`polygonCentroid`、`extentOf`、`pointByAngleDistance`、`sampleTerrainHeight`、`scaleHeight`、`angleBetween`。
-- `datum.ts`：`GCJ02` / `BD09` / `WGS84` 互转函数：`wgs84ToGcj02`、`gcj02ToWgs84`、`gcj02ToBd09`、`bd09ToGcj02`、`wgs84ToBd09`、`bd09ToWgs84`、`outOfChina`。
+- `geo.ts`：纯几何与测地计算，不依赖引擎——`degreesToRadians`、`radiansToDegrees`、`normalizeHeading`、`angleBetweenHeadings`、`pointByHeadingDistance`、`greatCircleDistanceMeters`、`interpolateLngLat`、`interpolatePolyline`、`polygonCentroid`、`extentOf`，以及 `Extent` 与 `WGS84_SEMI_MAJOR_AXIS`。
+- `screen.ts`（engine-cesium）：涉及场景的屏幕坐标与拾取换算 `cartesianFromPixel`、`pixelToLngLat`，以及地形取高 `sampleTerrainHeight`；这些能力需要相机 / 地形服务，归入引擎适配层而非 `core`。
+- `datum.ts`：`GCJ02` / `BD09` / `WGS84` 互转：`wgs84ToGcj02`、`gcj02ToWgs84`、`gcj02ToBd09`、`bd09ToGcj02`、`wgs84ToBd09`、`bd09ToWgs84`、`outOfChina`。
 - `china-code.ts`：三级行政区划数据与 `codeToText` 映射（`ChinaCode`）。
 - `active-style.ts`：`ActiveType`（`blink` / `scaling` / `jump`）与实体高亮应用 / 还原函数。
 - `turf.ts`（薄封装）：`turfExtent`、`interpolateByDistance`。
@@ -64,8 +65,8 @@ graph TD
 ### scene 扩展（`@arc3dlab/scene`）
 
 - `camera.ts` 扩展：`flyToExtent(extent, timeSec?, cb?)`、`zoomToItem(item)`、`flyToItem(item)`、`flyToLngLat(pos, timeSec?, cb?)`、`zoomToLngLat(pos, cb?)`、`aroundPoint(pos, angleDeg, periodSec, distanceM)`（返回 `AroundPointHandle`，含 `start` / `stop` / `destroy`）、`roam(points, times?, showPath?)`（返回 `RoamController`）。
-- `viewport-metrics.ts`：`scaleMetersPerPixel()`、`viewExtent()`。
-- `post-render.ts`：`onPostRender(cb)`（返回取消函数）。
+- `viewport-metrics.ts`：纯计算 `metersPerPixelAtHeight`、`extentFromCenter` 与 `DEFAULT_VERTICAL_FOV`；`SceneController` 暴露 `scaleMetersPerPixel()` 与 `viewExtent()`。
+- `post-render.ts`：`PostRenderController`（基于可移除监听接口，便于无引擎测试）；`SceneController` 暴露 `postRender` 与 `onPostRender(cb)`。
 - `sync-viewer.ts`：`SyncViewer`，构造 `(primary, views)`，`destroy()`。
 - `shot-grid.ts`：`captureGrid(options)`，按行列分幅导出 `Leaflet/图片` 集合。
 

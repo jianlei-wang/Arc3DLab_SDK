@@ -15,6 +15,39 @@ export {
   createTaskExecutor,
   DataCatalog,
   runAnalysisTask,
+  WGS84_SEMI_MAJOR_AXIS,
+  angleBetweenHeadings,
+  degreesToRadians,
+  extentOf,
+  greatCircleDistanceMeters,
+  interpolateLngLat,
+  interpolatePolyline,
+  normalizeHeading,
+  pointByHeadingDistance,
+  polygonCentroid,
+  radiansToDegrees,
+  bd09ToGcj02,
+  bd09ToWgs84,
+  gcj02ToBd09,
+  gcj02ToWgs84,
+  outOfChina,
+  wgs84ToBd09,
+  wgs84ToGcj02,
+  PostRenderController,
+  DEFAULT_VERTICAL_FOV,
+  extentFromCenter,
+  metersPerPixelAtHeight,
+  ScreenEventController,
+  isScreenEventName,
+  listScreenEventNames,
+} from "@arc3dlab/sdk"
+export type {
+  Extent,
+  RemovableEventListener,
+  ScreenEventName,
+  ScreenEventPayload,
+  ScreenEventHandler,
+  ScreenPoint,
 } from "@arc3dlab/sdk"
 export type {
   AnalysisExecution,
@@ -59,5 +92,5 @@ export type {
   VerticalReference,
 } from "@arc3dlab/sdk"
 
-export { Viewer } from "@arc3dlab/legacy"
-export type { LegacyViewerOptions } from "@arc3dlab/legacy"
+export { Viewer, Map } from "@arc3dlab/legacy"
+export type { LegacyViewerOptions, LegacyMapOptions } from "@arc3dlab/legacy"

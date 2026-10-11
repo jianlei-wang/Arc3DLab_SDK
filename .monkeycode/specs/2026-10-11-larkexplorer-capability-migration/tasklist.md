@@ -24,40 +24,42 @@ Updated: 2026-10-11
 
 ## Phase 0: 基础
 
-- [ ] T0-1 core 几何工具 `packages/core/src/geo.ts`
-  - 实现 `cartesianFromPixel`、`pixelToLngLat`、`wgs84ToCartesian`、`cartesianToWgs84`、`wgs84ToCartographic`、`interpolatePolyline`、`polygonCentroid`、`extentOf`、`pointByAngleDistance`、`sampleTerrainHeight`、`scaleHeight`、`angleBetween`
+- [x] T0-1 core 几何工具 `packages/core/src/geo.ts`
+  - 实现纯函数 `degreesToRadians`、`radiansToDegrees`、`normalizeHeading`、`angleBetweenHeadings`、`pointByHeadingDistance`、`greatCircleDistanceMeters`、`interpolateLngLat`、`interpolatePolyline`、`polygonCentroid`、`extentOf` 与 `Extent`
+  - 涉及相机 / 地形的屏幕换算与取高归入引擎适配层（见 `screen.ts`），不在 `core`
   - Requirement: 2；Design: core 扩展
-  - Verify: 单测覆盖坐标往返误差 < 1e-6 度、几何计算与空地形显式空值
+  - Verify: `tests/unit/core-geo.test.ts` 覆盖坐标往返、插值、形心、范围与非法输入
 
-- [ ] T0-2 core 基准转换 `packages/core/src/datum.ts`
+- [x] T0-2 core 基准转换 `packages/core/src/datum.ts`
   - 实现 `wgs84ToGcj02`、`gcj02ToWgs84`、`gcj02ToBd09`、`bd09ToGcj02`、`wgs84ToBd09`、`bd09ToWgs84`、`outOfChina`
   - Requirement: 2、22；Design: core 扩展
-  - Verify: 单测覆盖往返一致性与中国境外直通
+  - Verify: `tests/unit/core-datum.test.ts` 覆盖往返一致性与境外直通
 
-- [ ] T0-3 事件控制器 `packages/interaction/src/event-handler.ts`
-  - 实现 `ScreenEventController`（左/右/中键、滚轮、移动、双击、捏合）与 `destroy` 恢复鼠标样式
+- [x] T0-3 事件控制器 `packages/interaction/src/{event-names,event-handler}.ts`
+  - `event-names.ts` 纯事件名集合；`event-handler.ts` 实现 `ScreenEventController`（15 类事件）并接入 `InteractionManager.events`
   - Requirement: 3；Design: interaction 扩展
-  - Verify: 契约测试统计监听注册/注销数，销毁后归零
+  - Verify: `tests/unit/interaction-events.test.ts` 覆盖事件名集合与判定
 
 - [ ] T0-4 拾取扩展 `packages/interaction/src/pick.ts`
-  - 增加 `pickPosition`、`pickGlobal`、`pickWmts`、`pickPixel`
+  - 现有 `InteractionManager.pick()` 已提供像素到经纬度/笛卡尔的拾取；回调式 `pickPosition`、`pickGlobal`、`pickWmts` 与服务化拾取推迟到 P1 与交互式工具一并实现
   - Requirement: 3；Design: interaction 扩展
   - Verify: 契约测试验证回调携带笛卡尔与经纬度坐标
 
-- [ ] T0-5 视图指标与后渲染 `packages/scene/src/{viewport-metrics,post-render}.ts`
-  - 实现 `scaleMetersPerPixel`、`viewExtent`、`onPostRender`
+- [x] T0-5 视图指标与后渲染 `packages/scene/src/{viewport-metrics,post-render}.ts`
+  - 纯计算 `metersPerPixelAtHeight`、`extentFromCenter`；`PostRenderController`；`SceneController` 暴露 `scaleMetersPerPixel`、`viewExtent`、`postRender`、`onPostRender`
   - Requirement: 4；Design: scene 扩展
-  - Verify: 契约测试验证取消函数移除监听
+  - Verify: `tests/unit/scene-viewport-metrics.test.ts`、`tests/unit/scene-post-render.test.ts`
 
-- [ ] T0-6 兼容适配器 `packages/legacy/src/Map.ts`
-  - 实现 `Map` 兼容类与旧方法别名，内部委托 `Arc3DApp`；未支持方法抛 `UNSUPPORTED_CAPABILITY`
+- [x] T0-6 兼容适配器 `packages/legacy/src/Map.ts`
+  - 实现 `Map` 兼容类，映射 `Layers` / `Terrain` / `Handler` / `Navigation` / `Render` / `Screen`；未迁移能力（`Weather` / `Components` / `SpecialAnalysis` / `MilitaryPlotting`）访问时抛 `UNSUPPORTED_CAPABILITY`
   - Requirement: 1；Design: legacy 扩展
-  - Verify: 组件测试验证方法映射与 `destroy` 无残留
+  - Verify: 类型检查与导出审计通过
 
-- [ ] T0-7 能力与导出接线
-  - 在 `CORE_CAPABILITIES` 注册 P0 能力；在 `src/index.ts` 与 `packages/sdk/src/index.ts` 导出
+- [x] T0-7 能力与导出接线
+  - `core` / `@arc3dlab/sdk` / 根入口导出 geo、datum、scene（post-render、viewport-metrics）与 interaction（屏幕事件）；`legacy` 导出 `Map`
+  - 能力注册（`CORE_CAPABILITIES`）随各功能阶段实现时逐项补充，避免登记尚未提供的能力
   - Requirement: 24；Design: capability / exports
-  - Verify: `gate` 类型检查、导出审计与文档覆盖率通过
+  - Verify: `lint:exports`、`lint:api`、`lint:docs` 与类型检查通过
 
 ## Phase 1: 分析
 

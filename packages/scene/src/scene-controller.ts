@@ -1,17 +1,33 @@
 import type {
   Arc3DContext,
+  Extent,
   SceneModeName,
   SceneReadyOptions,
   SceneReadyResult,
+  Unsubscribe,
 } from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
-import { SceneMode } from "cesium"
+import { Math as CesiumMath, SceneMode } from "cesium"
 import { CameraController } from "./camera"
 import { RenderController } from "./render"
 import { ViewportController } from "./viewport"
 import { ClockController } from "./clock"
 import { EnvironmentController } from "./environment"
+import {
+  PostRenderController,
+  type RemovableEventListener,
+} from "./post-render"
+import {
+  DEFAULT_VERTICAL_FOV,
+  extentFromCenter,
+  metersPerPixelAtHeight,
+} from "./viewport-metrics"
 import { scheduleSceneRestore } from "./morph"
+
+const NOOP_EVENT_LISTENER: RemovableEventListener = {
+  addEventListener: () => {},
+  removeEventListener: () => {},
+}
 
 /**
  * 场景控制器，聚合相机、渲染、视口、时钟与环境等子控制器并管理场景模式。
@@ -27,6 +43,8 @@ export class SceneController {
   readonly clock: ClockController
   /** 环境控制器。 */
   readonly environment: EnvironmentController
+  /** 渲染后回调控制器。 */
+  readonly postRender: PostRenderController
   private cancelMorph: (() => void) | undefined
 
   /**
@@ -39,6 +57,12 @@ export class SceneController {
     this.viewport = new ViewportController(context)
     this.clock = new ClockController(context)
     this.environment = new EnvironmentController(context)
+    const native = getCesiumViewer(context.engine.native.viewer) as {
+      scene?: { postRender?: RemovableEventListener }
+    }
+    this.postRender = new PostRenderController(
+      native.scene?.postRender ?? NOOP_EVENT_LISTENER,
+    )
     this.context.disposers.push(() => this.destroy())
   }
 
@@ -149,10 +173,56 @@ export class SceneController {
   }
 
   /**
+   * 注册渲染后回调，在每帧渲染完成后触发。
+   * @param listener - 无参回调。
+   * @returns 用于取消订阅的函数。
+   */
+  onPostRender(listener: () => void): Unsubscribe {
+    return this.postRender.on(listener)
+  }
+
+  /**
+   * 估算当前视角下每像素对应的地面距离。
+   * @returns 每像素对应的地面距离，单位为米。
+   */
+  scaleMetersPerPixel(): number {
+    const viewer = this.viewer()
+    const frustum = viewer.camera.frustum as unknown as { fovy?: number }
+    const height = viewer.camera.positionCartographic.height
+    const viewportHeight = viewer.canvas.clientHeight || viewer.canvas.height
+    return metersPerPixelAtHeight(
+      height,
+      viewportHeight,
+      frustum.fovy ?? DEFAULT_VERTICAL_FOV,
+    )
+  }
+
+  /**
+   * 计算当前相机的视域地理范围。
+   * @returns 视域范围 `[west, south, east, north]`。
+   */
+  viewExtent(): Extent {
+    const viewer = this.viewer()
+    const carto = viewer.camera.positionCartographic
+    const center = {
+      longitude: CesiumMath.toDegrees(carto.longitude),
+      latitude: CesiumMath.toDegrees(carto.latitude),
+    }
+    const metersPerPixel = this.scaleMetersPerPixel()
+    const canvas = viewer.canvas
+    return extentFromCenter(
+      center,
+      metersPerPixel * (canvas.clientWidth || canvas.width),
+      metersPerPixel * (canvas.clientHeight || canvas.height),
+    )
+  }
+
+  /**
    * 销毁场景控制器并取消未完成的形变恢复。
    */
   destroy(): void {
     this.cancelMorph?.()
     this.cancelMorph = undefined
+    this.postRender.destroy()
   }
 }

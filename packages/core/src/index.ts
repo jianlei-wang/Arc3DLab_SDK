@@ -1,6 +1,29 @@
 export { createId } from "./ids"
 export { Arc3DError, type Arc3DErrorCode } from "./errors"
 export {
+  WGS84_SEMI_MAJOR_AXIS,
+  angleBetweenHeadings,
+  degreesToRadians,
+  extentOf,
+  greatCircleDistanceMeters,
+  interpolateLngLat,
+  interpolatePolyline,
+  normalizeHeading,
+  pointByHeadingDistance,
+  polygonCentroid,
+  radiansToDegrees,
+  type Extent,
+} from "./geo"
+export {
+  bd09ToGcj02,
+  bd09ToWgs84,
+  gcj02ToBd09,
+  gcj02ToWgs84,
+  outOfChina,
+  wgs84ToBd09,
+  wgs84ToGcj02,
+} from "./datum"
+export {
   classifyLoadError,
   classifyLoadFailure,
   type ClassifiedLoadError,
