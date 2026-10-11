@@ -109,25 +109,29 @@ Updated: 2026-10-11
 
 ## Phase 2: 特效
 
-- [ ] T2-1 天气特效 `packages/effects/src/weather.ts`
+- [x] T2-1 天气特效 `packages/effects/src/weather.ts`
   - `rain`/`snow`/`fog`/`lightning` 的 `enable`/`disable`/`configure`
   - Requirement: 12；Design: effects 扩展
   - Verify: 契约测试验证幂等开关与阶段清理
+  - 实现说明：`WeatherEffects` 基于 `PostProcessStage`，内嵌四类 GLSL；`enable` 先移除同名阶段保证幂等；`configure` 支持启用前记录配置。单测以注入 fake `postProcessStages` 覆盖。
 
-- [ ] T2-2 粒子特效 `packages/effects/src/particles.ts`
+- [x] T2-2 粒子特效 `packages/effects/src/particles.ts`
   - 火焰、水枪、爆炸粒子，返回可销毁句柄
   - Requirement: 13；Design: effects 扩展
   - Verify: 契约测试验证实体与监听销毁
+  - 实现说明：`ParticleHandle` 管理粒子系统、宿主实体与 `preUpdate` 监听；纹理默认由运行时 canvas 生成径向渐变，可用 `image` 覆盖；无 DOM 且未提供纹理时抛 `UNSUPPORTED_CAPABILITY`。
 
-- [ ] T2-3 材质与动画 `packages/effects/src/materials.ts`
+- [x] T2-3 材质与动画 `packages/effects/src/materials.ts`
   - `DynamicSpreadMaterialProperty`、`PolylineTrailLinkMaterialProperty`，注册 `MaterialRegistry`
   - Requirement: 19；Design: effects 扩展
   - Verify: 单测验证 `definitionChanged` 与 `equals`
+  - 实现说明：新增 `registerArc3DMaterials()` 向 Cesium `Material._materialCache` 注册动态扩散、线尾迹、水面三类材质（幂等、无缓存时静默跳过）；`EffectsManager` 构造时自动注册。
 
 - [ ] T2-4 水面着色器
   - 为洪水提供水面 `PostProcessStage` / 材质，与区域裁剪协同
   - Requirement: 11；Design: effects 扩展
   - Verify: E2E 水面渲染无异常
+  - 实现说明：已提供 `WaterMaterialProperty` 与 `Arc3DWater` 材质源；`FloodAnalysis` 仍用半透明矩形，接入水面材质与区域裁剪待后续
 
 ## Phase 3: 态势标绘
 

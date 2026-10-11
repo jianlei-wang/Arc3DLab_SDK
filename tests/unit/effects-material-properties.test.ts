@@ -1,0 +1,74 @@
+import { describe, expect, it } from "vitest"
+import { JulianDate } from "cesium"
+import {
+  DYNAMIC_SPREAD_MATERIAL,
+  DynamicSpreadMaterialProperty,
+  POLYLINE_TRAIL_MATERIAL,
+  PolylineTrailMaterialProperty,
+  WATER_MATERIAL,
+  WaterMaterialProperty,
+  registerArc3DMaterials,
+} from "@arc3dlab/effects"
+
+const epoch = JulianDate.fromIso8601("2024-01-01T00:00:00Z")
+
+describe("DynamicSpreadMaterialProperty", () => {
+  it("reports its material type and non-constant nature", () => {
+    const property = new DynamicSpreadMaterialProperty()
+    expect(property.getType()).toBe(DYNAMIC_SPREAD_MATERIAL)
+    expect(property.isConstant).toBe(false)
+  })
+
+  it("produces animated material values", () => {
+    const property = new DynamicSpreadMaterialProperty({ gradient: 6 })
+    const first = property.getValue(epoch)
+    expect(first.gradient).toBe(6)
+    expect(first.time).toBe(0)
+    const later = property.getValue(
+      JulianDate.addSeconds(epoch, 1, new JulianDate()),
+    )
+    expect(later.time).toBeCloseTo(1, 5)
+  })
+
+  it("compares by color and gradient", () => {
+    const a = new DynamicSpreadMaterialProperty({ color: "#ff0000" })
+    const b = new DynamicSpreadMaterialProperty({ color: "#ff0000" })
+    const c = new DynamicSpreadMaterialProperty({ color: "#00ff00" })
+    expect(a.equals(b)).toBe(true)
+    expect(a.equals(c)).toBe(false)
+  })
+})
+
+describe("PolylineTrailMaterialProperty", () => {
+  it("reports its material type", () => {
+    expect(new PolylineTrailMaterialProperty().getType()).toBe(
+      POLYLINE_TRAIL_MATERIAL,
+    )
+  })
+
+  it("carries the flow image and compares by image", () => {
+    const a = new PolylineTrailMaterialProperty({ image: "texture.png" })
+    const b = new PolylineTrailMaterialProperty({ image: "texture.png" })
+    expect(a.getValue(epoch).image).toBe("texture.png")
+    expect(a.equals(b)).toBe(true)
+  })
+})
+
+describe("WaterMaterialProperty", () => {
+  it("produces wave parameters", () => {
+    const property = new WaterMaterialProperty({ frequency: 80 })
+    const value = property.getValue(epoch)
+    expect(value.frequency).toBe(80)
+    expect(value.animationSpeed).toBe(800)
+    expect(property.getType()).toBe(WATER_MATERIAL)
+  })
+})
+
+describe("registerArc3DMaterials", () => {
+  it("is idempotent", () => {
+    expect(() => {
+      registerArc3DMaterials()
+      registerArc3DMaterials()
+    }).not.toThrow()
+  })
+})

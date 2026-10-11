@@ -1,5 +1,7 @@
 import { Arc3DError, type Arc3DContext } from "@arc3dlab/core"
 import { PostProcessManager } from "./postprocess"
+import { WeatherEffects } from "./weather"
+import { registerArc3DMaterials } from "./materials"
 
 /**
  * 材质工厂函数类型，根据可选配置创建材质实例。
@@ -101,6 +103,10 @@ export class EffectsManager {
    * 后处理管理器实例。
    */
   readonly postprocess: PostProcessManager
+  /**
+   * 天气特效管理器实例。
+   */
+  readonly weather: WeatherEffects
 
   /**
    * 创建效果管理器实例。
@@ -109,14 +115,56 @@ export class EffectsManager {
   constructor(context: Arc3DContext) {
     this.materials = new MaterialRegistry(context)
     this.postprocess = new PostProcessManager(context)
+    this.weather = new WeatherEffects(context)
+    registerArc3DMaterials()
   }
 
   /**
-   * 销毁效果管理器并释放后处理资源。
+   * 销毁效果管理器并释放后处理与天气资源。
    */
   destroy(): void {
+    this.weather.destroy()
     this.postprocess.destroy()
   }
 }
 
 export { PostProcessManager, type PostProcessStageFactory } from "./postprocess"
+export {
+  WeatherEffects,
+  resolveRainOptions,
+  resolveSnowOptions,
+  resolveFogOptions,
+  RAIN_DEFAULTS,
+  SNOW_DEFAULTS,
+  FOG_DEFAULTS,
+  type WeatherKind,
+  type RainOptions,
+  type SnowOptions,
+  type FogOptions,
+} from "./weather"
+export {
+  ParticleHandle,
+  createFireParticle,
+  createWaterGunParticle,
+  createExplosionParticle,
+  resolveParticlePreset,
+  resolveParticleTexture,
+  PARTICLE_PRESETS,
+  type ParticleKind,
+  type ParticleOptions,
+  type ParticleEmitterShape,
+  type ResolvedParticlePreset,
+} from "./particles"
+export {
+  DynamicSpreadMaterialProperty,
+  PolylineTrailMaterialProperty,
+  WaterMaterialProperty,
+  registerArc3DMaterials,
+  DYNAMIC_SPREAD_MATERIAL,
+  POLYLINE_TRAIL_MATERIAL,
+  WATER_MATERIAL,
+  type DynamicSpreadMaterialOptions,
+  type PolylineTrailMaterialOptions,
+  type WaterMaterialOptions,
+  type MaterialValueResult,
+} from "./materials"
