@@ -1,5 +1,15 @@
 # 设计迭代日志
 
+## 2026-10-11（开发指南站）
+
+- 新增面向使用者的 **开发指南站**，基于 VitePress（`vitepress@^1.6.4` 开发依赖），源码位于 `guide/`，与 API 参考、Sandcastle 互补。
+- 内容按类别分组共 38 个章节：简介（3）、运行时（4）、相机（2）、场景（3）、影像地形（3）、图层与数据（4）、图形（5）、交互（3）、空间分析（7）、特效与 UI（2）、插件（1）、迁移（1）；正文中文、代码示例英文标识符。
+- 站内结构：`guide/.vitepress/config.mts`（标题、nav、按类别分组 sidebar、页内目录、中文界面文案、`vite.server.allowedHosts` 含 `.monkeycode-ai.online`），`guide/.vitepress/theme/`（继承默认主题 + `PeerLinks.vue`）。
+- 顶栏互链：`PeerLinks.vue` 在客户端按当前 host 计算兄弟端口——本机用 `localhost:5173/5174`，在线预览按 `<port>-<suffix>.monkeycode-ai.online` 改写，指向 Sandcastle 与 API 文档。
+- `package.json` 新增 `guide:dev` / `guide:build` / `guide:preview`（独立端口 5175）；`.gitignore` 忽略 `guide/.vitepress/dist` 与 `guide/.vitepress/cache`；`.prettierignore` 同步忽略。
+- CI 新增 `guide` job：`npm ci` → `guide:build` → 上传 `guide-dist` 构件。
+- 文档同步：`README.md`（文档体系）、`11-api.md`（开发指南站）、本文件、`CHANGES.md`；spec 见 `.monkeycode/specs/2026-10-11-developer-guide/`。
+
 ## 2026-10-10（Cesium 风格 API 文档站）
 
 - 新增自研 API 文档生成器 `scripts/api-docs/**`：`typedoc --json` 提取模型 → `normalize` 归一化为与渲染无关的 DocsModel → `render` 输出 Cesium/JSDoc-default 结构类名的静态站点，替换原 TypeDoc + Material 主题。

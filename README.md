@@ -6,6 +6,14 @@ Arc3DLab 是面向三维 WebGIS 应用的模块化场景运行时 SDK。CesiumJS
 
 设计文档位于 `docs/architecture/`，开发说明位于 `docs/guides/sdk-development.md`，迁移指南位于 `docs/guides/migration.md`。
 
+## 文档体系
+
+- **开发指南**（面向使用者，任务导向）：`guide/`，本地预览 `npm run guide:dev`（端口 5175）。
+- **API 参考**（从源码自动生成）：`api-docs/`，构建 `npm run docs`，预览 `npm run docs:preview`（端口 5174）。
+- **Sandcastle 示例**（可运行、可编辑）：`demo-vue3/`，端口 5173。
+
+三者在顶栏互相链接。
+
 ## 开发
 
 SDK 迭代、即时测试、预览、API 文档和发布流程见 `docs/guides/sdk-development.md`。
@@ -23,6 +31,9 @@ npm test
 
 # 生成 API 文档
 npm run docs
+
+# 开发指南（VitePress，端口 5175）
+npm run guide:dev
 ```
 
 ### 1. 安装

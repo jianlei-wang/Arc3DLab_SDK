@@ -44,6 +44,9 @@
     "docs": "node scripts/api-docs/build.mjs",
     "docs:build": "node scripts/api-docs/build.mjs",
     "docs:preview": "python3 -m http.server 5174 --bind 0.0.0.0 --directory api-docs/api",
+    "guide:dev": "vitepress dev guide --port 5175 --host 0.0.0.0",
+    "guide:build": "vitepress build guide",
+    "guide:preview": "vitepress preview guide --port 5175 --host 0.0.0.0",
     "dev": "npm run build"
   },
   "keywords": [
@@ -77,6 +80,7 @@
     "vite": "^7.1.7",
     "vite-plugin-cesium": "^1.2.23",
     "vite-plugin-dts": "^4.5.4",
+    "vitepress": "^1.6.4",
     "vitest": "^3.2.4"
   },
   "publishConfig": {

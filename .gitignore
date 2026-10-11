@@ -5,5 +5,7 @@ playwright-report
 test-results
 api-docs/*
 docs/api/
+guide/.vitepress/dist
+guide/.vitepress/cache
 # Editor directories and files
 .vscode/*

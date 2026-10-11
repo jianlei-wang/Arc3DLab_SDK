@@ -12,7 +12,8 @@
 | `docs/guides/migration.md` | 从 `Viewer` 迁到 `Arc3D.create()` |
 | `README.md` | 安装与最小用法 |
 | `CONTRIBUTING.md` | 贡献原则 |
-| TypeDoc `api-docs/` | 由源码生成的 API 参考 |
+| `guide/`（VitePress） | 面向使用者的开发指南，本地预览 `npm run guide:dev` |
+| 自研生成器 `api-docs/` | 由源码生成的 API 参考 |
 
 ## SDK 概览
 
@@ -41,6 +42,7 @@ packages/
 src/index.ts       对外再导出
 tests/unit/        Vitest 单元测试
 demo-vue3/         即时预览（alias 指向源码）
+guide/             开发指南（VitePress，源码）
 docs/architecture/ 设计文档
 docs/guides/       开发与迁移指南
 ```
@@ -149,8 +151,8 @@ npm run build:watch
 # 生成 API 文档
 npm run docs
 
-# 监听 API 文档
-npm run docs:watch
+# 构建开发指南（VitePress）
+npm run guide:build
 
 # 格式化
 npm run format
@@ -247,7 +249,7 @@ npm run dev
 ### API 文档预览
 
 ```bash
-# 生成 TypeDoc HTML
+# 生成 API 参考站
 npm run docs:build
 
 # 在 5174 提供静态站点
@@ -255,6 +257,19 @@ npm run docs:preview
 ```
 
 本机访问 `http://localhost:5174`。在线预览环境会把该端口映射为独立的 `5174-*.monkeycode-ai.online` 地址，与 Sandcastle `5173` 并存。
+
+### 开发指南预览
+
+```bash
+# 开发模式（端口 5175，热更新）
+npm run guide:dev
+
+# 构建并预览产物（端口 5175）
+npm run guide:build
+npm run guide:preview
+```
+
+本机访问 `http://localhost:5175`。在线预览环境映射为独立的 `5175-*.monkeycode-ai.online` 地址；指南顶栏会自动互链到 Sandcastle（5173）与 API 文档（5174）。
 
 ### 生产构建预览
 
@@ -280,26 +295,27 @@ export default defineConfig({
 
 ## API 文档
 
-API 文档分两层：
+API 文档分三层：
 
 1. 设计契约：`docs/architecture/11-api.md`，描述稳定入口与兼容策略。
-2. 源码参考：TypeDoc 从 `src/index.ts` 生成，输出到 `api-docs/api/`。
+2. 开发指南：`guide/`（VitePress），面向使用者的任务导向文档。
+3. 源码参考：自研生成器从源码提取，输出到 `api-docs/api/`。
 
 ```bash
-# 生成 TypeDoc HTML，并写 api-docs/index.html 跳转页
-npm run docs
-
-# 只跑 typedoc
+# 生成 API 参考站
 npm run docs:build
 
-# 改注释时持续生成
-npm run docs:watch
+# 校验公共符号注释覆盖率
+npm run lint:docs
+
+# 开发指南（VitePress）
+npm run guide:dev
 ```
 
 `api-docs/` 已在 `.gitignore` 中，生成结果用于本地查阅或站点发布。
 本地或在线预览使用 `npm run docs:preview`，端口 `5174`。
 
-公共 API 注释写在导出符号上。`typedoc.json` 已排除 private / protected。
+公共 API 注释写在导出符号上。注释缺失会由 `lint:docs` 门禁拦截（summary 与 params 均为 100%）。
 
 应用侧迁移对照见 `docs/guides/migration.md`。
 

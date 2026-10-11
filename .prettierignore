@@ -3,5 +3,7 @@ coverage/**
 node_modules/**
 api-docs/**
 docs/api/**
+guide/.vitepress/dist/**
+guide/.vitepress/cache/**
 scripts/api-docs/theme/prism.js
 scripts/api-docs/theme/prism.css

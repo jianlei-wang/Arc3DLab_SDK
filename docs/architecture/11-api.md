@@ -107,3 +107,20 @@ npm run docs:preview
 生成流程：`typedoc --json` 提取模型 → `normalize` 归一化为 DocsModel → `render` 输出 HTML。产物写入 `api-docs/`（被 gitignore），覆盖率报告写入 `docs/api/report.json`。`lint:docs` 已纳入 `gate` 与 CI，构建产物作为 `api-docs` artifact 上传。
 
 正文中文，标识符 / 类型 / 签名保持英文；源码链接指向仓库对应提交的 `#L<line>`。`typedoc-material-theme` 与 `typedoc-plugin-markdown` 已移除。
+
+## 开发指南站
+
+面向使用者的**开发指南**基于 VitePress 构建（源码位于 `guide/`），与 API 参考、Sandcastle 互补：
+
+```bash
+# 本地开发预览（端口 5175）
+npm run guide:dev
+
+# 构建静态产物（输出 guide/.vitepress/dist/）
+npm run guide:build
+
+# 预览构建产物（端口 5175）
+npm run guide:preview
+```
+
+顶栏通过自定义主题（`guide/.vitepress/theme/PeerLinks.vue`）在运行时时计算兄弟端口，与 Sandcastle（5173）、API 文档（5174）互链；在线预览环境下按 `<port>-<suffix>.monkeycode-ai.online` 规则改写。内容按类别分组（简介、运行时、相机、场景、影像地形、图层、图形、交互、分析、特效 UI、扩展与迁移），代码示例与实际公共 API 保持一致。CI 新增 `guide` job 构建并上传 `guide-dist` 构件。
