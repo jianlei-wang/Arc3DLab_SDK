@@ -195,6 +195,27 @@ export const CORE_CAPABILITIES: CapabilityRecord[] = [
     available: true,
     source: "sdk",
   },
+  {
+    name: "data:web",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "sdk",
+  },
+  {
+    name: "ui:navigation",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "sdk",
+  },
+  {
+    name: "highlight:active",
+    provider: "arc3dlab",
+    version: "1.0.0",
+    available: true,
+    source: "sdk",
+  },
 ]
 
 /** 管理能力注册、查询与按提供方注销的注册表。 */

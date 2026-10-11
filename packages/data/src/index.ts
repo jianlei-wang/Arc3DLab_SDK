@@ -20,6 +20,7 @@ import {
   type ProviderHandle,
   type ProviderSpec,
 } from "./providers"
+import { WebServiceManager } from "./web"
 
 /**
  * 支持的数据源格式类型。
@@ -43,10 +44,17 @@ export interface DataSourceSpec {
  */
 export class DataManager {
   /**
+   * Web 数据服务管理器，可注入外部 Web 服务提供者。
+   */
+  readonly web: WebServiceManager
+
+  /**
    * 创建数据管理器。
    * @param context - Arc3D 运行时上下文。
    */
-  constructor(private readonly context: Arc3DContext) {}
+  constructor(private readonly context: Arc3DContext) {
+    this.web = new WebServiceManager(context)
+  }
 
   /**
    * 根据提供者规格创建影像提供者句柄。
@@ -174,3 +182,19 @@ export {
   type ProviderSpec,
   type ProviderType,
 } from "./providers"
+export {
+  WebServiceManager,
+  createGaodeProvider,
+  type DrivingResult,
+  type GaodeFetch,
+  type GaodeProviderOptions,
+  type GaodeResponse,
+  type GeocodeResult,
+  type PoiOptions,
+  type PoiResult,
+  type ReverseGeocodeResult,
+  type RouteResult,
+  type RouteStep,
+  type TmcSegment,
+  type WebServiceProvider,
+} from "./web"

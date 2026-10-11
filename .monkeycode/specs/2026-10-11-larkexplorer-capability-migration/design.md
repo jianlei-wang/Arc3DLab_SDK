@@ -52,7 +52,6 @@ graph TD
 - `geo.ts`：纯几何与测地计算，不依赖引擎——`degreesToRadians`、`radiansToDegrees`、`normalizeHeading`、`angleBetweenHeadings`、`pointByHeadingDistance`、`greatCircleDistanceMeters`、`interpolateLngLat`、`interpolatePolyline`、`polygonCentroid`、`extentOf`，以及 `Extent` 与 `WGS84_SEMI_MAJOR_AXIS`。
 - `screen.ts`（engine-cesium）：涉及场景的屏幕坐标与拾取换算 `cartesianFromPixel`、`pixelToLngLat`，以及地形取高 `sampleTerrainHeight`；这些能力需要相机 / 地形服务，归入引擎适配层而非 `core`。
 - `datum.ts`：`GCJ02` / `BD09` / `WGS84` 互转：`wgs84ToGcj02`、`gcj02ToWgs84`、`gcj02ToBd09`、`bd09ToGcj02`、`wgs84ToBd09`、`bd09ToWgs84`、`outOfChina`。
-- `china-code.ts`：三级行政区划数据与 `codeToText` 映射（`ChinaCode`）。
 - `active-style.ts`：`ActiveType`（`blink` / `scaling` / `jump`）与实体高亮应用 / 还原函数。
 - `turf.ts`（薄封装）：`turfExtent`、`interpolateByDistance`。
 
@@ -175,7 +174,7 @@ interface VoxelOptions { dimensions: [number, number, number]; bounds: Extent; v
 
 ## Test Strategy
 
-- **单元测试（vitest）**：坐标与几何往返、缓冲闭合与非法输入、量测计算、材质 `equals` 与 `definitionChanged`、标绘算法纯几何、行政区划数据完整性。
+- **单元测试（vitest）**：坐标与几何往返、缓冲闭合与非法输入、量测计算、材质 `equals` 与 `definitionChanged`、标绘算法纯几何、高亮语义应用与还原。
 - **契约测试（Fake Engine）**：能力注册与 `hasCapability` 回报、诊断归零、工具状态机、任务状态迁移与取消，全部不导入 Cesium。
 - **组件测试**：`Map` 兼容适配器把方法映射到 `Arc3DApp`，销毁后无残留。
 - **浏览器 E2E（Playwright + SwiftShader）**：扩展 `e2e/app.spec.ts`，覆盖创建 → 标绘/量测 → 天气特效开关 → 卷帘 → 销毁 → 重建。
@@ -190,7 +189,7 @@ interface VoxelOptions { dimensions: [number, number, number]; bounds: Extent; v
 | P2 特效 | 天气四类、粒子三类、动态扩散与线尾迹材质 | `effects/*` 新模块与材质注册 |
 | P3 标绘 | `@arc3dlab/plotting` 包与 24 类符号、几何算法移植 | 新包与单测 |
 | P4 动态与可视化 | 动态图形、体素、模型压平、多屏联动、场景出图 | `graphics/*` `scene/*` 新模块 |
-| P5 组件与数据 | NavigationBar、Web provider、行政区划、高亮语义 | `ui/*` `data/web/*` `core/china-code.ts` |
+| P5 组件与数据 | NavigationBar、Web provider、高亮语义 | `ui/*` `data/web/*` `core/active-style.ts` |
 | P6 文档与门禁 | 指南与 API 文档章节、E2E 扩展、覆盖率与体积基线刷新 | 文档与 CI |
 
 ## References

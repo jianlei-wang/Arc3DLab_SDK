@@ -10,6 +10,8 @@ export type Arc3DErrorCode =
   | "CANCELLED"
   | "AUTH_FAILED"
   | "NETWORK_FAILURE"
+  | "PROVIDER_UNAVAILABLE"
+  | "MISSING_CREDENTIALS"
   | "INVALID_FORMAT"
 
 /** Arc3D 统一错误类型，携带机器可读的 `code`。 */

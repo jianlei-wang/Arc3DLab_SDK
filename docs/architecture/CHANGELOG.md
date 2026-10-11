@@ -1,5 +1,15 @@
 # 设计迭代日志
 
+## 2026-10-11（能力迁移 P5：组件与数据）
+
+- 迁移 spec：`.monkeycode/specs/2026-10-11-larkexplorer-capability-migration/`（tasklist P5）。
+- data 扩展：新增 `packages/data/src/web/{types,provider,index}.ts`，提供 `WebServiceProvider` 接口与 `createGaodeProvider({ key, fetch?, endpoint? })` 参考实现；新增 `WebServiceManager` 并挂到 `DataManager.web`。坐标以 WGS84 出入，内部用 `@arc3dlab/core` 的 `wgs84ToGcj02` / `gcj02ToWgs84` 互转；未注入提供者抛 `PROVIDER_UNAVAILABLE`，缺凭据抛 `MISSING_CREDENTIALS`。新增能力 `data:web`。
+- core 扩展：新增 `packages/core/src/active-style.ts`，以纯函数（三角波）描述 `blink` / `scaling` / `jump` 三类高亮动画，`ActiveStyle` 经 `ActiveStyleWriter` 抽象端口写入并在关闭时还原基准；新增能力 `highlight:active`。
+- ui 扩展：新增 `packages/ui/src/navigation-bar.ts`，`NavigationBar` 提供 `mount` / `destroy`，控件覆盖放大、缩小、复位、俯视与二三维切换；`document` 可注入以便测试。新增能力 `ui:navigation`。
+- engine-cesium 扩展：新增 `getNativeSceneModeName` / `morphNativeScene` 作为场景投影模式的 Cesium 边界封装，`SceneController` 改为复用，`ui` 借此避免直接引入 `cesium`（依赖边界约束）。
+- 设计变更：按用户要求**移除**行政区划数据需求（原 Requirement 23.1 与 T5-3），不提供内置省市区数据；GCJ-02/WGS84 转换沿用 `packages/core/src/datum.ts`。
+- 测试新增 `tests/unit/{core-active-style,data-web-provider,ui-navigation-bar}.test.ts`（25 例）；`npm run gate` 全绿。
+
 ## 2026-10-11（开发指南站）
 
 - 新增面向使用者的 **开发指南站**，基于 VitePress（`vitepress@^1.6.4` 开发依赖），源码位于 `guide/`，与 API 参考、Sandcastle 互补。

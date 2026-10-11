@@ -6,8 +6,12 @@ import type {
   SceneReadyResult,
   Unsubscribe,
 } from "@arc3dlab/core"
-import { getCesiumViewer } from "@arc3dlab/engine-cesium"
-import { Math as CesiumMath, SceneMode } from "cesium"
+import {
+  getCesiumViewer,
+  getNativeSceneModeName,
+  morphNativeScene,
+} from "@arc3dlab/engine-cesium"
+import { Math as CesiumMath } from "cesium"
 import { CameraController } from "./camera"
 import { RenderController } from "./render"
 import { ViewportController } from "./viewport"
@@ -75,10 +79,7 @@ export class SceneController {
    * 当前场景的投影模式名称。
    */
   get mode(): SceneModeName {
-    const mode = this.viewer().scene.mode
-    if (mode === SceneMode.SCENE2D) return "2d"
-    if (mode === SceneMode.COLUMBUS_VIEW) return "columbus"
-    return "3d"
+    return getNativeSceneModeName(this.viewer())
   }
 
   /**
@@ -94,11 +95,8 @@ export class SceneController {
       if (this.context.lifecycle.isTerminating) return
       this.camera.restore(snapshot)
     }, viewer.scene.morphComplete)
-    if (mode === "2d") viewer.scene.morphTo2D(1)
-    else if (mode === "columbus") viewer.scene.morphToColumbusView(1)
-    else viewer.scene.morphTo3D(1)
+    morphNativeScene(viewer, mode)
   }
-
   /**
    * 当前画布的像素宽高。
    */

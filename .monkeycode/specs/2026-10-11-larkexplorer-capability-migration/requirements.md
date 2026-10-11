@@ -283,15 +283,14 @@
 4. WHEN 未配置凭据, THE SDK SHALL 拒绝发起请求并提示缺少凭据。
 5. WHEN 可选地将返回坐标接入场景, THE SDK SHALL 提供 GCJ-02 与 WGS84 之间的转换工具。
 
-### Requirement 23: 域名数据与高亮语义
+### Requirement 23: 图层高亮语义
 
-**User Story:** AS 业务开发者, I want 使用行政区划数据与图层高亮特效, so that 我可以快速构建业务界面。
+**User Story:** AS 业务开发者, I want 使用图层高亮特效, so that 我可以快速构建业务界面。
 
 #### Acceptance Criteria
 
-1. WHEN 导入中国行政区划数据, THE SDK SHALL 按省市区三级提供区域与编码数据。
-2. WHEN 对实体图层开启高亮, THE SDK SHALL 支持呼吸灯、缩放闪烁与跳跃三类高亮效果。
-3. WHEN 关闭高亮, THE SDK SHALL 恢复图层原始样式。
+1. WHEN 对实体图层开启高亮, THE SDK SHALL 支持呼吸灯、缩放闪烁与跳跃三类高亮效果。
+2. WHEN 关闭高亮, THE SDK SHALL 恢复图层原始样式。
 
 ### Requirement 24: 公共 API、文档与质量门禁
 

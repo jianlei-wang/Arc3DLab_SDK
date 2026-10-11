@@ -15,6 +15,14 @@ export {
   tooltipOffsetStyle,
 } from "./tooltip-dom"
 
+export { NavigationBar } from "./navigation-bar"
+export type {
+  NavigationBarDocument,
+  NavigationBarLabels,
+  NavigationBarOptions,
+  NavigationControl,
+} from "./navigation-bar"
+
 /**
  * 工具提示服务，负责在 Cesium 容器内创建、显示与定位提示文本。
  */

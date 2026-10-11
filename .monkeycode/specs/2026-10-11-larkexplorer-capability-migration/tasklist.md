@@ -198,25 +198,26 @@ Updated: 2026-10-11
 
 ## Phase 5: 组件与数据
 
-- [ ] T5-1 导航条 `packages/ui/src/navigation-bar.ts`
+- [x] T5-1 导航条 `packages/ui/src/navigation-bar.ts`
   - `NavigationBar`：`mount`/`destroy`，控件覆盖放大、缩小、复位、俯视、二维三维切换
   - Requirement: 21；Design: ui 扩展
   - Verify: 组件测试验证 DOM 与监听销毁
+  - 实现说明：原生 DOM 实现，复用 `getCesiumViewer` 与 Cesium 相机 / `SceneMode`；`document` 可注入以便 node 环境测试；挂载时记录 home 视角供复位
 
-- [ ] T5-2 Web 服务提供者 `packages/data/src/web/{provider,types}.ts`
+- [x] T5-2 Web 服务提供者 `packages/data/src/web/{provider,types}.ts`
   - `WebServiceProvider` 接口与 `createGaodeProvider`；未注入抛 `PROVIDER_UNAVAILABLE`，缺凭据抛 `MISSING_CREDENTIALS`
   - Requirement: 22；Design: data 扩展
   - Verify: 单测使用桩 provider，验证不读取环境密钥
+  - 实现说明：新增 `WebServiceManager` 并挂到 `DataManager.web`；坐标以 WGS84 出入，内部用 `@arc3dlab/core` 的 `wgs84ToGcj02`/`gcj02ToWgs84` 互转；fetch 与 key 均参数注入
 
-- [ ] T5-3 行政区划数据 `packages/core/src/china-code.ts`
-  - 省市区三级数据与 `codeToText`
-  - Requirement: 23；Design: core 扩展
-  - Verify: 单测验证编码数量与层级完整性
+- [x] ~~T5-3 行政区划数据~~（已移除）
+  - 用户要求不提供内置行政区划数据；GCJ-02/WGS84 转换已由 `packages/core/src/datum.ts` 提供
 
-- [ ] T5-4 图层高亮语义 `packages/core/src/active-style.ts`
+- [x] T5-4 图层高亮语义 `packages/core/src/active-style.ts`
   - `blink`/`scaling`/`jump` 应用与还原
   - Requirement: 23；Design: core 扩展
   - Verify: 契约测试验证关闭后样式还原
+  - 实现说明：core 保持无引擎依赖，以纯函数描述三角波动画并经 `ActiveStyleWriter` 抽象端口写入；`ActiveStyle` 负责保存基准与还原
 
 ## Phase 6: 文档与门禁
 

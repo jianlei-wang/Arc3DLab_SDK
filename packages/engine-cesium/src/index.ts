@@ -12,6 +12,7 @@ export {
   toRadians,
   toDegrees,
 } from "./coords"
+export { getNativeSceneModeName, morphNativeScene } from "./scene-mode"
 export {
   withIonAccessToken,
   readIonToken,

@@ -1,6 +1,17 @@
 export { createId } from "./ids"
 export { Arc3DError, type Arc3DErrorCode } from "./errors"
 export {
+  ActiveStyle,
+  activeFrameValue,
+  activePropertyKey,
+  triangularWave,
+  type ActiveFrameValue,
+  type ActiveGeometry,
+  type ActiveStyleOptions,
+  type ActiveStyleWriter,
+  type ActiveType,
+} from "./active-style"
+export {
   WGS84_SEMI_MAJOR_AXIS,
   angleBetweenHeadings,
   degreesToRadians,
