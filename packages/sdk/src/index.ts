@@ -43,6 +43,14 @@ export type {
 } from "@arc3dlab/graphics"
 export type { Layer, BasemapSpec, TerrainSpec } from "@arc3dlab/layers"
 export {
+  PlottingManager,
+  PLOT_SYMBOLS,
+  type PlotSymbol,
+  type PlotStyle,
+  type PlotDrawOptions,
+  type PlotResult,
+} from "@arc3dlab/plotting"
+export {
   runAnalysisTask,
   AnalysisTaskRegistry,
   createTaskExecutor,

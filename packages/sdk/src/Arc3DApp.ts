@@ -14,6 +14,7 @@ import { EffectsManager } from "@arc3dlab/effects"
 import { GraphicManager } from "@arc3dlab/graphics"
 import { InteractionManager } from "@arc3dlab/interaction"
 import { BasemapManager, LayerManager, TerrainManager } from "@arc3dlab/layers"
+import { PlottingManager } from "@arc3dlab/plotting"
 import { CameraController, SceneController } from "@arc3dlab/scene"
 import { UIManager } from "@arc3dlab/ui"
 import { PluginManager, type Arc3DPlugin } from "./plugins"
@@ -108,6 +109,8 @@ export class Arc3DApp {
   readonly analysis: AnalysisManager
   /** 效果管理器。 */
   readonly effects: EffectsManager
+  /** 态势标绘管理器。 */
+  readonly plotting: PlottingManager
   /** UI 管理器。 */
   readonly ui: UIManager
   /** 插件管理器。 */
@@ -138,6 +141,7 @@ export class Arc3DApp {
     this.interaction = new InteractionManager(context)
     this.analysis = new AnalysisManager(context)
     this.effects = new EffectsManager(context)
+    this.plotting = new PlottingManager(context)
     this.ui = new UIManager(context)
     this.plugins = new PluginManager(this, context)
     this.performance = new PerformanceManager(context)
@@ -205,6 +209,7 @@ export class Arc3DApp {
     await this.runDestroyStep("ui", () => this.ui.destroy())
     await this.runDestroyStep("interaction", () => this.interaction.destroy())
     await this.runDestroyStep("effects", () => this.effects.destroy())
+    await this.runDestroyStep("plotting", () => this.plotting.destroy())
     await this.runDestroyStep("analysis", () => this.analysis.destroy())
     await this.runDestroyStep("scene", () => this.scene.destroy())
     await this.runDestroyStep("graphics", () => this.graphics.clear())

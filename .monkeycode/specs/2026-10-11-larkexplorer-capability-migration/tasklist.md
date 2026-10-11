@@ -135,29 +135,34 @@ Updated: 2026-10-11
 
 ## Phase 3: 态势标绘
 
-- [ ] T3-1 新包脚手架 `packages/plotting`
+- [x] T3-1 新包脚手架 `packages/plotting`
   - 建立 `package.json`、`tsconfig`、`src/index.ts`、构建与导出接线
   - Requirement: 24；Design: plotting 包
   - Verify: 工作区构建与包导出审计通过
+  - 实现说明：新增私有包 `@arc3dlab/plotting`（`main/types=./src/index.ts`）；接线 `tsconfig.json` paths、`vitest.config.ts`/`vite.config.ts` alias、`scripts/release-gate.mjs`（`CESIUM_PACKAGES`/`ALLOWED_INTERNAL`/sdk 依赖）、`scripts/api-docs/config.mjs`、`typedoc.json`
 
-- [ ] T3-2 符号与参数类型 `packages/plotting/src/symbols.ts`
+- [x] T3-2 符号与参数类型 `packages/plotting/src/symbols.ts`
   - 定义 `PlotSymbol` 24 类与各符号参数类型
   - Requirement: 15；Design: plotting 包
   - Verify: 类型检查
+  - 实现说明：`PlotSymbol` 24 类 + `PLOT_SYMBOLS`/`PLOT_POINT_SYMBOLS`/`PLOT_LINE_SYMBOLS`/`PLOT_POLYGON_SYMBOLS`/`PLOT_ARROW_SYMBOLS`；`PlotStyle`/`PlotSymbolOptions`/`PlotDrawOptions`（锚点用 `LngLat`）、`FlagType`/`FormationType`
 
-- [ ] T3-3 几何算法移植 `packages/plotting/src/algorithm.ts`
+- [x] T3-3 几何算法移植 `packages/plotting/src/algorithm.ts`
   - 从旧 `third-party` 移植贝塞尔、箭头、弓形、集结地等算法为纯函数
   - Requirement: 15；Design: plotting 包
   - Verify: 单测验证关键几何不变量
+  - 实现说明：纯 TS 移植（不依赖 Cesium），坐标统一为元组 `PlotPoint=[number,number]`；含 `distanceMeters`/`getBezierPoints`/`getQBSplinePoints`/`circlePoints`/`ellipsePoints`/`rectanglePoints`/`bowPoints`/`fineArrow`/`doubleArrow`/`attackArrow`/`swallowtailArrow`/`pincerArrow`/`flagPoints`/`formationPoints` 等
 
-- [ ] T3-4 绘制器与管理器 `packages/plotting/src/{plotting-manager,symbols/*}.ts`
+- [x] T3-4 绘制器与管理器 `packages/plotting/src/{plotting-manager,symbols/*}.ts`
   - `draw`、`results`、`remove`、`removeAll`；复用 `ToolRegistry`
   - Requirement: 15；Design: plotting 包；依赖 T0-3、T3-3
   - Verify: 契约测试覆盖 24 类符号绘制完成与结果登记
+  - 实现说明：24 个绘制器 + `SYMBOL_DRAWERS` 映射；`PlottingManager` 将 `LngLat` 转为元组计算、再落地为 `viewer.entities`，注册工具 `plotting.drawing`；`Arc3DApp.plotting`、sdk/根入口导出；`capabilities` 新增 `plotting:draw`；`tests/unit/plotting.test.ts`（11 例）
 
-- [ ] T3-5 `Map` 适配器接入 `MilitaryPlotting`
+- [x] T3-5 `Map` 适配器接入 `MilitaryPlotting`
   - Requirement: 1、15；Design: legacy 扩展
   - Verify: 组件测试
+  - 实现说明：`packages/legacy/src/Map.ts` 新增 `MilitaryPlotting` getter 委派 `this.app.plotting`，并从 `NOT_MIGRATED` 移除
 
 ## Phase 4: 动态图形与可视化
 

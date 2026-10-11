@@ -23,6 +23,7 @@
       "@arc3dlab/interaction": ["packages/interaction/src/index.ts"],
       "@arc3dlab/analysis": ["packages/analysis/src/index.ts"],
       "@arc3dlab/effects": ["packages/effects/src/index.ts"],
+      "@arc3dlab/plotting": ["packages/plotting/src/index.ts"],
       "@arc3dlab/ui": ["packages/ui/src/index.ts"],
       "@arc3dlab/sdk": ["packages/sdk/src/index.ts"],
       "@arc3dlab/legacy": ["packages/legacy/src/index.ts"]

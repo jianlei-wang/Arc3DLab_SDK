@@ -13,6 +13,7 @@ const CESIUM_PACKAGES = new Set([
   "interaction",
   "analysis",
   "effects",
+  "plotting",
 ])
 
 const ALLOWED_INTERNAL = {
@@ -25,6 +26,7 @@ const ALLOWED_INTERNAL = {
   interaction: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],
   analysis: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],
   effects: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],
+  plotting: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],
   ui: ["@arc3dlab/core", "@arc3dlab/engine-cesium"],
   sdk: [
     "@arc3dlab/core",
@@ -37,6 +39,7 @@ const ALLOWED_INTERNAL = {
     "@arc3dlab/layers",
     "@arc3dlab/scene",
     "@arc3dlab/ui",
+    "@arc3dlab/plotting",
   ],
   legacy: ["@arc3dlab/core", "@arc3dlab/sdk"],
 }

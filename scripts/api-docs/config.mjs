@@ -67,6 +67,7 @@ export const PACKAGE_DISPLAY = {
   "@arc3dlab/interaction": "interaction",
   "@arc3dlab/analysis": "analysis",
   "@arc3dlab/effects": "effects",
+  "@arc3dlab/plotting": "plotting",
   "@arc3dlab/ui": "ui",
   "@arc3dlab/sdk": "sdk",
   "@arc3dlab/legacy": "legacy",
@@ -85,6 +86,7 @@ export const PACKAGE_ORDER = [
   "interaction",
   "analysis",
   "effects",
+  "plotting",
   "ui",
   "legacy",
 ]
@@ -102,6 +104,7 @@ export const PACKAGE_SUMMARY = {
   interaction: "拾取、选择与悬停交互。",
   analysis: "测量、地形、通视、查询、剖切与土方等分析任务。",
   effects: "材质与后处理效果。",
+  plotting: "军事态势标绘符号与几何算法。",
   ui: "轻量 UI 控件与提示。",
   legacy: "旧版 Viewer 兼容适配器。",
 }

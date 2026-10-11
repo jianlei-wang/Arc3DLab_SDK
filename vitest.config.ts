@@ -15,6 +15,10 @@ export default defineConfig({
         "packages/analysis/src/index.ts",
       ),
       "@arc3dlab/effects": resolve(__dirname, "packages/effects/src/index.ts"),
+      "@arc3dlab/plotting": resolve(
+        __dirname,
+        "packages/plotting/src/index.ts",
+      ),
       "@arc3dlab/interaction": resolve(
         __dirname,
         "packages/interaction/src/index.ts",

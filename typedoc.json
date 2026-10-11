@@ -10,6 +10,7 @@
     "packages/interaction/src/index.ts",
     "packages/analysis/src/index.ts",
     "packages/effects/src/index.ts",
+    "packages/plotting/src/index.ts",
     "packages/ui/src/index.ts",
     "packages/sdk/src/index.ts",
     "packages/legacy/src/index.ts",

@@ -110,6 +110,13 @@ export class Map {
   }
 
   /**
+   * 军事态势标绘入口。
+   */
+  get MilitaryPlotting() {
+    return this.app.plotting
+  }
+
+  /**
    * 底层引擎 Viewer 实例（高级不稳定逃生舱）。
    */
   get viewer() {
@@ -132,12 +139,7 @@ export class Map {
   }
 }
 
-const NOT_MIGRATED = [
-  "Weather",
-  "Components",
-  "SpecialAnalysis",
-  "MilitaryPlotting",
-] as const
+const NOT_MIGRATED = ["Weather", "Components", "SpecialAnalysis"] as const
 
 for (const name of NOT_MIGRATED) {
   Object.defineProperty(Map.prototype, name, {

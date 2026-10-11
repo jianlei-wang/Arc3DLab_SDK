@@ -40,6 +40,8 @@ export {
   ScreenEventController,
   isScreenEventName,
   listScreenEventNames,
+  PlottingManager,
+  PLOT_SYMBOLS,
 } from "@arc3dlab/sdk"
 export type {
   Extent,
@@ -82,6 +84,10 @@ export type {
   NativeContext,
   PickResult,
   PositionInput,
+  PlotDrawOptions,
+  PlotResult,
+  PlotStyle,
+  PlotSymbol,
   RenderMode,
   ResultArtifact,
   SceneReadyOptions,
