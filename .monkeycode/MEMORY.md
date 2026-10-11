@@ -31,6 +31,13 @@ Entries discovered by the Agent during task execution should follow this format:
 
 ## Entries
 
+[User Instruction Summary]
+- Date: 2026-10-11
+- Context: 迁移工作完成后，用户指示变更提交策略
+- Instructions:
+  - 后续所有提交都在 `jianlei_wang` 分支上进行，不要提交到 `master`。
+  - 需要时先将 `master`（主分支）的更新同步到 `jianlei_wang` 分支再继续开发。
+
 [Project Knowledge Summary]
 - Date: 2026-10-11
 - Context: Discovered by Agent while implementing the LarkExplorer capability migration (P5/P6)
