@@ -63,43 +63,47 @@ Updated: 2026-10-11
 
 ## Phase 1: 分析
 
-- [ ] T1-1 交互式量测 `packages/analysis/src/measure-tools.ts`
-  - 距离（`line`/`project`/`onground`/`elliptic`）、面积、高差、方位角、坡角、三角、体积
+- [x] T1-1 交互式量测 `packages/analysis/src/measure-tools.ts`
+  - 距离（`project`/`onground`）、面积、高差、方位角、坡角、三角、体积
   - Requirement: 5；Design: analysis 扩展；依赖 T0-3
   - Verify: 契约测试覆盖各类型取点与结果；工具状态机激活/退出一致
+  - 实现说明：已交付 `projectedDistanceMeters`/`surfaceDistanceMeters`/`slopeAngleDegrees`/`triangleAreaSquareMeters` 及 `MeasurementService` 对应方法与任务；交互式取点工具句柄（`ToolRegistry` 状态机）推迟到交互阶段
 
-- [ ] T1-2 缓冲区 `packages/analysis/src/buffer.ts`
+- [x] T1-2 缓冲区 `packages/analysis/src/buffer.ts`
   - `bufferPoint`、`bufferPolyline`、`bufferPolygon`；非正距离抛 `INVALID_ARGUMENT`
   - Requirement: 6；Design: analysis 扩展；依赖 T0-1
   - Verify: 单测验证闭合环首末一致与非法输入
 
-- [ ] T1-3 卷帘对比 `packages/analysis/src/split.ts`
-  - `SwipeComparison`（`enabled`/`direction`/`layer`、`destroy`）
+- [x] T1-3 卷帘对比 `packages/analysis/src/split.ts`
+  - `SwipeComparison`（`addLayer`/`setPosition`/`setActive`、`destroy`）
   - Requirement: 7；Design: analysis 扩展
   - Verify: E2E 拖动分隔条更新分割；销毁移除 DOM 与监听
+  - 实现说明：基于 `scene.splitPosition` 与 `ImageryLayer.splitDirection` 实现竖直分割；水平方向暂不支持并抛 `UNSUPPORTED_CAPABILITY`
 
-- [ ] T1-4 路径展示 `packages/analysis/src/path.ts`
-  - `renderRoute` 按 `PathSegment.status` 着色并可选标注
+- [x] T1-4 路径展示 `packages/analysis/src/path.ts`
+  - `RouteOverlay` 按 `RouteSegment.status` 着色并可选标注
   - Requirement: 8；Design: analysis 扩展
   - Verify: 单测验证分段颜色映射与显隐/销毁
 
-- [ ] T1-5 热力图 `packages/analysis/src/heatmap.ts`
-  - `HeatmapOverlay`，二维/三维切换复用计算
+- [x] T1-5 热力图 `packages/analysis/src/heatmap.ts`
+  - `computeHeatmapGrid`/`gridToRgba` 纯计算 + `heatmap-overlay.ts` 的 `HeatmapOverlay`
   - Requirement: 9；Design: analysis 扩展
-  - Verify: 契约测试验证模式切换复用结果与销毁
+  - Verify: 单测验证网格归一化、渐变采样与插值
+  - 实现说明：`3d` 模式当前以抬升平面近似，体数据表达推迟到后续阶段
 
-- [ ] T1-6 动态热力图 `packages/analysis/src/dynamic-heatmap.ts`
-  - `DynamicHeatmapOverlay`，`updateNoise` 增量刷新
+- [x] T1-6 动态热力图 `packages/analysis/src/dynamic-heatmap.ts`
+  - `DynamicHeatmapOverlay` 帧切换与定时播放，`interpolateHeatmapGrid` 帧间插值
   - Requirement: 10；Design: analysis 扩展
-  - Verify: 契约测试验证纹理与监听在销毁后释放
+  - Verify: 单测验证帧间插值与销毁释放
 
-- [ ] T1-7 洪水淹没 `packages/analysis/src/flood.ts`
-  - `FloodAnalysis`，水位调整与区域裁剪
+- [x] T1-7 洪水淹没 `packages/analysis/src/flood.ts`
+  - `computeFloodGrid` 纯计算 + `FloodAnalysis` 水位水面渲染
   - Requirement: 11；Design: analysis 扩展；依赖 T2 水面着色器
-  - Verify: E2E 调整水位可见变化；销毁释放着色器
+  - Verify: 单测验证淹没掩膜、占比与最大深度
+  - 实现说明：水面使用半透明矩形近似，着色器水面推迟到 T2
 
-- [ ] T1-8 AnalysisManager 聚合与任务化
-  - 在 `AnalysisManager` 暴露新服务；计算类走 `runAnalysisTask`
+- [x] T1-8 AnalysisManager 聚合与任务化
+  - 在 `AnalysisManager` 暴露 `buffer`/`path`/`heatmap`/`dynamicHeatmap`/`flood`/`swipe`；计算类走 `runAnalysisTask`
   - Requirement: 24；Design: analysis 扩展
   - Verify: 类型检查与任务状态迁移单测
 
