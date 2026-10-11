@@ -21,7 +21,7 @@ Arc3DLab 是面向三维 WebGIS 的模块化场景运行时。CesiumJS 是首个
 
 当前策略：内部用 `packages/*` 分模块，对外仍发布单一 npm 包 `arc3dlab`。
 
-当前版本：`1.0.0-alpha.1`。Cesium peer 固定为 `1.146.0`。兼容矩阵见 `COMPATIBILITY.md`。
+当前版本：`1.0.0`。Cesium peer 固定为 `1.146.0`。兼容矩阵见 `COMPATIBILITY.md`。
 
 ### 仓库结构
 
@@ -341,7 +341,7 @@ npm run guide:dev
 
 ### 版本与日志
 
-当前版本在根 `package.json`：`1.0.0-alpha.1`。
+当前版本在根 `package.json`：`1.0.0`。
 
 - 面向用户的版本说明：`CHANGES.md`
 - 开发过程日志模板：`LOG.md`
@@ -374,7 +374,7 @@ npm publish --tag alpha --access public
 
 ### 发布后
 
-1. 给 Git 打与 `package.json` 相同的 tag，例如 `v1.0.0-alpha.1`。
+1. 给 Git 打与 `package.json` 相同的 tag，例如 `v1.0.0`。
 2. 推送分支与 tag。
 3. 在消费项目中安装新版本，核对 Cesium 静态资源与主入口 `Arc3D.create()`。
 

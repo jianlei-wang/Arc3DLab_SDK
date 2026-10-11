@@ -18,14 +18,23 @@ release: 发布新版本
 workflow: 工作流相关文件修改
 ```
 
-### $\colorbox{green}{000 当前版本 }$
+### $\colorbox{green}{001 v1.0.0 }$
 
 #### 更新时间
 
 ```time
+2026-10-11
 ```
 
 #### 更新内容
 
 ```content
+release: 发布首个正式版本 v1.0.0
+docs: 新增 VitePress 开发指南站（guide/，独立端口 5175，顶栏互链 Sandcastle 与 API 文档）
+docs: 新增 Cesium 风格 API 文档站，自研生成器替换 TypeDoc + Material 主题
+docs: 公共导出中文 TSDoc 覆盖率达 100%（摘要与参数）
+feat: 新增 app.scene.whenSceneReady() 首屏就绪信号
+feat: 内置分析新增任务化方法，返回统一 AnalysisResult
+test: 新增浏览器 E2E（Playwright + Chromium / SwiftShader）
+build: 新增 bundle 体积门禁与依赖漏洞审计
 ```

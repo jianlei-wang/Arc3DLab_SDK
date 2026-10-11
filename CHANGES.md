@@ -9,7 +9,9 @@
 ### fix: :wrench: 修复bug
 ```
 
-## 当前
+## v1.0.0 - 2026-10-11
+
+### feat
 
 - 新增 VitePress **开发指南站**（`guide/`）：按类别分组（简介、运行时、相机、场景、影像地形、图层、图形、交互、分析、特效 UI、扩展与迁移）的 38 个章节，代码示例与实际公共 API 一致；`npm run guide:dev` / `guide:build` / `guide:preview`（独立端口 5175）
 - 开发指南顶栏通过运行时计算兄弟端口，与 Sandcastle（5173）、API 文档（5174）互链；CI 新增 `guide` job 构建并上传 `guide-dist` 构件

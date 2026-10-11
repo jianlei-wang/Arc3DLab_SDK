@@ -68,7 +68,7 @@ onMounted(async () => {
 
     <div class="spacer" />
 
-    <span class="ver">1.0.0-alpha.1 · Cesium 1.146.0</span>
+    <span class="ver">1.0.0 · Cesium 1.146.0</span>
     <a
       class="github"
       :href="GITHUB_URL"
