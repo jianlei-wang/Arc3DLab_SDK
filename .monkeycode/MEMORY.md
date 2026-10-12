@@ -60,7 +60,7 @@ Entries discovered by the Agent during task execution should follow this format:
 - Context: Discovered by Agent while extending the browser E2E suite (P6)
 - Category: Environment Configuration
 - Instructions:
-  - 新增 `@arc3dlab/*` 包时，需同步在 `e2e/vite.config.ts` 的 `resolve.alias` 中补别名；否则 `npm run test:e2e` 的 vite dev server 会报 `Failed to resolve import`（P3 加入 `@arc3dlab/plotting` 后即为此遗留问题）。
+  - 新增 `@arc3dlab/*` 包时，需同步在 `e2e/vite.config.ts` 与 `demo-vue3/vite.config.ts` 的 `resolve.alias` 中补别名；否则 `npm run test:e2e` 或 5173 Sandcastle 预览会报 `Failed to resolve import`（P3 加入 `@arc3dlab/plotting` 后 e2e 已补，demo-vue3 曾遗漏导致 5173 预览白屏）。
   - Playwright 浏览器已预装（`~/.cache/ms-playwright/chromium-1194`），可直接运行 `npm run test:e2e`（`playwright test`），webServer 使用端口 4310。
 
 [Project Knowledge Summary]
