@@ -13,6 +13,8 @@
 - 插件资源托管：`DisposableResource.destroy()` 幂等列为公开契约；`PluginScope.manage()` 以幂等 disposer 托管并新增 `unmanage()` 支持提前解托管。
 - 性能证据分层：保留 `bench:check` 为合成 micro-benchmark；新增 `e2e/perf.spec.ts` 真实浏览器场景与 `.github/workflows/perf.yml`（每日定时 + 手动）趋势任务，时间数值仅归档、资源回收做结构性断言。
 - 发布治理：新增 `.github/PULL_REQUEST_TEMPLATE.md`，`12-engineering` 增补“公共 API 与 SemVer 治理”；`scripts/public-api-manifest.json` 随 API 变更刷新。
+- 开发期一致性：`vite.config.ts` 增加内联插件，`npm run build:watch` 在每个 watch 重建后自动重跑 declaration rollup（`scripts/rollup-dts.mjs`），避免开发期 `.d.ts` 与 JS 产物漂移。
+- 分析文档：`09-analysis.md` 补充输入快照合同（默认克隆、不可克隆降级告警与 `snapshot` 钩子边界）。
 - 新增/更新测试：`registry-immutability.test.ts`、`plugin-owner-isolation.test.ts`、`plugin-extensions.test.ts`、`tools-registry.test.ts`、`data-catalog.test.ts`、`plugin-managed-resources.test.ts`、`core-runtime.test.ts`、`plugins.test.ts`、`plugins-concurrency.test.ts`；`npm run gate:release` 与 `npm run test:e2e` 全绿。
 
 ## 2026-10-12（第二轮审阅整改：生命周期、数据语义与发布合同）

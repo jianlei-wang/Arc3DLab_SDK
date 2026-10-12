@@ -22,6 +22,8 @@
 | P2-02 | DataCatalog schema 生命周期歧义 | DONE | 见下 |
 | P2-03 | PluginScope.manage 幂等/提前释放合同 | DONE | 见下 |
 | P2-04 | benchmark 与真实 SDK 性能未区分 | DONE | 趋势任务已落地，基线待积累 |
+| P2-06 | `build:watch` 不同步 rollup 声明 | DONE | 见下 |
+| 文档 | 分析任务不可克隆输入边界 | DONE | 见下 |
 | 发布工程 | 服务端 required checks 与 API/SemVer 审查政策 | PARTIAL | 仓库内模板与文档已就绪，服务端启用待管理员 |
 
 ### [x] P1-01 公开注册表默认 owner 仍可能错误归属
@@ -78,6 +80,19 @@
 - 方案：保留脚本作为稳定 micro-benchmark；新增浏览器性能场景 `e2e/perf.spec.ts`，在真实 SDK API 下创建/删除图形并采集帧分位与资源回收；通过 `.github/workflows/perf.yml`（每日定时 + 手动）作为趋势任务，非必需检查。
 - 验收：真实浏览器场景产出趋势数据；时间数值仅归档、不做硬承诺，资源回收做结构性断言。
 - 状态：DONE（`e2e/perf.spec.ts`、`e2e/main.ts` 场景、`.github/workflows/perf.yml`；基线待 nightly 积累）
+
+### [x] P2-06 `build:watch` 不同步 rollup 声明
+
+- 问题：`build:watch` 仅为 `vite build --watch`，不会触发 `scripts/rollup-dts.mjs`，开发期 `.d.ts` 与最终发布声明可能不一致。
+- 方案：在 `vite.config.ts` 增加内联 Vite 插件（`apply: "build"`），仅在 `config.build.watch` 为真时，于每次 watch 重建的 `closeBundle` 后执行 declaration rollup；`npm run build` 非 watch 路径不重复执行。
+- 验收：`npm run build:watch` 首次构建与源码变更重建后均输出 `declaration rollup ok`；`npm run build` 仅执行一次 rollup。
+- 状态：DONE（`vite.config.ts`、`docs/guides/sdk-development.md`、`12-engineering`）
+
+### [x] 文档：分析任务不可克隆输入边界
+
+- 问题：不可 `structuredClone` 的输入会降级为共享引用，只发 warning，调用方缺少明确书面边界。
+- 方案：在 `09-analysis.md` 增补“输入快照合同”，说明默认克隆、降级告警与 `snapshot` 钩子。
+- 状态：DONE（`docs/architecture/09-analysis.md`）
 
 ### [~] 发布工程：服务端 required checks 与 API/SemVer 审查政策
 

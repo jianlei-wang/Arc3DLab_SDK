@@ -29,6 +29,10 @@
 - 新增真实浏览器性能趋势场景 `e2e/perf.spec.ts` 与 `.github/workflows/perf.yml`（每日定时 + 手动），时间数值仅归档、资源回收做结构性断言
 - 新增 `.github/PULL_REQUEST_TEMPLATE.md`，将公共 API/SemVer 影响、生命周期与资源契约纳入合并前置检查
 
+### chore
+
+- `npm run build:watch` 现在会在每次 watch 重建后自动重跑 declaration rollup，保持开发期 `.d.ts` 与 JS 产物一致
+
 ## v1.0.0 - 2026-10-11
 
 ### feat

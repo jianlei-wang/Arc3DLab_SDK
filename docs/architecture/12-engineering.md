@@ -8,6 +8,8 @@ Vite library mode + TypeScript + `vite-plugin-dts`。主产物为 ESM。UMD 降�
 
 库构建 `base: "./"`，静态资源以 `new URL(..., import.meta.url)` 生成模块相对 URL，兼容直接 ESM 引用与消费端打包。
 
+`npm run build` 为 `vite build && node scripts/rollup-dts.mjs`（逐文件声明 → api-extractor 打包为 `dist/index.d.ts` / `dist/engine-cesium.d.ts`）。`npm run build:watch` 通过内联 Vite 插件在每个 watch 重建完成后自动重跑同一 declaration rollup，保证开发期 `.d.ts` 与 JS 产物一致。
+
 ## 体积与静态资源
 
 - `bundle-baseline.json` 记录 `dist/arc3dlab.esm.js` 与 `dist/engine-cesium.js` 的 raw / gzip 基线；`npm run lint:size`（CI 在 `build` 后执行）超出基线 5% 时失败。

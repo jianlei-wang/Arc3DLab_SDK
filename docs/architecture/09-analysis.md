@@ -41,6 +41,9 @@ result.artifacts // ResultArtifact[]
 
 `AnalysisTask` 记录 `id / algorithm / algorithmVersion / status / createdAt / startedAt / finishedAt / progress / maxSamples / error`。`AnalysisResult` 携带 `units / spatialReference / verticalReference / extent / warnings / confidence / inputSnapshot / source / artifacts`。执行函数抛错不向上传播，转换为 `status: "failed"` 的结果并保留稳定错误码；`signal` 触发为 `cancelled`。`ResultArtifact.kind` 覆盖 `volume / profile / viewshed / sample-grid / report / geometry`。
 
+输入快照合同：任务启动时对 `input` / `params` 生成独立快照（默认经 `structuredClone`），之后的执行与进度回调不会与调用方共享引用。无法结构化克隆的输入（含函数、DOM 节点、Cesium 原生对象等）会降级为保留原引用，并在结果 `warnings` 中记录一条稳定告警；此类调用方需自行保证输入在执行期间不被修改，或通过 `snapshot` 钩子提供可克隆投影。该降级是显式兼容策略，不是静默共享。
+
+
 内置分析同时提供任务化方法（`*Task`），返回统一的 `AnalysisResult`，接入 `app.analysis.tasks`：
 
 ```ts
