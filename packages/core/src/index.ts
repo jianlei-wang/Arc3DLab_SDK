@@ -77,8 +77,13 @@ export { ToolRegistry, type ToolSpec } from "./tools"
 export {
   PluginScopeManager,
   isPluginScope,
+  type DisposableResource,
+  type PluginRegistrationBinding,
   type PluginScope,
   type PluginState,
+  type ScopedCapabilityRecord,
+  type ScopedCommandSpec,
+  type ScopedToolSpec,
 } from "./plugin-scope"
 export { createContext, type Arc3DContext } from "./context"
 export {

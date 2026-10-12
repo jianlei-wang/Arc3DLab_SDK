@@ -115,9 +115,32 @@ export interface FeatureRef {
 }
 
 /**
+ * 对目录中的值做防御性复制。
+ *
+ * 目录采用不可变快照语义：输入时复制，对外返回副本。无法结构化克隆的值
+ * 退化为浅拷贝，调用方不应在目录对象上挂载不可序列化内容。
+ *
+ * @param value - 待复制的值。
+ * @returns 复制后的值。
+ */
+function copy<T>(value: T): T {
+  if (value === null || typeof value !== "object") return value
+  try {
+    return structuredClone(value)
+  } catch {
+    return (Array.isArray(value) ? value.slice() : { ...value }) as T
+  }
+}
+
+/**
  * 内存数据目录，描述数据资产及其渲染图层。
  *
  * 图层通过 ID 引用资产；移除图层不会移除资产，因此同一份领域数据可以支撑多个视图。
+ *
+ * 可变性合同：目录采用**不可变快照模型**——注册时存储输入的独立副本，所有读取方法
+ * 返回的也是副本。调用方修改最初传入的对象或读取到的对象，都不会改变目录内部状态；
+ * 任何更新都必须通过目录自身的方法（如 {@link DataCatalog.updateLayer}）进行。注册
+ * 操作是事务性的：任一约束校验失败时不会留下部分提交的状态。
  */
 export class DataCatalog {
   private readonly assets = new Map<string, DataAsset>()
@@ -125,10 +148,14 @@ export class DataCatalog {
   private readonly layers = new Map<string, LayerMetadata>()
 
   /**
-   * 注册数据资产。
+   * 注册数据资产及其可选要素结构。
+   *
+   * 该操作是事务性的：先校验资产 ID 与 schema ID 均无冲突，再一次性提交资产与
+   * schema；若 schema 冲突，资产不会被写入目录。
    *
    * @param asset - 数据资产。
-   * @throws {Arc3DError} 当资产 ID 已存在时抛出 `DUPLICATE_RESOURCE`。
+   * @returns 已注册资产的快照副本。
+   * @throws {Arc3DError} 当资产 ID 或 schema ID 已存在时抛出 `DUPLICATE_RESOURCE`。
    */
   registerAsset(asset: DataAsset): DataAsset {
     if (this.assets.has(asset.id)) {
@@ -137,24 +164,36 @@ export class DataCatalog {
         `Data asset already registered: ${asset.id}`,
       )
     }
-    this.assets.set(asset.id, asset)
-    if (asset.schema) this.registerSchema(asset.schema)
-    return asset
+    if (asset.schema && this.schemas.has(asset.schema.id)) {
+      throw new Arc3DError(
+        "DUPLICATE_RESOURCE",
+        `Feature schema already registered: ${asset.schema.id}`,
+      )
+    }
+    const stored = copy(asset)
+    this.assets.set(stored.id, stored)
+    if (stored.schema) {
+      this.schemas.set(stored.schema.id, copy(stored.schema))
+    }
+    return copy(stored)
   }
 
   /**
    * 获取数据资产。
    *
    * @param id - 资产 ID。
+   * @returns 资产的快照副本，不存在时为 undefined。
    */
   getAsset(id: string): DataAsset | undefined {
-    return this.assets.get(id)
+    const asset = this.assets.get(id)
+    return asset ? copy(asset) : undefined
   }
 
   /**
    * 获取数据资产，不存在时抛错。
    *
    * @param id - 资产 ID。
+   * @returns 资产的快照副本。
    * @throws {Arc3DError} 资产不存在时抛出 `RESOURCE_NOT_FOUND`。
    */
   requireAsset(id: string): DataAsset {
@@ -162,7 +201,7 @@ export class DataCatalog {
     if (!asset) {
       throw new Arc3DError("RESOURCE_NOT_FOUND", `Data asset not found: ${id}`)
     }
-    return asset
+    return copy(asset)
   }
 
   /**
@@ -174,9 +213,9 @@ export class DataCatalog {
     return this.assets.has(id)
   }
 
-  /** 列出全部数据资产。 */
+  /** 列出全部数据资产（快照副本）。 */
   listAssets(): DataAsset[] {
-    return Array.from(this.assets.values())
+    return Array.from(this.assets.values(), (asset) => copy(asset))
   }
 
   /**
@@ -193,6 +232,7 @@ export class DataCatalog {
    * 注册要素结构。
    *
    * @param schema - 要素结构。
+   * @returns 已注册结构的快照副本。
    * @throws {Arc3DError} 当 schema ID 已存在时抛出 `DUPLICATE_RESOURCE`。
    */
   registerSchema(schema: FeatureSchema): FeatureSchema {
@@ -202,23 +242,27 @@ export class DataCatalog {
         `Feature schema already registered: ${schema.id}`,
       )
     }
-    this.schemas.set(schema.id, schema)
-    return schema
+    const stored = copy(schema)
+    this.schemas.set(stored.id, stored)
+    return copy(stored)
   }
 
   /**
    * 获取要素结构。
    *
    * @param id - schema ID。
+   * @returns 结构的快照副本，不存在时为 undefined。
    */
   getSchema(id: string): FeatureSchema | undefined {
-    return this.schemas.get(id)
+    const schema = this.schemas.get(id)
+    return schema ? copy(schema) : undefined
   }
 
   /**
    * 注册图层元数据。
    *
    * @param metadata - 图层元数据。
+   * @returns 已注册元数据的快照副本。
    * @throws {Arc3DError} 当图层 ID 已存在时抛出 `DUPLICATE_RESOURCE`。
    */
   registerLayer(metadata: LayerMetadata): LayerMetadata {
@@ -228,8 +272,9 @@ export class DataCatalog {
         `Layer metadata already registered: ${metadata.id}`,
       )
     }
-    this.layers.set(metadata.id, metadata)
-    return metadata
+    const stored = copy(metadata)
+    this.layers.set(stored.id, stored)
+    return copy(stored)
   }
 
   /**
@@ -237,6 +282,7 @@ export class DataCatalog {
    *
    * @param id - 图层 ID。
    * @param patch - 需要更新的字段。
+   * @returns 更新后的快照副本。
    * @throws {Arc3DError} 图层不存在时抛出 `RESOURCE_NOT_FOUND`。
    */
   updateLayer(id: string, patch: Partial<LayerMetadata>): LayerMetadata {
@@ -247,23 +293,25 @@ export class DataCatalog {
         `Layer metadata not found: ${id}`,
       )
     }
-    const next = { ...current, ...patch, id }
+    const next = copy({ ...current, ...patch, id })
     this.layers.set(id, next)
-    return next
+    return copy(next)
   }
 
   /**
    * 获取图层元数据。
    *
    * @param id - 图层 ID。
+   * @returns 元数据的快照副本，不存在时为 undefined。
    */
   getLayer(id: string): LayerMetadata | undefined {
-    return this.layers.get(id)
+    const layer = this.layers.get(id)
+    return layer ? copy(layer) : undefined
   }
 
-  /** 列出全部图层元数据。 */
+  /** 列出全部图层元数据（快照副本）。 */
   listLayers(): LayerMetadata[] {
-    return Array.from(this.layers.values())
+    return Array.from(this.layers.values(), (layer) => copy(layer))
   }
 
   /**

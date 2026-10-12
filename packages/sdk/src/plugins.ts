@@ -21,6 +21,11 @@ export interface Arc3DPlugin<TApp = unknown> {
   /**
    * 安装插件。
    *
+   * 推荐通过 `scope.registerCommand()` / `scope.registerTool()` /
+   * `scope.registerCapability()` 注册扩展，使所有者显式绑定到当前插件，
+   * 避免安装期间的异步等待被外部注册误归属。直接使用 `context` 上的注册表
+   * 仍受当前活动作用域约束，但在跨 `await` 场景下不如作用域绑定可靠。
+   *
    * @param app - 应用实例。
    * @param context - 运行时上下文。
    * @param scope - 插件专属作用域。
@@ -49,6 +54,9 @@ export class PluginManager<TApp = unknown> {
   private plugins = new Map<string, PluginEntry<TApp>>()
   private stateMap = new Map<string, PluginState>()
   private queue: Promise<unknown> = Promise.resolve()
+  private closing = false
+  private closed = false
+  private destroyTask: Promise<void> | undefined
 
   /**
    * 构造插件管理器。
@@ -60,6 +68,11 @@ export class PluginManager<TApp = unknown> {
     private readonly app: TApp,
     private readonly context: Arc3DContext,
   ) {}
+
+  /** 管理器是否已进入关闭流程或已关闭。 */
+  get shuttingDown(): boolean {
+    return this.closing || this.closed
+  }
 
   /** 将插件生命周期操作串行化，避免共享活动 owner 在异步安装期间被覆盖。 */
   private enqueue<T>(operation: () => Promise<T> | T): Promise<T> {
@@ -74,16 +87,30 @@ export class PluginManager<TApp = unknown> {
   /**
    * 安装插件。
    *
-   * 安装操作串行执行；同名并发安装会确定性地拒绝其中一次。
+   * 安装操作串行执行；同名并发安装会确定性地拒绝其中一次。一旦管理器开始
+   * 关闭，新的安装会同步被拒绝。若安装期间运行时进入销毁流程，安装会在提交
+   * 前被回滚，不会登记为 `installed`。
    *
    * @param plugin - 插件对象。
    */
   async use(plugin: Arc3DPlugin<TApp>): Promise<void> {
+    if (this.shuttingDown) {
+      throw new Arc3DError(
+        "CANCELLED",
+        `Plugin manager is shutting down; cannot install ${plugin.name}`,
+      )
+    }
     return this.enqueue(() => this.performUse(plugin))
   }
 
   private async performUse(plugin: Arc3DPlugin<TApp>): Promise<void> {
     this.context.lifecycle.assertUsable("install plugin")
+    if (this.shuttingDown) {
+      throw new Arc3DError(
+        "CANCELLED",
+        `Plugin install aborted during shutdown: ${plugin.name}`,
+      )
+    }
     assertPluginName(plugin)
     if (this.plugins.has(plugin.name)) {
       throw new Arc3DError(
@@ -111,6 +138,12 @@ export class PluginManager<TApp = unknown> {
     this.context.scopes.setActive(plugin.name)
     try {
       await plugin.install(this.app, this.context, scope)
+      if (this.shuttingDown || this.context.lifecycle.isTerminating) {
+        throw new Arc3DError(
+          "CANCELLED",
+          `Plugin install aborted during shutdown: ${plugin.name}`,
+        )
+      }
       this.plugins.set(plugin.name, { plugin, scope })
       this.setState(plugin.name, "installed")
     } catch (error) {
@@ -130,6 +163,12 @@ export class PluginManager<TApp = unknown> {
    * @param name - 插件名称。
    */
   async uninstall(name: string): Promise<void> {
+    if (this.closed) {
+      throw new Arc3DError(
+        "CANCELLED",
+        `Plugin manager is closed; cannot uninstall ${name}`,
+      )
+    }
     return this.enqueue(() => this.performUninstall(name))
   }
 
@@ -169,16 +208,33 @@ export class PluginManager<TApp = unknown> {
     }
   }
 
-  /** 逆序卸载全部插件。 */
+  /**
+   * 逆序卸载全部插件。
+   *
+   * 关闭流程本身作为队列中的终止操作执行：先同步置位关闭标记以拒绝新的
+   * `use()`，再排队等待已在途的插件安装/卸载收敛，最后逆序卸载剩余插件。
+   * 这保证 `destroy()` 完成后不会再有插件登记残留。
+   */
   async destroy(): Promise<void> {
+    if (this.closed) return
+    this.closing = true
+    if (!this.destroyTask) {
+      this.destroyTask = this.enqueue(() => this.performDestroy())
+    }
+    return this.destroyTask
+  }
+
+  private async performDestroy(): Promise<void> {
+    if (this.closed) return
     const names = Array.from(this.plugins.keys()).reverse()
     for (const name of names) {
       try {
-        await this.uninstall(name)
+        await this.performUninstall(name)
       } catch (error) {
         this.context.logger.error(`Plugin uninstall failed: ${name}`, error)
       }
     }
+    this.closed = true
   }
 
   /** 列出已安装插件名称。 */

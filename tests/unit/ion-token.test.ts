@@ -53,6 +53,36 @@ describe("SerialIonTokenScope", () => {
     ).rejects.toThrow("boom")
     expect(Cesium.Ion.defaultAccessToken).toBe(original)
   })
+
+  it("serializes a no-token section behind an in-flight token section", async () => {
+    const scope = new SerialIonTokenScope()
+    const original = Cesium.Ion.defaultAccessToken
+    const events: string[] = []
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+
+    const taskA = scope.run("token-a", async () => {
+      events.push(`a:${Cesium.Ion.defaultAccessToken}`)
+      await gate
+      events.push(`a-end:${Cesium.Ion.defaultAccessToken}`)
+    })
+    await Promise.resolve()
+
+    const taskB = scope.run(undefined, async () => {
+      events.push(`b:${Cesium.Ion.defaultAccessToken}`)
+    })
+    await Promise.resolve()
+
+    expect(events).toEqual(["a:token-a"])
+
+    release()
+    await Promise.all([taskA, taskB])
+
+    expect(events).toEqual(["a:token-a", "a-end:token-a", `b:${original}`])
+    expect(Cesium.Ion.defaultAccessToken).toBe(original)
+  })
 })
 
 describe("withIonAccessToken", () => {

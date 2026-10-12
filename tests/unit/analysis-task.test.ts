@@ -177,3 +177,79 @@ describe("Analysis task contract", () => {
     expect(result.warnings[0]).toMatch(/structured-cloned/)
   })
 })
+
+describe("Analysis deep isolation", () => {
+  it("stores an independent copy of the registered task", () => {
+    const registry = new AnalysisTaskRegistry()
+    const task = {
+      id: "manual",
+      algorithm: "noop",
+      algorithmVersion: "1.0.0",
+      input: { nested: { value: 1 } },
+      status: "pending" as const,
+      createdAt: 0,
+    }
+    registry.add(task)
+    ;(task.input.nested as { value: number }).value = 99
+    expect(
+      (registry.get("manual")?.input as { nested: { value: number } }).nested
+        .value,
+    ).toBe(1)
+  })
+
+  it("does not let callers mutate the registry through result.inputSnapshot", async () => {
+    const { context } = createTestContext()
+    const registry = new AnalysisTaskRegistry()
+    const input = { nested: { value: 1 } }
+    const result = await runAnalysisTask({
+      context,
+      registry,
+      algorithm: "deep",
+      input,
+      execute: () => ({ value: 1 }),
+    })
+
+    input.nested.value = 50
+    ;(result.inputSnapshot as { nested: { value: number } }).nested.value = 99
+
+    expect(
+      (registry.get(result.taskId)?.input as { nested: { value: number } })
+        .nested.value,
+    ).toBe(1)
+  })
+
+  it("isolates the onProgress argument from registry state", async () => {
+    const { context } = createTestContext()
+    const registry = new AnalysisTaskRegistry()
+    const result = await runAnalysisTask({
+      context,
+      registry,
+      algorithm: "progress",
+      input: {},
+      onProgress: (progress) => {
+        progress.completed = 999
+      },
+      execute: (runner) => {
+        runner.report(1, 2, "stage")
+        return { value: 1 }
+      },
+    })
+    expect(registry.get(result.taskId)?.progress).toEqual({
+      completed: 1,
+      total: 2,
+      stage: "stage",
+    })
+  })
+
+  it("warns when task params cannot be structured-cloned", async () => {
+    const { context } = createTestContext()
+    const result = await runAnalysisTask({
+      context,
+      algorithm: "params",
+      input: {},
+      params: { fn: () => 1 },
+      execute: () => ({ value: 1 }),
+    })
+    expect(result.warnings.some((warning) => /params/.test(warning))).toBe(true)
+  })
+})

@@ -4,6 +4,7 @@ import {
   EventBus,
   LifecycleManager,
   ResourceRegistry,
+  ResourceTracker,
   createHandle,
   createId,
 } from "@arc3dlab/core"
@@ -76,5 +77,67 @@ describe("ResourceRegistry", () => {
     handle.visible = true
     expect(handle.visible).toBe(true)
     expect(shown).toEqual([false, true])
+  })
+})
+
+describe("ResourceRegistry.clear robustness", () => {
+  it("keeps clearing remaining resources after one destroy throws", () => {
+    const registry = new ResourceRegistry()
+    const tracker = new ResourceTracker()
+    const destroyed: string[] = []
+
+    for (const id of ["a", "b", "c"]) {
+      registry.add(
+        createHandle({
+          id,
+          type: "polygon",
+          native: {},
+          onDestroy: () => {
+            destroyed.push(id)
+            if (id === "b") throw new Error("boom")
+          },
+        }),
+      )
+    }
+    registry.add(
+      createHandle({
+        id: "parent",
+        type: "group",
+        native: {},
+        onDestroy: () => {
+          destroyed.push("parent")
+        },
+      }),
+    )
+    tracker.link("parent", "b")
+
+    const errors: { id: string; message: string }[] = []
+    const collected = registry.clear(tracker, (error, id) => {
+      errors.push({
+        id,
+        message: error instanceof Error ? error.message : String(error),
+      })
+    })
+
+    expect(destroyed).toContain("a")
+    expect(destroyed).toContain("b")
+    expect(destroyed).toContain("c")
+    expect(destroyed).toContain("parent")
+    expect(collected).toHaveLength(1)
+    expect(errors).toEqual([{ id: "b", message: "boom" }])
+    expect(registry.ids()).toEqual([])
+    expect(tracker.size).toBe(0)
+  })
+
+  it("returns defensive copies from childrenOf and unlink", () => {
+    const tracker = new ResourceTracker()
+    tracker.link("parent", "child")
+    const children = tracker.childrenOf("parent")
+    children.push("intruder")
+    expect(tracker.childrenOf("parent")).toEqual(["child"])
+    const removed = tracker.unlink("parent")
+    expect(removed).toEqual(["child"])
+    removed.push("intruder")
+    expect(tracker.childrenOf("parent")).toEqual([])
   })
 })

@@ -151,8 +151,11 @@ export class AnalysisTaskRegistry {
 
   /**
    * 注册一个分析任务。
+   *
+   * 登记时会存储输入的独立副本，调用方随后修改传入对象不会影响注册表内部状态。
+   *
    * @param task - 待注册的任务。
-   * @returns 注册后的任务（防御性副本）。
+   * @returns 注册后的任务（防御性副本，与内部存储相互独立）。
    * @throws {Arc3DError} 任务标识已存在时抛出。
    */
   add(task: AnalysisTask<unknown>): AnalysisTask<unknown> {
@@ -162,12 +165,17 @@ export class AnalysisTaskRegistry {
         `Analysis task already registered: ${task.id}`,
       )
     }
-    this.tasks.set(task.id, task)
-    return cloneTask(task)
+    const stored = cloneTask(task)
+    this.tasks.set(task.id, stored)
+    return cloneTask(stored)
   }
 
   /**
    * 按标识更新任务的局部字段。
+   *
+   * 更新时会对合并后的任务再次做防御性复制，`patch` 中嵌套对象的引用不会
+   * 与注册表内部状态共享。
+   *
    * @param id - 任务标识。
    * @param patch - 需要更新的字段。
    * @returns 更新后的任务（防御性副本），任务不存在时返回 undefined。
@@ -178,7 +186,7 @@ export class AnalysisTaskRegistry {
   ): AnalysisTask<unknown> | undefined {
     const current = this.tasks.get(id)
     if (!current) return undefined
-    const next = { ...current, ...patch, id }
+    const next = cloneTask({ ...current, ...patch, id })
     this.tasks.set(id, next)
     return cloneTask(next)
   }
@@ -296,17 +304,35 @@ export async function runAnalysisTask<TInput, TResult>(
   const algorithmVersion = options.algorithmVersion ?? "1.0.0"
   const maxSamples = options.maxSamples ?? DEFAULT_MAX_SAMPLES
 
-  const customSnapshot =
-    options.snapshot !== undefined ? options.snapshot(options.input) : undefined
-  const clonedInput = cloneInput(options.input)
-  const inputSnapshot = options.snapshot ? customSnapshot : clonedInput.value
-  const snapshotWarning =
-    options.snapshot === undefined && !clonedInput.cloned
-      ? "Input could not be structured-cloned; inputSnapshot references the original object."
-      : undefined
-  const paramsSnapshot = options.params
-    ? cloneInput(options.params).value
-    : options.params
+  const warnings: string[] = []
+  let inputSnapshot: unknown
+  if (options.snapshot) {
+    const cloned = cloneInput(options.snapshot(options.input))
+    inputSnapshot = cloned.value
+    if (!cloned.cloned) {
+      warnings.push(
+        "Custom input snapshot could not be structured-cloned; it may share references with the caller.",
+      )
+    }
+  } else {
+    const cloned = cloneInput(options.input)
+    inputSnapshot = cloned.value
+    if (!cloned.cloned) {
+      warnings.push(
+        "Input could not be structured-cloned; inputSnapshot references the original object.",
+      )
+    }
+  }
+  let paramsSnapshot: Record<string, unknown> | undefined
+  if (options.params) {
+    const cloned = cloneInput(options.params)
+    paramsSnapshot = cloned.value
+    if (!cloned.cloned) {
+      warnings.push(
+        "Task params could not be structured-cloned; params may share references with the caller.",
+      )
+    }
+  }
 
   const task: AnalysisTask<TInput> = {
     id,
@@ -339,7 +365,7 @@ export async function runAnalysisTask<TInput, TResult>(
       const progress: AnalysisProgress = { completed, total, stage }
       task.progress = progress
       options.registry?.update(id, { progress })
-      options.onProgress?.(progress)
+      options.onProgress?.({ ...progress })
     },
     throwIfCancelled(action) {
       assertActive(action)
@@ -369,7 +395,7 @@ export async function runAnalysisTask<TInput, TResult>(
       spatialReference: options.spatialReference,
       verticalReference: options.verticalReference,
       extent: execution.extent,
-      warnings: mergeWarnings(snapshotWarning, execution.warnings),
+      warnings: [...warnings, ...(execution.warnings ?? [])],
       confidence: execution.confidence,
       inputSnapshot,
       source: options.source,
@@ -395,7 +421,7 @@ export async function runAnalysisTask<TInput, TResult>(
       algorithm: options.algorithm,
       algorithmVersion,
       status,
-      warnings: mergeWarnings(snapshotWarning, undefined),
+      warnings: [...warnings],
       artifacts: [],
       inputSnapshot,
       error: description,
@@ -403,14 +429,4 @@ export async function runAnalysisTask<TInput, TResult>(
       finishedAt,
     }
   }
-}
-
-function mergeWarnings(
-  prefix: string | undefined,
-  extra: string[] | undefined,
-): string[] {
-  const merged: string[] = []
-  if (prefix) merged.push(prefix)
-  if (extra) merged.push(...extra)
-  return merged
 }

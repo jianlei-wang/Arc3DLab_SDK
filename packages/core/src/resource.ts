@@ -78,6 +78,9 @@ export class ResourceRegistry<T extends ResourceHandle = ResourceHandle> {
   /**
    * 从注册表中移除资源，并在其由 SDK 持有时销毁它。
    *
+   * 合同：资源总是先从注册表解除登记，再尝试销毁。若原生销毁抛出异常，登记
+   * 已经移除、不会留下无记录的“孤儿资源”，异常会向上抛出以便调用方诊断。
+   *
    * @param id - 资源标识。
    * @returns 是否成功移除。
    */
@@ -110,9 +113,19 @@ export class ResourceRegistry<T extends ResourceHandle = ResourceHandle> {
   /**
    * 按父子关系逐层清理并销毁全部资源。
    *
+   * 单个资源的 `destroy()` 抛出异常不会中断其余资源的清理：每个资源独立
+   * try/catch，错误会被收集并通过 `onError` 上报，最终在 `finally` 中无论
+   * 是否发生错误都清空注册表与追踪器的记录。
+   *
    * @param tracker - 提供父子关系的资源追踪器。
+   * @param onError - 可选的错误回调，接收销毁失败的错误与资源标识。
+   * @returns 清理过程中收集到的错误数组。
    */
-  clear(tracker?: ResourceTracker): void {
+  clear(
+    tracker?: ResourceTracker,
+    onError?: (error: unknown, id: ResourceId) => void,
+  ): unknown[] {
+    const errors: unknown[] = []
     const seen = new Set<ResourceId>()
     const destroyTree = (id: ResourceId): void => {
       if (seen.has(id)) return
@@ -122,11 +135,21 @@ export class ResourceRegistry<T extends ResourceHandle = ResourceHandle> {
       const item = this.items.get(id)
       if (!item) return
       this.items.delete(id)
-      if (item.owned) item.destroy()
+      if (!item.owned) return
+      try {
+        item.destroy()
+      } catch (error) {
+        errors.push(error)
+        onError?.(error, id)
+      }
     }
-    for (const id of this.ids()) destroyTree(id)
-    this.items.clear()
-    tracker?.clear()
+    try {
+      for (const id of this.ids()) destroyTree(id)
+    } finally {
+      this.items.clear()
+      tracker?.clear()
+    }
+    return errors
   }
 }
 
@@ -149,23 +172,25 @@ export class ResourceTracker {
   /**
    * 获取指定资源的全部子资源。
    *
+   * 返回防御性副本；调用方对返回数组的修改不会改变内部记录。
+   *
    * @param parentId - 父资源标识。
    * @returns 子资源标识数组。
    */
   childrenOf(parentId: ResourceId): ResourceId[] {
-    return this.children.get(parentId) ?? []
+    return [...(this.children.get(parentId) ?? [])]
   }
 
   /**
    * 解除指定资源与其子资源的关联。
    *
    * @param parentId - 父资源标识。
-   * @returns 被解除关联的子资源标识数组。
+   * @returns 被解除关联的子资源标识数组（防御性副本）。
    */
   unlink(parentId: ResourceId): ResourceId[] {
     const list = this.children.get(parentId) ?? []
     this.children.delete(parentId)
-    return list
+    return [...list]
   }
 
   /** 清除全部父子关系记录。 */

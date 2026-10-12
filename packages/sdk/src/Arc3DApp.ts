@@ -213,9 +213,11 @@ export class Arc3DApp {
     await this.runDestroyStep("analysis", () => this.analysis.destroy())
     await this.runDestroyStep("scene", () => this.scene.destroy())
     await this.runDestroyStep("graphics", () => this.graphics.clear())
-    await this.runDestroyStep("registry", () =>
-      this.context.registry.clear(this.context.tracker),
-    )
+    await this.runDestroyStep("registry", () => {
+      this.context.registry.clear(this.context.tracker, (error, id) => {
+        this.logger.error(`Resource destroy failed: ${id}`, error)
+      })
+    })
     await this.runDestroyStep("tracker", () => this.context.tracker.clear())
     await this.runDestroyStep("engine", () => {
       if (this.context.engineAdapter) {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { Arc3DError, DataCatalog, type DataAsset } from "@arc3dlab/core"
+import {
+  Arc3DError,
+  DataCatalog,
+  type DataAsset,
+  type LayerMetadata,
+} from "@arc3dlab/core"
 
 function asset(id: string, overrides: Partial<DataAsset> = {}): DataAsset {
   return {
@@ -90,5 +95,52 @@ describe("DataCatalog", () => {
     catalog.clear()
     expect(catalog.listAssets()).toEqual([])
     expect(catalog.listLayers()).toEqual([])
+  })
+
+  it("does not leave a partial asset when its schema conflicts", () => {
+    const catalog = new DataCatalog()
+    catalog.registerSchema({ id: "shared", fields: [] })
+    expect(() =>
+      catalog.registerAsset(
+        asset("a", { schema: { id: "shared", fields: [] } }),
+      ),
+    ).toThrow(Arc3DError)
+    expect(catalog.hasAsset("a")).toBe(false)
+    expect(catalog.getAsset("a")).toBeUndefined()
+  })
+
+  it("isolates internal state from mutations of registered inputs", () => {
+    const catalog = new DataCatalog()
+    const input = asset("iso", {
+      schema: { id: "iso-s", fields: [{ name: "n", type: "number" }] },
+    })
+    catalog.registerAsset(input)
+    input.uri = "https://changed"
+    input.schema?.fields.push({ name: "extra", type: "string" })
+    expect(catalog.getAsset("iso")?.uri).toBe("https://data/iso.geojson")
+    expect(catalog.getAsset("iso")?.schema?.fields).toHaveLength(1)
+  })
+
+  it("isolates internal state from mutations of returned snapshots", () => {
+    const catalog = new DataCatalog()
+    catalog.registerAsset(asset("snap"))
+    const fetched = catalog.getAsset("snap")
+    expect(fetched).toBeDefined()
+    fetched!.uri = "https://mutated"
+    catalog.listAssets()[0].uri = "https://also-mutated"
+    expect(catalog.getAsset("snap")?.uri).toBe("https://data/snap.geojson")
+  })
+
+  it("stores an independent copy when registering a layer", () => {
+    const catalog = new DataCatalog()
+    const meta: LayerMetadata = {
+      id: "l",
+      kind: "imagery",
+      visible: true,
+      loadState: "idle",
+    }
+    catalog.registerLayer(meta)
+    meta.loadState = "failed"
+    expect(catalog.getLayer("l")?.loadState).toBe("idle")
   })
 })

@@ -45,7 +45,7 @@ Entries discovered by the Agent during task execution should follow this format:
 - Instructions:
   - 新增 npm 工作区包（如 `packages/plotting`）后必须同步更新 `package-lock.json`，否则 CI 的 `npm ci` 会因 package.json 与 lockfile 不同步而失败（本地因 node_modules 已存在不会暴露该问题）。
   - 更新命令：`npm install --package-lock-only --ignore-scripts`（仅改 lockfile，不动 node_modules）；校验可用 `npm ci --dry-run`。
-  - 提交前可先跑 CI 覆盖但 `npm run gate` 不含的步骤：`npm run docs:build`、`npm run guide:build`、`npm run test:e2e`、`npm run lint:size`、`npm run test:pack`。
+  - 提交前可先跑 `npm run gate:release`（覆盖 `typecheck`、`test:coverage`、`lint:deps/exports/license/api/audit/docs`、`docs:build`、`guide:build`、`format:check`、`build`、`lint:size`、`test:pack`）；浏览器 E2E 仍单独运行 `npm run test:e2e`。
 
 [Project Knowledge Summary]
 - Date: 2026-10-11
@@ -68,7 +68,7 @@ Entries discovered by the Agent during task execution should follow this format:
 - Context: Discovered by Agent while finishing the migration gates (P6)
 - Category: Build Methods
 - Instructions:
-  - `npm run gate` 只包含 `typecheck && test && lint:deps && lint:exports && lint:license && lint:api && lint:docs && format:check`；`test:coverage`、`lint:audit`、`lint:size`、`test:pack` 需单独运行（CI 中作为独立步骤）。
+  - 门禁分层：`npm run gate:fast` = `typecheck && test && lint:deps && lint:exports && lint:license && lint:api && format:check`；`npm run gate:release` = 快速层（改用 `test:coverage`）+ `lint:audit && docs:build && lint:docs && guide:build && build && lint:size && test:pack`；`npm run gate` 是 `gate:fast` 的别名。
 
 [Project Knowledge Summary]
 - Date: 2026-10-12

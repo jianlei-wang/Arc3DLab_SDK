@@ -74,6 +74,20 @@ export function createContext(
     logger ?? new ConsoleLogger(config.logger?.level ?? "warn")
   const scopes = new PluginScopeManager()
   const ownerProvider = () => scopes.owner
+  const capabilities = new CapabilityRegistry(ownerProvider)
+  const commands = createCoreCommandBus(ownerProvider)
+  const tools = new ToolRegistry(ownerProvider)
+  scopes.setBinding({
+    registerCommand: (spec, owner) =>
+      commands.register({ ...spec, plugin: owner }, owner),
+    registerTool: (spec, owner) =>
+      tools.register({ ...spec, plugin: owner }, owner),
+    registerCapability: (record, owner) =>
+      capabilities.register(
+        typeof record === "string" ? record : { ...record, provider: owner },
+        owner,
+      ),
+  })
   return {
     config,
     engine,
@@ -87,9 +101,9 @@ export function createContext(
     }),
     lifecycle: new LifecycleManager(),
     logger: resolvedLogger,
-    capabilities: new CapabilityRegistry(ownerProvider),
-    commands: createCoreCommandBus(ownerProvider),
-    tools: new ToolRegistry(ownerProvider),
+    capabilities,
+    commands,
+    tools,
     disposers: new DisposerStack(),
     scopes,
     catalog: new DataCatalog(),

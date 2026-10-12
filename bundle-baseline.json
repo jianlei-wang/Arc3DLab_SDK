@@ -5,12 +5,12 @@
   "inlineImageLimitBytes": 5000,
   "entries": {
     "dist/arc3dlab.esm.js": {
-      "rawBytes": 229446,
-      "gzipBytes": 58727
+      "rawBytes": 240063,
+      "gzipBytes": 61893
     },
     "dist/engine-cesium.js": {
       "rawBytes": 611,
-      "gzipBytes": 341
+      "gzipBytes": 343
     }
   }
 }

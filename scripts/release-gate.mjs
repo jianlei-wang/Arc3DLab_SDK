@@ -152,7 +152,12 @@ export function checkConsumerImports(root = ROOT) {
   return violations
 }
 
-function buildProgram(root) {
+const PUBLIC_ENTRIES = {
+  ".": "src/index.ts",
+  "./engine-cesium": "packages/engine-cesium/src/index.ts",
+}
+
+function buildProgram(root, entries) {
   const configPath = join(root, "tsconfig.json")
   const configFile = ts.readConfigFile(configPath, ts.sys.readFile)
   if (configFile.error) {
@@ -161,25 +166,137 @@ function buildProgram(root) {
     )
   }
   const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, root)
-  const entry = join(root, "src/index.ts")
-  return ts.createProgram({ rootNames: [entry], options: parsed.options })
+  return ts.createProgram({
+    rootNames: Object.values(entries).map((rel) => join(root, rel)),
+    options: parsed.options,
+  })
 }
 
-/**
- * 使用 TypeScript Compiler API 解析根入口的真实导出表，
- * 区分运行时值导出与类型导出，作为公共 API 合同的稳定清单。
- *
- * @param {string} [root] - 仓库根目录。
- * @returns {{ values: string[], types: string[] }}
- */
-export function collectPublicExports(root = ROOT) {
-  const entry = join(root, "src/index.ts")
-  const program = buildProgram(root)
-  const checker = program.getTypeChecker()
-  const source = program.getSourceFile(entry)
-  const moduleSymbol = source ? checker.getSymbolAtLocation(source) : undefined
+const SIG_FORMAT = ts.TypeFormatFlags.NoTruncation
+
+function normalize(text) {
+  return text.replace(/\s+/g, " ").trim()
+}
+
+function hasModifier(node, kind) {
+  return (node.modifiers ?? []).some((modifier) => modifier.kind === kind)
+}
+
+function typeText(checker, type, node) {
+  return checker.typeToString(type, node, SIG_FORMAT)
+}
+
+function describeClassMember(checker, member) {
+  if (
+    hasModifier(member, ts.SyntaxKind.PrivateKeyword) ||
+    hasModifier(member, ts.SyntaxKind.ProtectedKeyword) ||
+    (member.name && ts.isPrivateIdentifier(member.name))
+  ) {
+    return undefined
+  }
+  const prefix = hasModifier(member, ts.SyntaxKind.StaticKeyword)
+    ? "static "
+    : ""
+  if (ts.isConstructorDeclaration(member)) {
+    const sig = checker.getSignatureFromDeclaration(member)
+    return sig
+      ? `constructor${checker.signatureToString(sig, member, SIG_FORMAT)}`
+      : "constructor()"
+  }
+  const name = member.name ? member.name.getText() : ""
+  const optional = member.questionToken ? "?" : ""
+  if (ts.isPropertyDeclaration(member)) {
+    const readonly = hasModifier(member, ts.SyntaxKind.ReadonlyKeyword)
+      ? "readonly "
+      : ""
+    const annotation = member.type
+      ? normalize(member.type.getText())
+      : typeText(checker, checker.getTypeAtLocation(member), member)
+    return `${prefix}${readonly}${name}${optional}: ${annotation}`
+  }
+  if (ts.isMethodDeclaration(member)) {
+    const sig = checker.getSignatureFromDeclaration(member)
+    return sig
+      ? `${prefix}${name}${optional}${checker.signatureToString(sig, member, SIG_FORMAT)}`
+      : `${prefix}${name}${optional}()`
+  }
+  if (ts.isGetAccessorDeclaration(member)) {
+    return `${prefix}get ${name}(): ${typeText(checker, checker.getTypeAtLocation(member), member)}`
+  }
+  if (ts.isSetAccessorDeclaration(member)) {
+    const param = member.parameters[0]
+    const annotation = param
+      ? typeText(checker, checker.getTypeAtLocation(param), param)
+      : "unknown"
+    return `${prefix}set ${name}(${param ? param.name.getText() : "value"}: ${annotation})`
+  }
+  return `${prefix}${normalize(member.getText())}`
+}
+
+function describeSymbol(checker, printer, symbol) {
+  const declarations = symbol.getDeclarations() ?? []
+  const decl =
+    declarations.find(
+      (node) => !ts.isExportSpecifier(node) && !ts.isExportAssignment(node),
+    ) ?? declarations[0]
+  if (!decl) return ""
+  if (ts.isClassDeclaration(decl)) {
+    const params = decl.typeParameters
+      ? `<${decl.typeParameters.map((t) => normalize(t.getText())).join(", ")}>`
+      : ""
+    const heritage = (decl.heritageClauses ?? [])
+      .map((clause) => normalize(clause.getText()))
+      .join(" ")
+    const lines = [
+      `class ${decl.name ? decl.name.text : ""}${params}${heritage ? ` ${heritage}` : ""}`,
+    ]
+    for (const member of decl.members) {
+      const text = describeClassMember(checker, member)
+      if (text) lines.push(`  ${text}`)
+    }
+    return lines.join("\n")
+  }
+  if (
+    ts.isInterfaceDeclaration(decl) ||
+    ts.isTypeAliasDeclaration(decl) ||
+    ts.isEnumDeclaration(decl) ||
+    ts.isModuleDeclaration(decl)
+  ) {
+    return normalize(
+      printer.printNode(ts.EmitHint.Unspecified, decl, decl.getSourceFile()),
+    )
+  }
+  const functionOverloads = declarations.filter((node) =>
+    ts.isFunctionDeclaration(node),
+  )
+  if (functionOverloads.length) {
+    const signatures = functionOverloads
+      .map((node) => checker.getSignatureFromDeclaration(node))
+      .filter(Boolean)
+      .map((sig, index) =>
+        checker.signatureToString(sig, functionOverloads[index], SIG_FORMAT),
+      )
+    if (signatures.length) return signatures.join(" | ")
+  }
+  const type = checker.getTypeOfSymbolAtLocation(symbol, decl)
+  const callSignatures = type.getCallSignatures()
+  if (callSignatures.length) {
+    return callSignatures
+      .map((sig) => checker.signatureToString(sig, decl, SIG_FORMAT))
+      .join(" | ")
+  }
+  const annotation = decl.type
+    ? normalize(decl.type.getText())
+    : typeText(checker, type, decl)
+  const name = decl.name ? decl.name.getText() : ""
+  return name ? `${name}: ${annotation}` : annotation
+}
+
+function collectEntrySurface(checker, printer, source) {
   const values = []
   const types = []
+  const signatures = {}
+  const moduleSymbol = source ? checker.getSymbolAtLocation(source) : undefined
   if (moduleSymbol) {
     for (const sym of checker.getExportsOfModule(moduleSymbol)) {
       const name = sym.getName()
@@ -189,14 +306,57 @@ export function collectPublicExports(root = ROOT) {
       const isType = (resolved.flags & ts.SymbolFlags.Type) !== 0
       if (isValue) values.push(name)
       else if (isType) types.push(name)
+      signatures[name] = describeSymbol(checker, printer, resolved)
     }
   }
   values.sort()
   types.sort()
-  return { values, types }
+  const sortedSignatures = {}
+  for (const name of Object.keys(signatures).sort()) {
+    sortedSignatures[name] = signatures[name]
+  }
+  return { values, types, signatures: sortedSignatures }
 }
 
-function diffManifest(actual, expected) {
+/**
+ * 使用 TypeScript Compiler API 解析每个公共入口的真实导出表与导出签名，
+ * 区分运行时值导出与类型导出，作为公共 API 合同的稳定清单。
+ *
+ * 覆盖根入口 `.` 与子路径 `./engine-cesium`；签名会捕获函数参数/返回类型、
+ * 类型成员、类成员等结构化变化。
+ *
+ * @param {string} [root] - 仓库根目录。
+ * @returns {Record<string, { values: string[], types: string[], signatures: Record<string, string> }>}
+ */
+export function collectPublicSurface(root = ROOT) {
+  const program = buildProgram(root, PUBLIC_ENTRIES)
+  const checker = program.getTypeChecker()
+  const printer = ts.createPrinter({ removeComments: true })
+  const surface = {}
+  for (const [key, rel] of Object.entries(PUBLIC_ENTRIES)) {
+    const source = program.getSourceFile(join(root, rel))
+    surface[key] = collectEntrySurface(checker, printer, source)
+  }
+  return surface
+}
+
+/**
+ * 根入口导出清单（值/类型），保持向后兼容。
+ *
+ * @param {string} [root] - 仓库根目录。
+ * @returns {{ values: string[], types: string[] }}
+ */
+export function collectPublicExports(root = ROOT) {
+  const surface = collectPublicSurface(root)
+  const rootEntry = surface["."]
+  return { values: rootEntry.values, types: rootEntry.types }
+}
+
+function sortedUnion(...lists) {
+  return Array.from(new Set(lists.flat())).sort()
+}
+
+function diffEntry(key, actual, expected) {
   const issues = []
   for (const kind of ["values", "types"]) {
     const exp = expected[kind] ?? []
@@ -205,13 +365,44 @@ function diffManifest(actual, expected) {
     const removed = exp.filter((name) => !act.includes(name))
     if (added.length) {
       issues.push(
-        `public API ${kind} added: ${added.join(", ")} (update ${MANIFEST_PATH} and docs)`,
+        `public API ${kind} added: ${key} ${added.join(", ")} (update ${MANIFEST_PATH} and docs)`,
       )
     }
     if (removed.length) {
       issues.push(
-        `public API ${kind} removed: ${removed.join(", ")} (update ${MANIFEST_PATH} and docs)`,
+        `public API ${kind} removed: ${key} ${removed.join(", ")} (update ${MANIFEST_PATH} and docs)`,
       )
+    }
+  }
+  const expSig = expected.signatures ?? {}
+  const actSig = actual.signatures ?? {}
+  for (const name of sortedUnion(Object.keys(expSig), Object.keys(actSig))) {
+    if (actSig[name] === undefined) {
+      issues.push(
+        `public API signature removed: ${key} ${name} (update ${MANIFEST_PATH} and docs)`,
+      )
+    } else if (expSig[name] === undefined) {
+      issues.push(
+        `public API signature added: ${key} ${name} (update ${MANIFEST_PATH} and docs)`,
+      )
+    } else if (expSig[name] !== actSig[name]) {
+      issues.push(
+        `public API signature changed: ${key} ${name} (update ${MANIFEST_PATH} and docs)`,
+      )
+    }
+  }
+  return issues
+}
+
+export function diffManifest(actual, expected) {
+  const issues = []
+  const expectedEntries = expected.entries ?? { ".": expected }
+  for (const [key, act] of Object.entries(actual)) {
+    issues.push(...diffEntry(key, act, expectedEntries[key] ?? {}))
+  }
+  for (const key of Object.keys(expectedEntries)) {
+    if (!(key in actual)) {
+      issues.push(`public API entry removed: ${key}`)
     }
   }
   return issues
@@ -259,7 +450,7 @@ export function checkPublicExports(root = ROOT) {
     )
   } else {
     const expected = JSON.parse(readFileSync(manifestFile, "utf8"))
-    issues.push(...diffManifest(collectPublicExports(root), expected))
+    issues.push(...diffManifest(collectPublicSurface(root), expected))
   }
   return issues
 }
@@ -364,14 +555,24 @@ if (isDirectRun()) {
   if (command === "deps") report("deps", checkDependencyBoundaries())
   else if (command === "exports") report("exports", checkPublicExports())
   else if (command === "exports:update") {
-    const manifest = collectPublicExports()
+    const surface = collectPublicSurface()
+    const rootEntry = surface["."]
+    const manifest = {
+      values: rootEntry.values,
+      types: rootEntry.types,
+      entries: surface,
+    }
     writeFileSync(
       join(ROOT, MANIFEST_PATH),
       `${JSON.stringify(manifest, null, 2)}\n`,
     )
-    console.log(
-      `wrote ${MANIFEST_PATH}: ${manifest.values.length} values, ${manifest.types.length} types`,
-    )
+    const summary = Object.entries(surface)
+      .map(
+        ([key, entry]) =>
+          `${key}: ${entry.values.length} values, ${entry.types.length} types`,
+      )
+      .join("; ")
+    console.log(`wrote ${MANIFEST_PATH}: ${summary}`)
   } else if (command === "license") report("license", checkLicense())
   else if (command === "api") report("api", checkConsumerImports())
   else if (command === "workspace") report("workspace", checkWorkspaceAliases())

@@ -145,7 +145,7 @@ npm run test:watch
 # 构建 ESM 与类型声明
 npm run build
 
-# 监听构建
+# 监听构建（仅 Vite 产物与逐文件声明；不生成最终 rollup 声明）
 npm run build:watch
 
 # 生成 API 文档

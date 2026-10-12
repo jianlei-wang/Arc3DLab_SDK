@@ -21,13 +21,19 @@ export class SerialIonTokenScope implements IonTokenScope {
 
   /**
    * 在指定令牌下串行执行一段异步任务。
+   *
+   * 所有调用（包括 `token` 为空的情况）都进入同一个串行队列：无 token 的任务
+   * 只有在前一个临界区恢复全局值之后才会运行，因此不会在其他任务临时覆盖
+   * `Cesium.Ion.defaultAccessToken` 的窗口内并发读取到临时值。仅当 `token`
+   * 非空时才临时覆盖全局值并在结束后恢复。
+   *
    * @param token - 临时使用的 Ion 令牌。
    * @param work - 在令牌生效期间执行的任务。
    * @returns 任务执行结果的 Promise。
    */
   run<T>(token: string | undefined, work: () => Promise<T>): Promise<T> {
-    if (!token) return Promise.resolve().then(work)
     const next = this.chain.then(async () => {
+      if (!token) return work()
       const previous = Cesium.Ion.defaultAccessToken
       Cesium.Ion.defaultAccessToken = token
       try {
