@@ -69,3 +69,13 @@ Entries discovered by the Agent during task execution should follow this format:
 - Category: Build Methods
 - Instructions:
   - `npm run gate` 只包含 `typecheck && test && lint:deps && lint:exports && lint:license && lint:api && lint:docs && format:check`；`test:coverage`、`lint:audit`、`lint:size`、`test:pack` 需单独运行（CI 中作为独立步骤）。
+
+[Project Knowledge Summary]
+- Date: 2026-10-12
+- Context: Discovered by Agent while adding the P2-01 consumer type test (`scripts/pack-smoke.mjs` 的 `tsc --noEmit`) and finding the published `dist/index.d.ts` 含方法实现体与语法错误
+- Category: Build Methods
+- Instructions:
+  - 发布用的 `.d.ts` 不能只靠 `vite-plugin-dts` 的 `rollupTypes`：api-extractor 会沿 tsconfig `paths`/`baseUrl` 解析到源码 `.ts` 并内联实现体（`ae-wrong-input-file-type`），产出非法声明文件。
+  - 现方案：`vite.config.ts` 只用 `vite-plugin-dts` 生成逐文件 `.d.ts`（`rollupTypes` 关闭），再由 `scripts/rollup-dts.mjs`（`npm run build` 末尾）先去掉别名改写的 `.ts` 扩展名，然后用 `@microsoft/api-extractor` + `tsconfig.rollup.json`（`baseUrl: ./dist`）打包成 `dist/index.d.ts`、`dist/engine-cesium.d.ts`。
+  - `scripts/rollup-dts.mjs` 用 `Extractor.invoke({ localBuild: true })`，否则 release 级的 `@alpha/@public` 缺失警告会被当作错误导致 `succeeded: false`。
+  - 验证发布类型：`npm run build && npm run test:pack`。

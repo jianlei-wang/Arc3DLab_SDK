@@ -11,11 +11,14 @@ export interface PluginScope {
   readonly owner: string
   /** 当前插件状态。 */
   readonly state: PluginState
+  /** 作用域是否已关闭（不可再追踪释放回调）。 */
+  readonly closed: boolean
   /**
    * 追踪一个释放回调。
    *
    * @param disposer - 释放回调。
    * @returns 取消追踪的函数。
+   * @throws {Arc3DError} 当作用域已关闭时抛出，错误码为 `INVALID_ARGUMENT`。
    */
   track(disposer: Disposer): () => void
   /** 已追踪的释放回调数量。 */
@@ -27,6 +30,7 @@ export interface PluginScope {
 class PluginScopeImpl implements PluginScope {
   private items: Disposer[] = []
   private current: PluginState = "installing"
+  private isClosed = false
 
   constructor(readonly owner: string) {}
 
@@ -34,11 +38,28 @@ class PluginScopeImpl implements PluginScope {
     return this.current
   }
 
+  /** 作用域是否已关闭。 */
+  get closed(): boolean {
+    return this.isClosed
+  }
+
   setState(state: PluginState): void {
     this.current = state
   }
 
+  /** 标记作用域已关闭并把状态推进到 `disposed`。 */
+  markClosed(): void {
+    this.isClosed = true
+    this.current = "disposed"
+  }
+
   track(disposer: Disposer): () => void {
+    if (this.isClosed) {
+      throw new Arc3DError(
+        "INVALID_ARGUMENT",
+        `Plugin scope already closed: ${this.owner}`,
+      )
+    }
     this.items.push(disposer)
     return () => {
       const index = this.items.lastIndexOf(disposer)
@@ -74,13 +95,20 @@ export class PluginScopeManager {
    *
    * @param owner - 插件名。
    * @returns 新建的插件作用域。
-   * @throws {Arc3DError} 当试图为保留插件名打开作用域时抛出，错误码为 `INVALID_ARGUMENT`。
+   * @throws {Arc3DError} 当试图为保留插件名打开作用域时抛出，错误码为 `INVALID_ARGUMENT`；
+   * 当同名作用域已打开时抛出，错误码为 `DUPLICATE_RESOURCE`。
    */
   open(owner: string): PluginScope {
     if (owner === "core" || owner === "arc3dlab") {
       throw new Arc3DError(
         "INVALID_ARGUMENT",
         `Reserved plugin scope: ${owner}`,
+      )
+    }
+    if (this.scopes.has(owner)) {
+      throw new Arc3DError(
+        "DUPLICATE_RESOURCE",
+        `Plugin scope already open: ${owner}`,
       )
     }
     const scope = new PluginScopeImpl(owner)
@@ -131,6 +159,7 @@ export class PluginScopeManager {
   async close(owner: string): Promise<unknown[]> {
     const scope = this.scopes.get(owner)
     if (!scope) return []
+    scope.markClosed()
     const errors = await scope.dispose()
     this.scopes.delete(owner)
     return errors

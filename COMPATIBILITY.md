@@ -1,6 +1,19 @@
 # 兼容性与版本策略
 
-Updated: 2026-10-11
+Updated: 2026-10-12
+
+## 模块格式
+
+`arc3dlab` 与 `arc3dlab/engine-cesium` 均为 **ESM-only**：
+
+- 通过 `import` 加载，`exports` 仅声明 `types` 与 `import`，不提供 `require` 出口。
+- 构建目标为现代打包器（Vite / Rollup / webpack 5 ESM）与 Node `>=22` ESM。
+- 不支持 CommonJS `require("arc3dlab")`；如需在 CJS 环境使用，请通过动态 `import()`。
+- 发布合同由 `scripts/pack-smoke.mjs` 覆盖运行时导入与 `.d.ts` 消费者类型编译。
+
+## 渲染引擎定位
+
+采用 **Cesium-first**：`core` 不依赖 Cesium，业务包可直接依赖 `cesium`；`Engine` 为内部生命周期/能力接缝，多渲染后端为长期路线图，不构成当前 API 合同（详见 `docs/architecture/03-engine.md`）。
 
 ## 兼容矩阵
 

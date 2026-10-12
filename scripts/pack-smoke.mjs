@@ -88,3 +88,63 @@ console.log("pack smoke ok")
 )
 
 execFileSync("node", ["import.mjs"], { cwd: consumer, stdio: "inherit" })
+
+writeFileSync(
+  join(consumer, "consumer.ts"),
+  `import {
+  Arc3D,
+  Arc3DError,
+  CesiumEngine,
+  Viewer,
+  createId,
+} from "arc3dlab"
+import type {
+  AnalysisResult,
+  AnalysisTask,
+  Arc3DConfig,
+  Arc3DPlugin,
+  DataAsset,
+  SpatialReference,
+} from "arc3dlab"
+import { CesiumEngine as EngineExport } from "arc3dlab/engine-cesium"
+
+const config: Arc3DConfig = { container: "map" }
+const plugin: Arc3DPlugin = { name: "demo", install: () => undefined }
+const error: Arc3DError = new Arc3DError("INVALID_ARGUMENT", "consumer")
+const task: AnalysisTask = {
+  id: "t",
+  algorithm: "demo",
+  algorithmVersion: "1.0.0",
+  input: {},
+  status: "pending",
+  createdAt: 0,
+}
+const spatial: SpatialReference = { crs: "EPSG:4326", axisOrder: "lng-lat", angularUnit: "degrees" }
+const asset: DataAsset = { id: "a", format: "geojson", version: "1" }
+type Result = AnalysisResult<number>
+
+void [Arc3D, CesiumEngine, EngineExport, Viewer, createId, config, plugin, error, task, spatial, asset] as unknown as [unknown, unknown, unknown, unknown, unknown, Arc3DConfig, Arc3DPlugin, Arc3DError, AnalysisTask, SpatialReference, DataAsset]
+void (undefined as unknown as Result)
+`,
+)
+
+const tsc = join(ROOT, "node_modules/typescript/bin/tsc")
+execFileSync(
+  process.execPath,
+  [
+    tsc,
+    "--noEmit",
+    "--strict",
+    "--skipLibCheck",
+    "--module",
+    "esnext",
+    "--moduleResolution",
+    "bundler",
+    "--target",
+    "es2020",
+    "consumer.ts",
+  ],
+  { cwd: consumer, stdio: "inherit" },
+)
+
+console.log("pack type smoke ok")

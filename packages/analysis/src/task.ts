@@ -152,7 +152,7 @@ export class AnalysisTaskRegistry {
   /**
    * 注册一个分析任务。
    * @param task - 待注册的任务。
-   * @returns 注册后的任务。
+   * @returns 注册后的任务（防御性副本）。
    * @throws {Arc3DError} 任务标识已存在时抛出。
    */
   add(task: AnalysisTask<unknown>): AnalysisTask<unknown> {
@@ -163,14 +163,14 @@ export class AnalysisTaskRegistry {
       )
     }
     this.tasks.set(task.id, task)
-    return task
+    return cloneTask(task)
   }
 
   /**
    * 按标识更新任务的局部字段。
    * @param id - 任务标识。
    * @param patch - 需要更新的字段。
-   * @returns 更新后的任务，任务不存在时返回 undefined。
+   * @returns 更新后的任务（防御性副本），任务不存在时返回 undefined。
    */
   update(
     id: string,
@@ -180,29 +180,53 @@ export class AnalysisTaskRegistry {
     if (!current) return undefined
     const next = { ...current, ...patch, id }
     this.tasks.set(id, next)
-    return next
+    return cloneTask(next)
   }
 
   /**
    * 按标识查询任务。
    * @param id - 任务标识。
-   * @returns 对应的任务，任务不存在时返回 undefined。
+   * @returns 对应的任务（防御性副本），任务不存在时返回 undefined。
    */
   get(id: string): AnalysisTask<unknown> | undefined {
-    return this.tasks.get(id)
+    const task = this.tasks.get(id)
+    return task ? cloneTask(task) : undefined
   }
 
   /**
    * 列出当前注册的所有任务。
-   * @returns 任务列表。
+   * @returns 任务列表（防御性副本）。
    */
   list(): AnalysisTask<unknown>[] {
-    return Array.from(this.tasks.values())
+    return Array.from(this.tasks.values(), (task) => cloneTask(task))
   }
 
   /** 清空注册表中的所有任务。 */
   clear(): void {
     this.tasks.clear()
+  }
+}
+
+/** 对任务做防御性复制；不可结构化克隆时降级为浅拷贝。 */
+function cloneTask(task: AnalysisTask<unknown>): AnalysisTask<unknown> {
+  try {
+    return structuredClone(task)
+  } catch {
+    return { ...task }
+  }
+}
+
+function cloneInput<TInput>(input: TInput): {
+  value: TInput
+  cloned: boolean
+} {
+  if (input === null || input === undefined) {
+    return { value: input, cloned: true }
+  }
+  try {
+    return { value: structuredClone(input), cloned: true }
+  } catch {
+    return { value: input, cloned: false }
   }
 }
 
@@ -232,6 +256,11 @@ export interface RunAnalysisTaskOptions<TInput, TResult> {
   source?: string
   /** 任务注册表。 */
   registry?: AnalysisTaskRegistry
+  /**
+   * 输入快照钩子。省略时使用 `structuredClone` 生成快照；
+   * 当输入包含函数、DOM 或引擎对象等不可克隆内容时提供该钩子。
+   */
+  snapshot?: (input: TInput) => unknown
   /** 执行回调，接收任务运行器并返回执行结果。 */
   execute: (
     runner: AnalysisTaskRunner,
@@ -251,6 +280,12 @@ function describeError(error: unknown): { code: string; message: string } {
 /**
  * 以统一的任务与结果契约执行一次分析：状态转移、进度、取消、计时与错误
  * 都会被记录到任务条目并反映在返回结果上。
+ *
+ * 取消是协作式的：`execute` 完成前后都会检查 `AbortSignal` 与运行时生命周期，
+ * 因此执行期间触发的取消会被记录为 `cancelled`；但同步计算无法被强制中断，
+ * 长循环需主动调用 `runner.throwIfCancelled()` 检查点。输入默认经
+ * `structuredClone` 生成独立快照，不可克隆输入可通过 `snapshot` 钩子覆盖。
+ *
  * @param options - 运行分析任务的配置选项。
  * @returns 分析结果。
  */
@@ -260,17 +295,42 @@ export async function runAnalysisTask<TInput, TResult>(
   const id = createId("task")
   const algorithmVersion = options.algorithmVersion ?? "1.0.0"
   const maxSamples = options.maxSamples ?? DEFAULT_MAX_SAMPLES
+
+  const customSnapshot =
+    options.snapshot !== undefined ? options.snapshot(options.input) : undefined
+  const clonedInput = cloneInput(options.input)
+  const inputSnapshot = options.snapshot ? customSnapshot : clonedInput.value
+  const snapshotWarning =
+    options.snapshot === undefined && !clonedInput.cloned
+      ? "Input could not be structured-cloned; inputSnapshot references the original object."
+      : undefined
+  const paramsSnapshot = options.params
+    ? cloneInput(options.params).value
+    : options.params
+
   const task: AnalysisTask<TInput> = {
     id,
     algorithm: options.algorithm,
     algorithmVersion,
-    input: options.input,
-    params: options.params,
+    input: inputSnapshot as TInput,
+    params: paramsSnapshot as Record<string, unknown> | undefined,
     status: "pending",
     createdAt: Date.now(),
     maxSamples,
   }
   options.registry?.add(task as AnalysisTask<unknown>)
+
+  const assertActive = (action: string): void => {
+    if (options.context.lifecycle.isTerminating) {
+      throw new Arc3DError(
+        "CANCELLED",
+        `Cancelled ${action}: runtime destroyed`,
+      )
+    }
+    if (options.signal?.aborted) {
+      throw new Arc3DError("CANCELLED", `Cancelled ${action}`)
+    }
+  }
 
   const runner: AnalysisTaskRunner = {
     id,
@@ -282,10 +342,7 @@ export async function runAnalysisTask<TInput, TResult>(
       options.onProgress?.(progress)
     },
     throwIfCancelled(action) {
-      options.context.lifecycle.assertUsable(action)
-      if (options.signal?.aborted) {
-        throw new Arc3DError("CANCELLED", `Cancelled ${action}`)
-      }
+      assertActive(action)
     },
   }
 
@@ -295,8 +352,9 @@ export async function runAnalysisTask<TInput, TResult>(
   options.registry?.update(id, { status: "running", startedAt })
 
   try {
-    runner.throwIfCancelled(options.algorithm)
+    assertActive(options.algorithm)
     const execution = await options.execute(runner)
+    assertActive(options.algorithm)
     const finishedAt = Date.now()
     task.status = "succeeded"
     task.finishedAt = finishedAt
@@ -311,9 +369,9 @@ export async function runAnalysisTask<TInput, TResult>(
       spatialReference: options.spatialReference,
       verticalReference: options.verticalReference,
       extent: execution.extent,
-      warnings: execution.warnings ?? [],
+      warnings: mergeWarnings(snapshotWarning, execution.warnings),
       confidence: execution.confidence,
-      inputSnapshot: options.input,
+      inputSnapshot,
       source: options.source,
       artifacts: execution.artifacts ?? [],
       startedAt,
@@ -337,12 +395,22 @@ export async function runAnalysisTask<TInput, TResult>(
       algorithm: options.algorithm,
       algorithmVersion,
       status,
-      warnings: [],
+      warnings: mergeWarnings(snapshotWarning, undefined),
       artifacts: [],
-      inputSnapshot: options.input,
+      inputSnapshot,
       error: description,
       startedAt,
       finishedAt,
     }
   }
+}
+
+function mergeWarnings(
+  prefix: string | undefined,
+  extra: string[] | undefined,
+): string[] {
+  const merged: string[] = []
+  if (prefix) merged.push(prefix)
+  if (extra) merged.push(...extra)
+  return merged
 }

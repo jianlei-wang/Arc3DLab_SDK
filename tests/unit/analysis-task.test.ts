@@ -99,4 +99,81 @@ describe("Analysis task contract", () => {
       stage: "stage-2",
     })
   })
+
+  it("records cancellation that occurs while execute is awaiting", async () => {
+    const { context } = createTestContext()
+    const controller = new AbortController()
+    const result = await runAnalysisTask({
+      context,
+      algorithm: "slow",
+      input: {},
+      signal: controller.signal,
+      execute: async () => {
+        controller.abort()
+        await Promise.resolve()
+        return { value: 1 }
+      },
+    })
+    expect(result.status).toBe("cancelled")
+    expect(result.error?.code).toBe("CANCELLED")
+  })
+
+  it("does not report success when the runtime is destroyed mid-execution", async () => {
+    const { context } = createTestContext()
+    const result = await runAnalysisTask({
+      context,
+      algorithm: "slow",
+      input: {},
+      execute: async () => {
+        context.lifecycle.transition("destroying")
+        return { value: 1 }
+      },
+    })
+    expect(result.status).toBe("cancelled")
+  })
+
+  it("keeps an independent input snapshot and defensive registry copies", async () => {
+    const { context } = createTestContext()
+    const registry = new AnalysisTaskRegistry()
+    const input = { n: 1 }
+    const result = await runAnalysisTask({
+      context,
+      registry,
+      algorithm: "snap",
+      input,
+      execute: () => ({ value: input.n }),
+    })
+
+    input.n = 99
+    expect((result.inputSnapshot as { n: number }).n).toBe(1)
+
+    const stored = registry.get(result.taskId)
+    ;(stored as { input: { n: number } }).input.n = 123
+    expect((registry.get(result.taskId)?.input as { n: number }).n).toBe(1)
+  })
+
+  it("supports a custom snapshot hook for non-cloneable inputs", async () => {
+    const { context } = createTestContext()
+    const result = await runAnalysisTask({
+      context,
+      algorithm: "hook",
+      input: { fn: () => 42 },
+      snapshot: (value) => ({ fnType: typeof value.fn }),
+      execute: () => ({ value: 1 }),
+    })
+    expect(result.inputSnapshot).toEqual({ fnType: "function" })
+    expect(result.warnings).toEqual([])
+  })
+
+  it("warns and falls back when input cannot be cloned", async () => {
+    const { context } = createTestContext()
+    const result = await runAnalysisTask({
+      context,
+      algorithm: "noncloneable",
+      input: { fn: () => 1 },
+      execute: () => ({ value: 1 }),
+    })
+    expect(result.status).toBe("succeeded")
+    expect(result.warnings[0]).toMatch(/structured-cloned/)
+  })
 })

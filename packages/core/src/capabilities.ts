@@ -233,15 +233,18 @@ export class CapabilityRegistry {
    * 注册一项能力。
    *
    * @param name - 能力名称或完整的能力记录。
+   * @param owner - 显式归属的插件名；省略时回退到当前活动作用域。
    * @throws {Arc3DError} 当同名能力已由其他提供方注册时抛出，错误码为 `DUPLICATE_RESOURCE`。
    */
-  register(name: string | CapabilityRecord): void {
+  register(name: string | CapabilityRecord, owner?: string): void {
     const base: CapabilityRecord =
       typeof name === "string"
         ? { name, provider: "arc3dlab", version: "1.0.0", available: true }
         : { ...name }
-    const owner = this.ownerProvider?.()
-    const record: CapabilityRecord = owner ? { ...base, provider: owner } : base
+    const resolvedOwner = owner ?? this.ownerProvider?.()
+    const record: CapabilityRecord = resolvedOwner
+      ? { ...base, provider: resolvedOwner }
+      : base
     const existing = this.items.get(record.name)
     if (existing && existing.provider !== record.provider) {
       throw new Arc3DError(

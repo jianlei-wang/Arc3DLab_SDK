@@ -48,6 +48,7 @@ interface PluginEntry<TApp> {
 export class PluginManager<TApp = unknown> {
   private plugins = new Map<string, PluginEntry<TApp>>()
   private stateMap = new Map<string, PluginState>()
+  private queue: Promise<unknown> = Promise.resolve()
 
   /**
    * 构造插件管理器。
@@ -60,12 +61,28 @@ export class PluginManager<TApp = unknown> {
     private readonly context: Arc3DContext,
   ) {}
 
+  /** 将插件生命周期操作串行化，避免共享活动 owner 在异步安装期间被覆盖。 */
+  private enqueue<T>(operation: () => Promise<T> | T): Promise<T> {
+    const run = this.queue.then(operation, operation)
+    this.queue = run.then(
+      () => undefined,
+      () => undefined,
+    )
+    return run
+  }
+
   /**
    * 安装插件。
+   *
+   * 安装操作串行执行；同名并发安装会确定性地拒绝其中一次。
    *
    * @param plugin - 插件对象。
    */
   async use(plugin: Arc3DPlugin<TApp>): Promise<void> {
+    return this.enqueue(() => this.performUse(plugin))
+  }
+
+  private async performUse(plugin: Arc3DPlugin<TApp>): Promise<void> {
     this.context.lifecycle.assertUsable("install plugin")
     assertPluginName(plugin)
     if (this.plugins.has(plugin.name)) {
@@ -90,14 +107,14 @@ export class PluginManager<TApp = unknown> {
       )
     }
     const scope = this.context.scopes.open(plugin.name)
-    this.stateMap.set(plugin.name, "installing")
+    this.setState(plugin.name, "installing")
     this.context.scopes.setActive(plugin.name)
     try {
       await plugin.install(this.app, this.context, scope)
       this.plugins.set(plugin.name, { plugin, scope })
-      this.stateMap.set(plugin.name, "installed")
+      this.setState(plugin.name, "installed")
     } catch (error) {
-      this.stateMap.set(plugin.name, "failed")
+      this.setState(plugin.name, "failed")
       await this.safeUninstall(plugin, "Failed to roll back plugin install")
       await this.context.scopes.close(plugin.name)
       await dropPluginExtensions(this.context, plugin.name)
@@ -113,6 +130,10 @@ export class PluginManager<TApp = unknown> {
    * @param name - 插件名称。
    */
   async uninstall(name: string): Promise<void> {
+    return this.enqueue(() => this.performUninstall(name))
+  }
+
+  private async performUninstall(name: string): Promise<void> {
     const entry = this.plugins.get(name)
     if (!entry) {
       throw new Arc3DError(
@@ -129,7 +150,7 @@ export class PluginManager<TApp = unknown> {
         )
       }
     }
-    this.stateMap.set(name, "uninstalling")
+    this.setState(name, "uninstalling")
     this.plugins.delete(name)
     this.context.scopes.setActive(name)
     try {
@@ -180,6 +201,12 @@ export class PluginManager<TApp = unknown> {
     return Object.fromEntries(this.stateMap)
   }
 
+  /** 同步插件状态到状态表与其作用域，保证 scope.state 与状态表一致。 */
+  private setState(name: string, state: PluginState): void {
+    this.stateMap.set(name, state)
+    this.context.scopes.setState(name, state)
+  }
+
   private async safeUninstall(
     plugin: Arc3DPlugin<TApp>,
     label: string,
@@ -205,7 +232,23 @@ async function dropPluginExtensions(
   context: Arc3DContext,
   plugin: string,
 ): Promise<void> {
-  context.commands.unregisterByPlugin(plugin)
-  await context.tools.unregisterByPlugin(plugin)
-  context.capabilities.unregisterByProvider(plugin)
+  const errors: unknown[] = []
+  try {
+    context.commands.unregisterByPlugin(plugin)
+  } catch (error) {
+    errors.push(error)
+  }
+  try {
+    await context.tools.unregisterByPlugin(plugin)
+  } catch (error) {
+    errors.push(error)
+  }
+  try {
+    context.capabilities.unregisterByProvider(plugin)
+  } catch (error) {
+    errors.push(error)
+  }
+  for (const error of errors) {
+    context.logger.error(`Plugin extension cleanup failed: ${plugin}`, error)
+  }
 }

@@ -207,18 +207,19 @@ export class CommandBus {
    * 注册一条命令。
    *
    * @param spec - 命令定义。
+   * @param owner - 显式归属的插件名；省略时回退到当前活动作用域或 `spec.plugin`。
    * @throws {Arc3DError} 当命令名非法或已被注册时抛出，错误码为 `INVALID_ARGUMENT` 或 `DUPLICATE_RESOURCE`。
    */
-  register(spec: CommandSpec): void {
-    const owner = this.ownerProvider?.() ?? spec.plugin
-    assertWritableExtension(spec.name, owner, "command")
+  register(spec: CommandSpec, owner?: string): void {
+    const resolved = owner ?? this.ownerProvider?.() ?? spec.plugin
+    assertWritableExtension(spec.name, resolved, "command")
     if (this.items.has(spec.name)) {
       throw new Arc3DError(
         "DUPLICATE_RESOURCE",
         `Command already registered: ${spec.name}`,
       )
     }
-    this.items.set(spec.name, { ...spec, plugin: owner })
+    this.items.set(spec.name, { ...spec, plugin: resolved })
   }
 
   /**

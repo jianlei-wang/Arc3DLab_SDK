@@ -1,9 +1,20 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs"
 import { dirname, join, relative } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import ts from "typescript"
+import { listPackages } from "./package-aliases.mjs"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 
+const MANIFEST_PATH = "scripts/public-api-manifest.json"
+
+// Arc3DLab 采用 Cesium-first：以下业务包允许直接依赖 cesium，Engine 仅为内部接缝。
 const CESIUM_PACKAGES = new Set([
   "engine-cesium",
   "data",
@@ -141,6 +152,71 @@ export function checkConsumerImports(root = ROOT) {
   return violations
 }
 
+function buildProgram(root) {
+  const configPath = join(root, "tsconfig.json")
+  const configFile = ts.readConfigFile(configPath, ts.sys.readFile)
+  if (configFile.error) {
+    throw new Error(
+      `Failed to read tsconfig.json: ${String(configFile.error.messageText)}`,
+    )
+  }
+  const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, root)
+  const entry = join(root, "src/index.ts")
+  return ts.createProgram({ rootNames: [entry], options: parsed.options })
+}
+
+/**
+ * 使用 TypeScript Compiler API 解析根入口的真实导出表，
+ * 区分运行时值导出与类型导出，作为公共 API 合同的稳定清单。
+ *
+ * @param {string} [root] - 仓库根目录。
+ * @returns {{ values: string[], types: string[] }}
+ */
+export function collectPublicExports(root = ROOT) {
+  const entry = join(root, "src/index.ts")
+  const program = buildProgram(root)
+  const checker = program.getTypeChecker()
+  const source = program.getSourceFile(entry)
+  const moduleSymbol = source ? checker.getSymbolAtLocation(source) : undefined
+  const values = []
+  const types = []
+  if (moduleSymbol) {
+    for (const sym of checker.getExportsOfModule(moduleSymbol)) {
+      const name = sym.getName()
+      const resolved =
+        sym.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(sym) : sym
+      const isValue = (resolved.flags & ts.SymbolFlags.Value) !== 0
+      const isType = (resolved.flags & ts.SymbolFlags.Type) !== 0
+      if (isValue) values.push(name)
+      else if (isType) types.push(name)
+    }
+  }
+  values.sort()
+  types.sort()
+  return { values, types }
+}
+
+function diffManifest(actual, expected) {
+  const issues = []
+  for (const kind of ["values", "types"]) {
+    const exp = expected[kind] ?? []
+    const act = actual[kind] ?? []
+    const added = act.filter((name) => !exp.includes(name))
+    const removed = exp.filter((name) => !act.includes(name))
+    if (added.length) {
+      issues.push(
+        `public API ${kind} added: ${added.join(", ")} (update ${MANIFEST_PATH} and docs)`,
+      )
+    }
+    if (removed.length) {
+      issues.push(
+        `public API ${kind} removed: ${removed.join(", ")} (update ${MANIFEST_PATH} and docs)`,
+      )
+    }
+  }
+  return issues
+}
+
 export function checkPublicExports(root = ROOT) {
   const issues = []
   const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
@@ -158,6 +234,15 @@ export function checkPublicExports(root = ROOT) {
   if (engineExport?.types !== "./dist/engine-cesium.d.ts") {
     issues.push("engine-cesium types must be ./dist/engine-cesium.d.ts")
   }
+  if (
+    rootExport?.require !== undefined ||
+    engineExport?.require !== undefined
+  ) {
+    issues.push("packages are ESM-only; exports must not declare require")
+  }
+  if (pkg.main !== undefined) {
+    issues.push("package.json must not declare main (ESM-only)")
+  }
   if (pkg.peerDependencies?.cesium !== "1.146.0") {
     issues.push("peerDependencies.cesium must be 1.146.0")
   }
@@ -167,11 +252,47 @@ export function checkPublicExports(root = ROOT) {
   if (!existsSync(join(root, "package-lock.json"))) {
     issues.push("package-lock.json is required")
   }
-  const entry = readFileSync(join(root, "src/index.ts"), "utf8")
-  for (const name of PUBLIC_EXPORT_NAMES) {
-    if (!new RegExp(`\\b${name}\\b`).test(entry)) {
-      issues.push(`src/index.ts missing ${name}`)
+  const manifestFile = join(root, MANIFEST_PATH)
+  if (!existsSync(manifestFile)) {
+    issues.push(
+      `${MANIFEST_PATH} missing; run node scripts/release-gate.mjs exports:update`,
+    )
+  } else {
+    const expected = JSON.parse(readFileSync(manifestFile, "utf8"))
+    issues.push(...diffManifest(collectPublicExports(root), expected))
+  }
+  return issues
+}
+
+/**
+ * 校验内部包目录、`tsconfig.json` 路径别名与 workspace 声明一致。
+ *
+ * @param {string} [root] - 仓库根目录。
+ * @returns {string[]} 不一致项列表。
+ */
+export function checkWorkspaceAliases(root = ROOT) {
+  const issues = []
+  const discovered = listPackages(root)
+  const tsconfig = JSON.parse(readFileSync(join(root, "tsconfig.json"), "utf8"))
+  const paths = tsconfig.compilerOptions?.paths ?? {}
+  const discoveredKeys = discovered.map((name) => `@arc3dlab/${name}`)
+  for (const name of discovered) {
+    const key = `@arc3dlab/${name}`
+    const mapped = paths[key]
+    if (!mapped || !mapped.includes(`packages/${name}/src/index.ts`)) {
+      issues.push(`tsconfig.json missing path alias for ${key}`)
     }
+  }
+  for (const key of Object.keys(paths)) {
+    if (!discoveredKeys.includes(key)) {
+      issues.push(
+        `tsconfig.json has unknown alias ${key} (no packages/*/src/index.ts)`,
+      )
+    }
+  }
+  const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
+  if (!(pkg.workspaces ?? []).includes("packages/*")) {
+    issues.push("package.json workspaces must include packages/*")
   }
   return issues
 }
@@ -197,10 +318,13 @@ export function checkLicense(root = ROOT) {
     issues.push("NOTICE.md missing GPL")
   }
   const files = pkg.files ?? []
-  for (const required of ["LICENSE", "NOTICE.md", "dist/*"]) {
+  for (const required of ["LICENSE", "NOTICE.md"]) {
     if (!files.includes(required)) {
       issues.push(`package.json files missing ${required}`)
     }
+  }
+  if (!files.some((entry) => entry.startsWith("dist/"))) {
+    issues.push("package.json files missing dist/*")
   }
   return issues
 }
@@ -211,6 +335,7 @@ export function runAll(root = ROOT) {
     exports: checkPublicExports(root),
     license: checkLicense(root),
     api: checkConsumerImports(root),
+    workspace: checkWorkspaceAliases(root),
   }
 }
 
@@ -238,14 +363,25 @@ if (isDirectRun()) {
   const command = process.argv[2] ?? "all"
   if (command === "deps") report("deps", checkDependencyBoundaries())
   else if (command === "exports") report("exports", checkPublicExports())
-  else if (command === "license") report("license", checkLicense())
+  else if (command === "exports:update") {
+    const manifest = collectPublicExports()
+    writeFileSync(
+      join(ROOT, MANIFEST_PATH),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+    )
+    console.log(
+      `wrote ${MANIFEST_PATH}: ${manifest.values.length} values, ${manifest.types.length} types`,
+    )
+  } else if (command === "license") report("license", checkLicense())
   else if (command === "api") report("api", checkConsumerImports())
+  else if (command === "workspace") report("workspace", checkWorkspaceAliases())
   else if (command === "all") {
     const result = runAll()
     report("deps", result.deps)
     report("exports", result.exports)
     report("license", result.license)
     report("api", result.api)
+    report("workspace", result.workspace)
   } else {
     console.error(`Unknown command: ${command}`)
     process.exit(1)

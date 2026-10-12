@@ -2,6 +2,8 @@
 
 这些包是 Arc3DLab 的内部模块边界。第一阶段只发布根包 `arc3dlab`。
 
+Arc3DLab 采用 **Cesium-first** 定位：`Engine` 是内部生命周期/能力接缝，业务包可直接依赖 `cesium`，多渲染后端为长期路线图（见 `docs/architecture/03-engine.md`）。
+
 | 包 | 职责 | 允许依赖 Cesium |
 |---|---|---|
 | `@arc3dlab/core` | 运行时、事件、资源、生命周期 | 否 |

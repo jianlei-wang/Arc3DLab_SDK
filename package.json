@@ -2,7 +2,6 @@
   "name": "arc3dlab",
   "version": "1.0.0",
   "type": "module",
-  "main": "dist/arc3dlab.esm.js",
   "module": "dist/arc3dlab.esm.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -20,7 +19,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && node scripts/rollup-dts.mjs",
     "build:watch": "vite build --watch",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
@@ -87,7 +86,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "files": [
-    "dist/*",
+    "dist/*.*",
     "README.md",
     "CHANGES.md",
     "LOG.md",

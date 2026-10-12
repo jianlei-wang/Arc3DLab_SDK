@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["dist/**/*.d.ts"],
+  "exclude": ["node_modules"],
+  "compilerOptions": {
+    "baseUrl": "./dist",
+    "declaration": false,
+    "paths": {
+      "@arc3dlab/*": ["packages/*/src/index.d.ts"]
+    }
+  }
+}

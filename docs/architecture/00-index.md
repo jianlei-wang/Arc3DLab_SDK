@@ -4,7 +4,7 @@ Updated: 2026-10-08
 
 ## 定位
 
-Arc3DLab 是面向三维 WebGIS 应用的模块化场景运行时 SDK。CesiumJS 是首个渲染引擎，SDK 架构本身独立于 Cesium 类型体系。
+Arc3DLab 是面向三维 WebGIS 应用的模块化场景运行时 SDK。CesiumJS 是当前唯一渲染引擎，SDK 采用 **Cesium-first** 定位：`core` 独立于 Cesium 类型体系，业务包可直接依赖 Cesium，`Engine` 为内部生命周期/能力接缝（详见 `03-engine.md`）。
 
 英文定位：
 
@@ -60,6 +60,6 @@ interaction / analysis / effects / ui
 sdk
 ```
 
-`core` 只依赖 TypeScript 标准库。Cesium 只允许出现在 `engine-cesium` 及其渲染后端。
+`core` 只依赖 TypeScript 标准库，不依赖 Cesium。其余业务包采用 Cesium-first，可直接依赖 `cesium`；`Engine` 是内部生命周期/能力接缝，多渲染后端为长期路线图，不是当前 API 合同。
 
 源码边界：实现位于 `packages/*`，根目录 `src/index.ts` 只做对外再导出。

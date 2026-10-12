@@ -47,6 +47,16 @@ export function restoreAnalysisError(
  *
  * 特意命名为 AnalysisJobHost：它以异步方式调度与取消作业，但尚未启动真正的
  * Web Worker。在真实工作线程实现完成前，此宿主即为该实现需要满足的契约。
+ *
+ * 路线图（非当前实现）：真实 Web Worker 落地时，本类应改为 `postMessage`
+ * 驱动的宿主，并满足以下约束——
+ * 1. 作业与结果必须可结构化克隆，或通过 Transferable 传递；不可克隆的输入应
+ *    在 `run` 前以 `INVALID_FORMAT` 拒绝。
+ * 2. 取消通过 `Worker.terminate()` 或应用级取消消息实现，语义保持为抛出
+ *    `Arc3DError("CANCELLED")`。
+ * 3. 跨线程错误沿用 {@link serializeAnalysisError} / {@link restoreAnalysisError}，
+ *    保持 `Arc3DError` 错误码不丢失。
+ * 当前无落地时间表；在此之前不得在业务代码中假设作业运行于独立线程。
  */
 export class AnalysisJobHost {
   private seq = 0
