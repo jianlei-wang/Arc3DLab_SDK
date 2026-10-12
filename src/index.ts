@@ -97,6 +97,3 @@ export type {
   TimeRange,
   VerticalReference,
 } from "@arc3dlab/sdk"
-
-export { Viewer, Map } from "@arc3dlab/legacy"
-export type { LegacyViewerOptions, LegacyMapOptions } from "@arc3dlab/legacy"

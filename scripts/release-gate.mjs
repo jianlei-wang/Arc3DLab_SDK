@@ -52,7 +52,6 @@ const ALLOWED_INTERNAL = {
     "@arc3dlab/ui",
     "@arc3dlab/plotting",
   ],
-  legacy: ["@arc3dlab/core", "@arc3dlab/sdk"],
 }
 
 export const PUBLIC_EXPORT_NAMES = [
@@ -61,7 +60,6 @@ export const PUBLIC_EXPORT_NAMES = [
   "Arc3DError",
   "CesiumEngine",
   "createId",
-  "Viewer",
 ]
 
 function walkTs(dir, files = []) {

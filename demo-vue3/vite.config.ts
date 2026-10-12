@@ -21,7 +21,6 @@ export default defineConfig({
       "@arc3dlab/ui": resolve(__dirname, "../packages/ui/src/index.ts"),
       "@arc3dlab/sdk": resolve(__dirname, "../packages/sdk/src/index.ts"),
       "@arc3dlab/plotting": resolve(__dirname, "../packages/plotting/src/index.ts"),
-      "@arc3dlab/legacy": resolve(__dirname, "../packages/legacy/src/index.ts"),
     },
   },
   server: {

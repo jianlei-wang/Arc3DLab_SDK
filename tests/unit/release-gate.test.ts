@@ -27,7 +27,6 @@ describe("release gates", () => {
       "Arc3DError",
       "CesiumEngine",
       "createId",
-      "Viewer",
     ])
   })
 

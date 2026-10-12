@@ -62,7 +62,6 @@ writeFileSync(
   join(consumer, "import.mjs"),
   `import {
   Arc3D,
-  Viewer,
   CesiumEngine,
   Arc3DError,
   createId,
@@ -71,7 +70,6 @@ import { CesiumEngine as EngineExport } from "arc3dlab/engine-cesium"
 if (typeof Arc3D.create !== "function") {
   throw new Error("Arc3D.create missing")
 }
-if (typeof Viewer !== "function") throw new Error("Viewer missing")
 if (typeof CesiumEngine !== "function") {
   throw new Error("CesiumEngine missing")
 }
@@ -95,7 +93,6 @@ writeFileSync(
   Arc3D,
   Arc3DError,
   CesiumEngine,
-  Viewer,
   createId,
 } from "arc3dlab"
 import type {
@@ -123,7 +120,7 @@ const spatial: SpatialReference = { crs: "EPSG:4326", axisOrder: "lng-lat", angu
 const asset: DataAsset = { id: "a", format: "geojson", version: "1" }
 type Result = AnalysisResult<number>
 
-void [Arc3D, CesiumEngine, EngineExport, Viewer, createId, config, plugin, error, task, spatial, asset] as unknown as [unknown, unknown, unknown, unknown, unknown, Arc3DConfig, Arc3DPlugin, Arc3DError, AnalysisTask, SpatialReference, DataAsset]
+void [Arc3D, CesiumEngine, EngineExport, createId, config, plugin, error, task, spatial, asset] as unknown as [unknown, unknown, unknown, unknown, Arc3DConfig, Arc3DPlugin, Arc3DError, AnalysisTask, SpatialReference, DataAsset]
 void (undefined as unknown as Result)
 `,
 )

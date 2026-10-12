@@ -9,7 +9,6 @@ import {
   createTaskExecutor,
   DataCatalog,
   runAnalysisTask,
-  Viewer,
 } from "../../src/index"
 import type {
   AnalysisResult,
@@ -42,7 +41,6 @@ const runtimeWhitelist = [
   CesiumEngine,
   DataCatalog,
   AnalysisTaskRegistry,
-  Viewer,
 ]
 
 describe("public api surface", () => {

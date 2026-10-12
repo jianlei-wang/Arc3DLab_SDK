@@ -13,7 +13,6 @@
     "packages/plotting/src/index.ts",
     "packages/ui/src/index.ts",
     "packages/sdk/src/index.ts",
-    "packages/legacy/src/index.ts",
     "src/index.ts"
   ],
   "entryPointStrategy": "resolve",

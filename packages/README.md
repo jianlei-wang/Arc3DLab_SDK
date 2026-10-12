@@ -17,6 +17,5 @@ Arc3DLab 采用 **Cesium-first** 定位：`Engine` 是内部生命周期/能力�
 | `@arc3dlab/effects` | 特效骨架 | 是 |
 | `@arc3dlab/ui` | Tooltip / Popup | 是 |
 | `@arc3dlab/sdk` | `Arc3D.create` / Arc3DApp | 间接 |
-| `@arc3dlab/legacy` | `Viewer` 兼容层 | 间接 |
 
 后续按成熟度再拆成公开 npm 包。

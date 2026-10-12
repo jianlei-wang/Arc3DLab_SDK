@@ -27,7 +27,6 @@ import {
   Arc3DApp,
   Arc3DError as PublicError,
   CesiumEngine,
-  Viewer,
   createId as publicCreateId,
 } from "../../src/index"
 
@@ -98,7 +97,6 @@ describe("public SDK surface", () => {
     expect(typeof Arc3D.createSync).toBe("function")
     expect(Arc3DApp).toBeTypeOf("function")
     expect(CesiumEngine).toBeTypeOf("function")
-    expect(Viewer).toBeTypeOf("function")
     expect(typeof publicCreateId()).toBe("string")
     expect(new PublicError("INVALID_ARGUMENT", "bad")).toMatchObject({
       code: "INVALID_ARGUMENT",

@@ -70,7 +70,6 @@ export const PACKAGE_DISPLAY = {
   "@arc3dlab/plotting": "plotting",
   "@arc3dlab/ui": "ui",
   "@arc3dlab/sdk": "sdk",
-  "@arc3dlab/legacy": "legacy",
   arc3dlab: "arc3dlab",
 }
 
@@ -88,7 +87,6 @@ export const PACKAGE_ORDER = [
   "effects",
   "plotting",
   "ui",
-  "legacy",
 ]
 
 /** 包名 → 首页副标题。 */
@@ -106,7 +104,6 @@ export const PACKAGE_SUMMARY = {
   effects: "材质与后处理效果。",
   plotting: "军事态势标绘符号与几何算法。",
   ui: "轻量 UI 控件与提示。",
-  legacy: "旧版 Viewer 兼容适配器。",
 }
 
 /** 文档覆盖率阈值（0-1）。 */
