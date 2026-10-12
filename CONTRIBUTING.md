@@ -17,9 +17,15 @@ Arc3DLab 是模块化 3D WebGIS Runtime。贡献代码前请先阅读 `docs/arch
 11. 插件通过 Plugin / Capability API 扩展。
 12. 稳定公共 API 必须有自动化测试。
 
-## 设计迭代
+## 设计迭代与变更记录
 
-先更新 `docs/architecture/` 对应文档和 `CHANGELOG.md`，再改代码。
+先更新设计文档与变更记录，再改代码。三类文档职责不同，勿混用：
+
+- `docs/architecture/`：设计文档，描述各模块的当前合同与实现状态。
+- `docs/architecture/CHANGELOG.md`：设计迭代日志，按日期记录架构、合同与质量门禁的变更，面向 SDK 维护者。
+- `CHANGES.md`：发布变更日志，按版本记录 `Breaking Changes` / `feat` / `fix`，面向 SDK 使用者。
+
+仅当改动影响公共 API、运行时合同、门禁或使用者可感知行为时，才需要同时更新迭代日志与发布日志。
 
 ## 开发命令
 

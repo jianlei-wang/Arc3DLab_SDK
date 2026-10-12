@@ -38,19 +38,34 @@ describe("compareRenderBackends", () => {
 })
 
 describe("scripts/benchmark.mjs", () => {
-  it("prints a JSON report for the fixed scene", () => {
+  it("prints a budgeted JSON trend report covering all scenarios", () => {
     const root = join(dirname(fileURLToPath(import.meta.url)), "../..")
     const output = execFileSync("node", ["scripts/benchmark.mjs"], {
       cwd: root,
       encoding: "utf8",
     })
     const report = JSON.parse(output)
-    expect(report.threshold).toBe(AUTO_PRIMITIVE_THRESHOLD)
+    expect(report.autoPrimitiveThreshold).toBe(AUTO_PRIMITIVE_THRESHOLD)
     expect(report.scene.graphicCounts).toEqual([
       ...BENCHMARK_SCENE.graphicCounts,
     ])
-    expect(report.runs).toHaveLength(3)
-    expect(report.runs[0].picked).toBe(64)
-    expect(report.runs[2].backend.prefer).toBe("primitive")
+    expect(
+      report.scenarios.map((scenario: { name: string }) => scenario.name),
+    ).toEqual([
+      "renderScale",
+      "analysisLoad",
+      "terrainSampling",
+      "lifecycleChurn",
+    ])
+    expect(report.ok).toBe(true)
+
+    const renderScale = report.scenarios[0]
+    expect(renderScale.detail.runs).toHaveLength(3)
+    expect(renderScale.detail.runs[0].picked).toBe(64)
+    expect(renderScale.detail.runs[2].backend.prefer).toBe("primitive")
+    for (const scenario of report.scenarios) {
+      expect(scenario.withinBudget).toBe(true)
+      expect(scenario.assertionsPassed).toBe(true)
+    }
   })
 })

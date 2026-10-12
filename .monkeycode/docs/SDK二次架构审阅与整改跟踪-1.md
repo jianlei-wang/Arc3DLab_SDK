@@ -256,11 +256,11 @@ CI 的 `gate` job 还有 `lint:audit`、`lint:size`、`test:pack`；独立 job �
 
 ### 第三批：长期治理
 
-- [ ] 核心模块分包覆盖率门槛逐步提升。
-- [ ] E2E 增加初始化失败、清理失败、多实例、长任务取消和真实服务模拟。
-- [ ] 性能预算覆盖渲染规模、分析负载、创建/销毁循环，不仅是 bundle size。
-- [ ] 为目标分支启用必需状态检查与代码审阅策略，并明确 API、Runtime、渲染和 GIS 算法的代码责任人。
-- [ ] 统一变更日志和贡献指南。
+- [x] P3-A 核心模块分包覆盖率门槛逐步提升。
+- [x] P3-B E2E 增加初始化失败、清理失败、多实例、长任务取消和真实服务模拟。
+- [x] P3-C 性能预算覆盖渲染规模、分析负载、创建/销毁循环，不仅是 bundle size。
+- [x] P3-D 为目标分支启用必需状态检查与代码审阅策略，并明确 API、Runtime、渲染和 GIS 算法的代码责任人。
+- [x] P3-E 统一变更日志和贡献指南。
 
 ## 6.1 本轮整改执行记录
 
@@ -278,6 +278,16 @@ CI 的 `gate` job 还有 `lint:audit`、`lint:size`、`test:pack`；独立 job �
 | P2-E | 命令拆分：`gate:fast`、`gate:release`，`gate` 为 `gate:fast` 别名。 | `package.json` |
 
 本记录对应基线 `d6b4c61` 之后的整改提交；完整验证以 `npm run gate:release` 与 CI 全部 job 通过为准。
+
+### 第三批：长期治理执行记录
+
+| 项 | 实现要点 | 证据 |
+|---|---|---|
+| P3-A | `vitest.config.ts` 在全局阈值之外新增按包覆盖率下限（core/analysis/ui/scene/data/interaction/effects/sdk），以实测基线取略低值，避免只依赖全仓总阈值。 | `vitest.config.ts`、`coverage/coverage-summary.json` |
+| P3-B | `e2e/main.ts` 重写为参数化 harness（`?scenario=`），新增初始化失败、清理失败、多实例并行、长任务取消、外部服务模拟五个失败/边界场景；`e2e/app.spec.ts` 增加对应 Playwright 用例。 | `e2e/main.ts`、`e2e/app.spec.ts` |
+| P3-C | `scripts/benchmark.mjs` 扩展为四个确定性工作负载（渲染规模、分析负载、地形采样、创建/销毁循环），给出宽松绝对预算与断言，`bench:check` 纳入 `gate:release` 与 CI。 | `scripts/benchmark.mjs`、`package.json`、`.github/workflows/ci.yml` |
+| P3-D | 新增 `.github/CODEOWNERS` 按域划分责任人；`docs/architecture/12-engineering.md` 补充测试/CI 门禁与「责任归属与分支保护」。 | `.github/CODEOWNERS`、`docs/architecture/12-engineering.md` |
+| P3-E | `CONTRIBUTING.md`、`CHANGES.md`、`docs/architecture/CHANGELOG.md` 明确三类文档职责划分，并在 CHANGELOG 追加第二轮迭代条目。 | `CONTRIBUTING.md`、`CHANGES.md`、`docs/architecture/CHANGELOG.md` |
 
 ## 7. 本轮审阅边界
 

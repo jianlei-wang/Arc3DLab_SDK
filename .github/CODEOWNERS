@@ -1,0 +1,41 @@
+# Arc3DLab 代码责任归属
+#
+# 本文件按域划分评审人，配合目标分支的必需状态检查使用。
+# 语法：<pattern> <owner>...，后出现的规则覆盖先出现的规则。
+
+# 默认：仓库维护者
+* @jianlei-wang
+
+# 公共 API 合同与发布门禁
+/scripts/release-gate.mjs @jianlei-wang
+/scripts/public-api-manifest.json @jianlei-wang
+/scripts/rollup-dts.mjs @jianlei-wang
+/COMPATIBILITY.md @jianlei-wang
+/CHANGES.md @jianlei-wang
+
+# 运行时生命周期、资源与插件合同
+/packages/core/src/lifecycle.ts @jianlei-wang
+/packages/core/src/resource.ts @jianlei-wang
+/packages/core/src/disposer.ts @jianlei-wang
+/packages/core/src/plugin-scope.ts @jianlei-wang
+/packages/sdk/src/plugins.ts @jianlei-wang
+/packages/sdk/src/Arc3DApp.ts @jianlei-wang
+
+# 渲染与 Cesium 边界
+/packages/engine-cesium/ @jianlei-wang
+/packages/scene/ @jianlei-wang
+/packages/graphics/ @jianlei-wang
+/packages/layers/ @jianlei-wang
+/packages/effects/ @jianlei-wang
+
+# GIS 算法与数据语义
+/packages/analysis/ @jianlei-wang
+/packages/plotting/ @jianlei-wang
+/packages/data/ @jianlei-wang
+/packages/core/src/geo.ts @jianlei-wang
+/packages/core/src/datum.ts @jianlei-wang
+/packages/core/src/spatial.ts @jianlei-wang
+/packages/core/src/catalog.ts @jianlei-wang
+
+# CI 与仓库治理
+/.github/ @jianlei-wang

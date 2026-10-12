@@ -1,4 +1,4 @@
-import { Arc3D } from "../src/index"
+import { Arc3D, Arc3DError } from "../src/index"
 import type { LngLat, SceneReadyResult } from "../src/index"
 import { SwipeComparison } from "@arc3dlab/analysis"
 
@@ -32,66 +32,247 @@ function nextFrames(count = 2): Promise<void> {
   })
 }
 
-async function boot(): Promise<void> {
+function errorCode(error: unknown): string {
+  if (error instanceof Arc3DError) return error.code
+  if (error instanceof Error) return error.name
+  return "UNKNOWN"
+}
+
+async function scenarioRuntime(): Promise<Record<string, unknown>> {
+  const app = await Arc3D.create({ container: "app" })
+  const report: Record<string, unknown> = {}
+
+  report.ready = await app.scene.whenSceneReady({ timeoutMs: 20000 })
+
+  const graphic = app.graphics.addPoint({
+    positions: POINT,
+    style: { pixelSize: 14, color: "#ff2d55" },
+  })
+  report.graphicId = graphic.id
+
+  app.camera.lookAt(POINT, 5000)
+  await nextFrames(3)
+
+  const canvas = document.querySelector<HTMLCanvasElement>("#app canvas")
+  const center = {
+    x: canvas ? canvas.clientWidth / 2 : 0,
+    y: canvas ? canvas.clientHeight / 2 : 0,
+  }
+  const picked = app.interaction.pick(center)
+  report.pickKind = picked.kind
+  report.pickGraphicId = picked.graphicId
+
+  const distance = await app.analysis.measure.distance({
+    positions: [POINT, FAR_POINT],
+  })
+  report.distanceMeters = distance.meters
+
+  const plot = app.plotting.draw("attackArrow", {
+    positions: PLOT_ANCHORS,
+    style: { color: "#00e5ff", fillColor: "#00e5ff" },
+  })
+  report.plotId = plot.id
+  report.plotShapeCount = plot.shapes.length
+
+  app.effects.weather.enable("rain")
+  report.weatherEnabled = true
+  app.effects.weather.disable("rain")
+  report.weatherDisabled = true
+
+  const swipe = new SwipeComparison(app.context, "vertical")
+  swipe.setPosition(0.35)
+  report.swipePosition = swipe.getPosition()
+  swipe.setActive(false)
+  swipe.setActive(true)
+  swipe.destroy()
+  report.swipeDestroyed = true
+
+  await app.destroy()
+  report.destroyed = true
+
+  const rebuilt = await Arc3D.create({ container: "app" })
+  report.rebuiltReady = (
+    await rebuilt.scene.whenSceneReady({ timeoutMs: 20000 })
+  ).ready
+
+  window.__ARC3D_READY__ = report.ready as SceneReadyResult
+  return report
+}
+
+async function scenarioInitFailure(): Promise<Record<string, unknown>> {
+  const report: Record<string, unknown> = { reportKind: "init-failure" }
   try {
-    const app = await Arc3D.create({ container: "app" })
-    const report: Record<string, unknown> = {}
+    await Arc3D.create({ container: "missing-container" })
+    report.initFailed = false
+  } catch (error) {
+    report.initFailed = true
+    report.errorCode = errorCode(error)
+  }
+  return report
+}
 
-    report.ready = await app.scene.whenSceneReady({ timeoutMs: 20000 })
+async function scenarioCleanupFailure(): Promise<Record<string, unknown>> {
+  const app = await Arc3D.create({ container: "app" })
+  await app.scene.whenSceneReady({ timeoutMs: 20000 })
+  const registry = app.context.registry
+  let destroyAttempted = false
+  registry.add({
+    id: "e2e:cleanup-failing",
+    type: "test",
+    native: null,
+    visible: true,
+    owned: true,
+    destroy: () => {
+      destroyAttempted = true
+      throw new Error("intentional destroy failure")
+    },
+  })
+  registry.add({
+    id: "e2e:cleanup-sibling",
+    type: "test",
+    native: null,
+    visible: true,
+    owned: true,
+    destroy: () => undefined,
+  })
+  await app.destroy()
+  return {
+    reportKind: "cleanup-failure",
+    destroyAttempted,
+    registryEmpty: registry.ids().length === 0,
+    hasFailing: registry.has("e2e:cleanup-failing"),
+    hasSibling: registry.has("e2e:cleanup-sibling"),
+  }
+}
 
-    const graphic = app.graphics.addPoint({
-      positions: POINT,
-      style: { pixelSize: 14, color: "#ff2d55" },
-    })
-    report.graphicId = graphic.id
+async function scenarioMultiInstance(): Promise<Record<string, unknown>> {
+  const second = document.createElement("div")
+  second.id = "app2"
+  second.style.width = "100vw"
+  second.style.height = "100vh"
+  document.body.appendChild(second)
 
-    app.camera.lookAt(POINT, 5000)
-    await nextFrames(3)
+  const first = await Arc3D.create({ container: "app" })
+  const other = await Arc3D.create({ container: "app2" })
+  const [firstReady, otherReady] = await Promise.all([
+    first.scene.whenSceneReady({ timeoutMs: 20000 }),
+    other.scene.whenSceneReady({ timeoutMs: 20000 }),
+  ])
 
-    const canvas = document.querySelector<HTMLCanvasElement>("#app canvas")
-    const center = {
-      x: canvas ? canvas.clientWidth / 2 : 0,
-      y: canvas ? canvas.clientHeight / 2 : 0,
-    }
-    const picked = app.interaction.pick(center)
-    report.pickKind = picked.kind
-    report.pickGraphicId = picked.graphicId
+  first.graphics.addPoint({
+    positions: POINT,
+    style: { pixelSize: 12, color: "#ff2d55" },
+  })
+  other.graphics.addPoint({
+    positions: FAR_POINT,
+    style: { pixelSize: 12, color: "#00e5ff" },
+  })
 
-    const distance = await app.analysis.measure.distance({
-      positions: [POINT, FAR_POINT],
-    })
-    report.distanceMeters = distance.meters
+  await first.destroy()
+  const secondAliveAfterFirstDestroyed =
+    document.querySelector("#app2 canvas") !== null
+  await other.destroy()
+  const bothGone =
+    document.querySelector("#app canvas") === null &&
+    document.querySelector("#app2 canvas") === null
 
-    const plot = app.plotting.draw("attackArrow", {
-      positions: PLOT_ANCHORS,
-      style: { color: "#00e5ff", fillColor: "#00e5ff" },
-    })
-    report.plotId = plot.id
-    report.plotShapeCount = plot.shapes.length
+  return {
+    reportKind: "multi-instance",
+    firstReady: firstReady.ready,
+    otherReady: otherReady.ready,
+    secondAliveAfterFirstDestroyed,
+    bothGone,
+  }
+}
 
-    app.effects.weather.enable("rain")
-    report.weatherEnabled = true
-    app.effects.weather.disable("rain")
-    report.weatherDisabled = true
+async function scenarioTaskCancel(): Promise<Record<string, unknown>> {
+  const app = await Arc3D.create({ container: "app" })
+  const controller = new AbortController()
+  const result = await app.analysis.run<{ steps: number }, number>({
+    algorithm: "e2e.long",
+    input: { steps: 1000 },
+    signal: controller.signal,
+    execute: (runner) => {
+      for (let index = 0; index < 1000; index++) {
+        runner.throwIfCancelled("e2e.long")
+        runner.report(index, 1000, "loop")
+        if (index === 5) controller.abort()
+      }
+      return { value: 1 }
+    },
+  })
+  const registered = app.analysis.tasks.get(result.taskId)
+  await app.destroy()
+  return {
+    reportKind: "task-cancel",
+    status: result.status,
+    errorCode: result.error?.code,
+    registeredStatus: registered?.status,
+  }
+}
 
-    const swipe = new SwipeComparison(app.context, "vertical")
-    swipe.setPosition(0.35)
-    report.swipePosition = swipe.getPosition()
-    swipe.setActive(false)
-    swipe.setActive(true)
-    swipe.destroy()
-    report.swipeDestroyed = true
+async function scenarioExternalService(): Promise<Record<string, unknown>> {
+  const app = await Arc3D.create({ container: "app" })
+  const report: Record<string, unknown> = { reportKind: "external-service" }
 
-    await app.destroy()
-    report.destroyed = true
+  try {
+    await app.data.web.geocode("no provider")
+    report.providerMissingThrew = false
+  } catch (error) {
+    report.providerMissingThrew = true
+    report.providerMissingCode = errorCode(error)
+  }
 
-    const rebuilt = await Arc3D.create({ container: "app" })
-    report.rebuiltReady = (
-      await rebuilt.scene.whenSceneReady({ timeoutMs: 20000 })
-    ).ready
+  app.data.web.setProvider({
+    driving: async (origin, destination) => ({
+      origin,
+      destination,
+      paths: [],
+    }),
+    poi: async () => [],
+    geocode: async (address) => [
+      {
+        province: "北京市",
+        city: "北京市",
+        district: "东城区",
+        street: address,
+        number: "1",
+        location: { longitude: 116.391, latitude: 39.906 },
+      },
+    ],
+    reverseGeocode: async () => ({
+      province: "北京市",
+      city: "北京市",
+      district: "东城区",
+      township: "东华门街道",
+      address: "模拟地址",
+    }),
+  })
 
-    window.__ARC3D_REPORT__ = report
-    window.__ARC3D_READY__ = report.ready as SceneReadyResult
+  const results = await app.data.web.geocode("天安门")
+  report.geocodeCount = results.length
+  report.geocodeStreet = results[0]?.street
+
+  await app.destroy()
+  return report
+}
+
+const SCENARIOS: Record<string, () => Promise<Record<string, unknown>>> = {
+  runtime: scenarioRuntime,
+  "init-failure": scenarioInitFailure,
+  "cleanup-failure": scenarioCleanupFailure,
+  "multi-instance": scenarioMultiInstance,
+  "task-cancel": scenarioTaskCancel,
+  "external-service": scenarioExternalService,
+}
+
+async function boot(): Promise<void> {
+  const requested =
+    new URLSearchParams(window.location.search).get("scenario") ?? "runtime"
+  const scenario = SCENARIOS[requested]
+  try {
+    if (!scenario) throw new Error(`Unknown scenario: ${requested}`)
+    window.__ARC3D_REPORT__ = await scenario()
   } catch (error) {
     window.__ARC3D_ERROR__ =
       error instanceof Error ? error.message : String(error)

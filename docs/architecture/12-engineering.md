@@ -45,14 +45,24 @@ CesiumJS 采用 Apache-2.0，第三方底图、示例数据需要在 `NOTICE.md`
 
 - Unit：core 的 EventBus / Lifecycle / Registry / ID
 - Integration：Arc3DApp destroy 回收
-- 覆盖率：`npm run test:coverage`（v8），阈值 lines/statements 60、functions 58、branches 75，CI 以 `test:coverage` 替代 `test`
-- E2E：`npm run test:e2e`（Playwright + Chromium，SwiftShader 无头 WebGL），用例 `e2e/app.spec.ts` 覆盖创建 → 添加 Graphic → 拾取 → 测量分析 → 销毁 → 重建 完整路径
+- 覆盖率：`npm run test:coverage`（v8）。全仓最低阈值 lines/statements 60、functions 58、branches 75；`core`、`engine-cesium`、`analysis` 等核心包在 `vitest.config.ts` 中另有不低于当前基线的按包阈值，CI 以 `test:coverage` 替代 `test`
+- E2E：`npm run test:e2e`（Playwright + Chromium，SwiftShader 无头 WebGL）。`e2e/app.spec.ts` 覆盖主链路（创建 → 添加 Graphic → 拾取 → 测量分析 → 销毁 → 重建）与失败路径（初始化失败、清理失败、多实例并行、长任务取消、外部服务成功/失败模拟）
 
 ## CI 门禁
 
-`.github/workflows/ci.yml`（`permissions: contents: read`）包含两个 job：
+`.github/workflows/ci.yml`（`permissions: contents: read`）包含独立 job：
 
-- `gate`：`typecheck` → `test:coverage` → `lint:deps` → `lint:exports` → `lint:license` → `lint:api` → `lint:audit` → `format:check` → `build` → `lint:size` → `test:pack`
+- `gate`：`typecheck` → `test:coverage` → `lint:deps` → `lint:exports` → `lint:license` → `lint:api` → `lint:audit` → `docs:build` → `lint:docs` → `format:check` → `build` → `lint:size` → `test:pack`
+- `docs`：构建 API 文档并上传 `api-docs` 构件
+- `guide`：构建 VitePress 开发指南并上传 `guide-dist` 构件
 - `e2e`：`npm ci` → `playwright install --with-deps chromium` → `test:e2e`，失败时上传 `playwright-report`
+
+本地分层门禁：`npm run gate:fast`（类型检查 + 单测 + 依赖/导出/许可/API 边界 + 格式）；`npm run gate:release`（快速层改用 `test:coverage`，叠加 `lint:audit`、`docs:build`、`lint:docs`、`guide:build`、`build`、`lint:size`、`test:pack`）；`npm run gate` 是 `gate:fast` 的别名。浏览器 E2E 始终单独运行。
+
+## 责任归属与分支保护
+
+- `.github/CODEOWNERS` 按域划分评审人：公共 API / 生命周期 / 渲染（Cesium）/ GIS 算法 / CI 与发布。
+- 目标分支启用必需状态检查：`gate`、`docs`、`guide`、`e2e` 四个 job 全部通过，并要求至少一项代码审阅后合并。
+- 分支保护与必需检查属于 GitHub 仓库设置，需由仓库管理员在 GitHub UI 或 API 配置；仓库内的 `CODEOWNERS` 与默认分支约定为唯一事实来源。
 
 开发命令、即时测试、预览、API 文档生成和 npm 发布步骤见 `docs/guides/sdk-development.md`。

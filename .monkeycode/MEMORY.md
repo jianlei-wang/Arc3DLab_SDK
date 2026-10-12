@@ -68,7 +68,9 @@ Entries discovered by the Agent during task execution should follow this format:
 - Context: Discovered by Agent while finishing the migration gates (P6)
 - Category: Build Methods
 - Instructions:
-  - 门禁分层：`npm run gate:fast` = `typecheck && test && lint:deps && lint:exports && lint:license && lint:api && format:check`；`npm run gate:release` = 快速层（改用 `test:coverage`）+ `lint:audit && docs:build && lint:docs && guide:build && build && lint:size && test:pack`；`npm run gate` 是 `gate:fast` 的别名。
+  - 门禁分层：`npm run gate:fast` = `typecheck && test && lint:deps && lint:exports && lint:license && lint:api && format:check`；`npm run gate:release` = 快速层（改用 `test:coverage`）+ `lint:audit && docs:build && lint:docs && guide:build && build && lint:size && bench:check && test:pack`；`npm run gate` 是 `gate:fast` 的别名。
+  - 覆盖率阈值分两层：`vitest.config.ts` 既有全局阈值，也有按包阈值（`packages/*/src/**`，覆盖 core/analysis/ui/scene/data/interaction/effects/sdk）。新增或调整阈值需以 `coverage/coverage-summary.json` 实测值为基线取略低值。
+  - `npm run bench:check`（`scripts/benchmark.mjs --check`）以四个确定性工作负载（渲染规模/分析负载/地形采样/创建销毁循环）做宽松绝对预算断言，已纳入 `gate:release` 与 CI；调整预算需同步 `BUDGETS_MS` 与 `tests/unit/benchmark.test.ts`。
 
 [Project Knowledge Summary]
 - Date: 2026-10-12

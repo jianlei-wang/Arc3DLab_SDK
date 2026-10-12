@@ -1,5 +1,18 @@
 # 设计迭代日志
 
+> 面向 SDK 维护者的架构、合同与质量门禁迭代记录，按日期倒序排列。
+> 面向使用者的发布变更日志见根目录 `CHANGES.md`。
+
+## 2026-10-12（第二轮审阅整改：生命周期、数据语义与发布合同）
+
+- 生命周期与并发：`PluginManager` 引入关闭屏障（`closing`/`closed`/`shuttingDown`），`destroy()` 作为队列终止操作，`plugin.install()` 返回后若应用已进入销毁则回滚；`SerialIonTokenScope` 的无 token 分支纳入同一串行队列；插件 owner 通过 `PluginScope.registerCommand/Tool/Capability` 显式绑定，不再依赖跨 `await` 的全局活动 owner。
+- 资源与数据语义：`ResourceRegistry.clear()` 单项失败不再中断，`finally` 清空并聚合错误；`DataCatalog` 采用不可变快照模型且 `registerAsset()` 事务化；`AnalysisTaskRegistry` 存储与返回独立副本，输入/参数与进度回调均隔离。
+- 插件资源回收：新增 `PluginScope.manage(resource)` 统一托管插件创建的图形、图层、效果、任务等资源，卸载与安装回滚时自动幂次销毁。
+- 发布合同：`scripts/release-gate.mjs` 升级为签名级公共 API 基线，覆盖根入口与 `./engine-cesium` 子路径；`@microsoft/api-extractor` 固定为直接 devDependency。
+- 门禁分层：`npm run gate:fast` 与 `npm run gate:release` 取代单一 `gate`（`gate` 为快速层别名）。
+- `bundle-baseline.json` 随功能增长更新为 `arc3dlab.esm.js` raw 240063 / gzip 61893。
+- 新增测试 `tests/unit/{plugin-shutdown,plugin-owner-isolation,plugin-managed-resources}.test.ts`；`npm run gate:release` 与 `npm run test:e2e` 全绿。
+
 ## 2026-10-11（能力迁移 P6：文档与门禁）
 
 - 开发指南新增「迁移能力」分组 5 章：军事标绘、动态图形与特效、空间分析增强、多屏联动与网格出图、导航组件与外部服务；`guide/.vitepress/config.mts` 同步侧边栏，`npm run guide:build` 通过。

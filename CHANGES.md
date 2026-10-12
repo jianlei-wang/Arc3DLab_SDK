@@ -1,5 +1,8 @@
 # Change Log
 
+> 面向 SDK 使用者的发布变更日志，按版本记录 `Breaking Changes` / `feat` / `fix`。
+> 面向维护者的架构与门禁迭代记录见 `docs/architecture/CHANGELOG.md`。
+
 ## 关键字说明 :mega:
 
 ``` 说明
