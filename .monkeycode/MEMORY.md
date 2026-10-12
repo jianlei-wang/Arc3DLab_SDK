@@ -72,6 +72,23 @@ Entries discovered by the Agent during task execution should follow this format:
   - 覆盖率阈值分两层：`vitest.config.ts` 既有全局阈值，也有按包阈值（`packages/*/src/**`，覆盖 core/analysis/ui/scene/data/interaction/effects/sdk）。新增或调整阈值需以 `coverage/coverage-summary.json` 实测值为基线取略低值。
   - `npm run bench:check`（`scripts/benchmark.mjs --check`）以四个确定性工作负载（渲染规模/分析负载/地形采样/创建销毁循环）做宽松绝对预算断言，已纳入 `gate:release` 与 CI；调整预算需同步 `BUDGETS_MS` 与 `tests/unit/benchmark.test.ts`。
 
+[User Instruction Summary]
+- Date: 2026-10-12
+- Context: CI / gate 推送后失败（lint:exports 报 API 签名变化），用户要求此后每次推送强制执行检查
+- Instructions:
+  - 每次 `git push` 前必须强制执行完整检查；仓库已跟踪 `.githooks/pre-push`，运行 `npm run gate:release`，失败则中止推送。
+  - `package.json` 的 `prepare` 会执行 `git config core.hooksPath .githooks` 自动启用钩子；紧急跳过用 `SKIP_PREPUSH_CHECK=1`（CI 仍会检查）。
+  - 提交/推送前不要依赖本地 `dist` 缓存判断；必须走门禁命令。
+
+[Project Knowledge Summary]
+- Date: 2026-10-12
+- Context: Discovered by Agent while diagnosing a CI gate failure: 本地 `lint:exports` 通过，但 CI 报 `public API signature changed: . Map / . Viewer`
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 根因：`scripts/release-gate.mjs` 用 TypeScript 打印跨模块类型时会产出 `import("/abs/path").Type`，绝对路径随机器变化（本地 `/workspace`、CI `/home/runner/work/...`），导致签名基线与机器绑定。
+  - 修复：`collectEntrySurface` 对每个签名套用 `toPortable()`，把 `${ROOT}/` 改写为 `./`；`scripts/public-api-manifest.json` 需用 `node scripts/release-gate.mjs exports:update` 重新生成。
+  - 验证：把仓库复制到另一路径（软链 node_modules）运行 `node scripts/release-gate.mjs exports` 应通过；manifest 中不应出现绝对根路径。
+
 [Project Knowledge Summary]
 - Date: 2026-10-12
 - Context: Discovered by Agent while adding the P2-01 consumer type test (`scripts/pack-smoke.mjs` 的 `tsc --noEmit`) and finding the published `dist/index.d.ts` 含方法实现体与语法错误

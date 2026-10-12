@@ -19,6 +19,7 @@
     "packages/*"
   ],
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "build": "vite build && node scripts/rollup-dts.mjs",
     "build:watch": "vite build --watch",
     "test": "vitest run",

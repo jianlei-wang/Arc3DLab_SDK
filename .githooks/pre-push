@@ -1,0 +1,14 @@
+#!/bin/sh
+# 强制在每次推送前运行发布门禁，避免把 CI 会失败的提交推送到远端。
+# 紧急情况下可用 SKIP_PREPUSH_CHECK=1 跳过（不推荐；CI 仍会执行同名检查）。
+if [ "$SKIP_PREPUSH_CHECK" = "1" ]; then
+  echo "pre-push: SKIP_PREPUSH_CHECK=1，跳过发布门禁（CI 仍会检查）" >&2
+  exit 0
+fi
+
+echo "pre-push: 运行 npm run gate:release ..." >&2
+if ! npm run gate:release; then
+  echo "pre-push: 发布门禁失败，已中止推送。修复后重试，或设置 SKIP_PREPUSH_CHECK=1 强行跳过。" >&2
+  exit 1
+fi
+echo "pre-push: 发布门禁通过" >&2

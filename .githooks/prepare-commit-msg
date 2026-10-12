@@ -1,0 +1,11 @@
+#!/bin/sh
+# prepare-commit-msg hook - 自动添加 co-author 信息到提交消息
+
+# 获取所有 coauthor 条目
+for i in $(git config --get-regexp 'coauthor\.[0-9]*\.name' 2>/dev/null | cut -d' ' -f1 | sed 's/\.name$//'); do
+  name=$(git config "$i.name" 2>/dev/null)
+  email=$(git config "$i.email" 2>/dev/null)
+  if [ -n "$name" ] && [ -n "$email" ]; then
+    echo "Co-authored-by: $name <$email>" >> "$1"
+  fi
+done

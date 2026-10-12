@@ -174,6 +174,16 @@ function buildProgram(root, entries) {
 
 const SIG_FORMAT = ts.TypeFormatFlags.NoTruncation
 
+const ROOT_POSIX = ROOT.split("\\").join("/")
+
+// TypeScript 在打印跨模块类型时会写成 `import("/abs/path").Type`，其中绝对路径
+// 随机器变化（本地 /workspace、CI /home/runner/work/...）。统一改写为相对仓库根
+// 的 `import("./...")`，使签名基线与机器无关。
+function toPortable(text) {
+  if (!text) return text
+  return text.split(`${ROOT_POSIX}/`).join("./")
+}
+
 function normalize(text) {
   return text.replace(/\s+/g, " ").trim()
 }
@@ -306,7 +316,7 @@ function collectEntrySurface(checker, printer, source) {
       const isType = (resolved.flags & ts.SymbolFlags.Type) !== 0
       if (isValue) values.push(name)
       else if (isType) types.push(name)
-      signatures[name] = describeSymbol(checker, printer, resolved)
+      signatures[name] = toPortable(describeSymbol(checker, printer, resolved))
     }
   }
   values.sort()

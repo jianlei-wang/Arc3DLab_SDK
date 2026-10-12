@@ -52,12 +52,14 @@ CesiumJS 采用 Apache-2.0，第三方底图、示例数据需要在 `NOTICE.md`
 
 `.github/workflows/ci.yml`（`permissions: contents: read`）包含独立 job：
 
-- `gate`：`typecheck` → `test:coverage` → `lint:deps` → `lint:exports` → `lint:license` → `lint:api` → `lint:audit` → `docs:build` → `lint:docs` → `format:check` → `build` → `lint:size` → `test:pack`
+- `gate`：`typecheck` → `test:coverage` → `lint:deps` → `lint:exports` → `lint:license` → `lint:api` → `lint:audit` → `docs:build` → `lint:docs` → `format:check` → `build` → `lint:size` → `bench:check` → `test:pack`
 - `docs`：构建 API 文档并上传 `api-docs` 构件
 - `guide`：构建 VitePress 开发指南并上传 `guide-dist` 构件
 - `e2e`：`npm ci` → `playwright install --with-deps chromium` → `test:e2e`，失败时上传 `playwright-report`
 
-本地分层门禁：`npm run gate:fast`（类型检查 + 单测 + 依赖/导出/许可/API 边界 + 格式）；`npm run gate:release`（快速层改用 `test:coverage`，叠加 `lint:audit`、`docs:build`、`lint:docs`、`guide:build`、`build`、`lint:size`、`test:pack`）；`npm run gate` 是 `gate:fast` 的别名。浏览器 E2E 始终单独运行。
+本地分层门禁：`npm run gate:fast`（类型检查 + 单测 + 依赖/导出/许可/API 边界 + 格式）；`npm run gate:release`（快速层改用 `test:coverage`，叠加 `lint:audit`、`docs:build`、`lint:docs`、`guide:build`、`build`、`lint:size`、`bench:check`、`test:pack`）；`npm run gate` 是 `gate:fast` 的别名。浏览器 E2E 始终单独运行。
+
+推送前强制检查：仓库跟踪 `.githooks/pre-push`，在每次 `git push` 前运行 `npm run gate:release`，失败即中止推送。`package.json` 的 `prepare` 脚本在安装依赖时执行 `git config core.hooksPath .githooks` 自动启用该钩子；`.githooks/prepare-commit-msg` 负责 co-author 注入。紧急情况下可设置 `SKIP_PREPUSH_CHECK=1` 跳过（CI 仍会执行同样检查）。
 
 ## 责任归属与分支保护
 
