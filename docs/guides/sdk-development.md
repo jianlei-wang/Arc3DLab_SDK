@@ -80,14 +80,9 @@ const app = await Arc3D.create({
 })
 ```
 
-兼容入口：
+根入口稳定导出：`Arc3D`、`Arc3DApp`、`Graphic`、`Layer`、`LngLat`、`LngLatHeight`、`CameraPose`、`PickResult`、`Arc3DPlugin`、`Arc3DError`。
 
-```ts
-import { Viewer } from "arc3dlab"
-const viewer = new Viewer("map")
-```
-
-根入口稳定导出：`Arc3D`、`Arc3DApp`、`Graphic`、`Layer`、`LngLat`、`LngLatHeight`、`CameraPose`、`PickResult`、`Arc3DPlugin`、`Arc3DError`、`Viewer`。
+`Viewer` / `Map` 兼容入口已在 2.0.0 移除，请使用 `Arc3D.create()`（迁移映射见 `docs/architecture/13-migration.md`）。
 
 高级入口：
 

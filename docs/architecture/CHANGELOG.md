@@ -3,6 +3,14 @@
 > 面向 SDK 维护者的架构、合同与质量门禁迭代记录，按日期倒序排列。
 > 面向使用者的发布变更日志见根目录 `CHANGES.md`。
 
+## 2026-10-12（旧版内容收敛：移除 legacy 兼容资产）
+
+- 移除根入口 `Viewer` / `Map` 与 `LegacyViewerOptions` / `LegacyMapOptions` 导出，删除 `@arc3dlab/legacy` 包，并同步清理 `tsconfig.json` / `typedoc.json` / `scripts/api-docs/config.mjs` / `packages/README.md` 与 `demo-vue3`、`e2e` 构建别名。
+- 移除 `Arc3DPlugin.dependsOn` 废弃字段与插件安装回退解析，能力依赖统一走 `requiresCapabilities`；`examples/domain-plugins/mining-plugin.ts` 同步更新。
+- 移除 `@arc3dlab/analysis` 的 `AnalysisWorkerHost` 兼容别名，统一使用 `AnalysisJobHost`；`tests/unit/analysis-worker.test.ts` 同步更新。
+- 公共 API 基线 `scripts/public-api-manifest.json` 重新生成；`COMPATIBILITY.md` 补充 1.x → 2.0 迁移窗口与移除清单。
+- 需求与设计：新增 `.monkeycode/specs/2026-10-12-legacy-content-sunset/`。
+
 ## 2026-10-12（第三轮审阅整改：owner 授权、注册表快照与清理收敛）
 
 - 插件归属：取消注册表的隐式 `ownerProvider`（全局活动 owner）推断；`CommandBus` / `ToolRegistry` / `CapabilityRegistry` 构造不再接收 ownerProvider，默认 owner 收敛为 `spec.plugin` 仅作归属记录。保留命名空间（`core.` / `arc3dlab.`）授权改为只依据显式 owner，自报 `plugin` 不再能占用保留前缀；`createCoreCommandBus()` 显式以 `"core"` 注册 `core.ping`。

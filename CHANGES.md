@@ -14,6 +14,12 @@
 
 ## Unreleased - 2026-10-12
 
+### Breaking Changes：:mega:
+
+- 移除根入口 `Viewer` / `Map` 及 `LegacyViewerOptions` / `LegacyMapOptions` 导出，并删除 `@arc3dlab/legacy` 包；旧版用法迁移到 `Arc3D.create()`（见 `docs/architecture/13-migration.md`）
+- 移除 `Arc3DPlugin.dependsOn` 废弃字段，能力依赖统一使用 `requiresCapabilities`
+- 移除 `@arc3dlab/analysis` 的 `AnalysisWorkerHost` 兼容别名，统一使用 `AnalysisJobHost`
+
 ### fix
 
 - 插件归属：取消注册表的全局活动 owner 推断，默认 owner 收敛为 `spec.plugin`；保留命名空间（`core.` / `arc3dlab.`）授权只依据显式 owner，插件无法通过伪造 `plugin` 字段抢占核心扩展

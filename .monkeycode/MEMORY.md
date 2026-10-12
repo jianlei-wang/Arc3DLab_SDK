@@ -61,6 +61,7 @@ Entries discovered by the Agent during task execution should follow this format:
 - Category: Environment Configuration
 - Instructions:
   - 新增 `@arc3dlab/*` 包时，需同步在 `e2e/vite.config.ts` 与 `demo-vue3/vite.config.ts` 的 `resolve.alias` 中补别名；否则 `npm run test:e2e` 或 5173 Sandcastle 预览会报 `Failed to resolve import`（P3 加入 `@arc3dlab/plotting` 后 e2e 已补，demo-vue3 曾遗漏导致 5173 预览白屏）。
+  - 移除 `@arc3dlab/*` 包时，需同步清理：`tsconfig.json` `paths`、`typedoc.json` `entryPoints`、`scripts/api-docs/config.mjs` `PACKAGE_DISPLAY`、`scripts/release-gate.mjs` 的 `PUBLIC_EXPORT_NAMES` 与包依赖边界表、`packages/README.md`、两处 `resolve.alias`、根入口 re-export；再跑 `npm install --package-lock-only` 与 `node scripts/release-gate.mjs exports:update` 刷新 lockfile 与 API 基线（`checkWorkspaceAliases` 会校验 tsconfig 与 `packages/*` 一致）。
   - Playwright 浏览器已预装（`~/.cache/ms-playwright/chromium-1194`），可直接运行 `npm run test:e2e`（`playwright test`），webServer 使用端口 4310。
 
 [Project Knowledge Summary]

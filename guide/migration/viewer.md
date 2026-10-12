@@ -1,6 +1,6 @@
 # 从 Viewer 迁移
 
-旧版 `Viewer` 是 `Arc3DApp` 的兼容适配器，已标记为 deprecated。新代码请直接使用 `Arc3D.create()`。
+旧版 `Viewer` 是 `Arc3DApp` 的兼容适配器，曾标记为 deprecated，并已在 2.0.0 随 `@arc3dlab/legacy` 包移除。新代码请直接使用 `Arc3D.create()`。
 
 ## 对照表
 
@@ -58,4 +58,4 @@ app.ui.tooltip.show("提示")
 | `fpsShow` | `scene.fpsShow` |
 | `mapboxController` | `scene.controls: "mapbox"` |
 
-旧版 `Viewer` 仍可继续使用，但不再新增能力；建议逐步迁移到 `Arc3DApp`。
+`Viewer` / `Map` 兼容入口已在 2.0.0 移除，请迁移到 `Arc3DApp`。上表用于把旧代码逐项映射到当前合同。

@@ -37,4 +37,3 @@
 - 源码位于 `packages/*`
 - 对外仍发布单一包 `arc3dlab`
 - 主入口：`Arc3D.create()`
-- 兼容入口：`Viewer`（Legacy Adapter）

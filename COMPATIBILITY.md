@@ -19,10 +19,23 @@ Updated: 2026-10-12
 
 | Arc3DLab | Cesium | Node | 状态 |
 |---|---|---|---|
-| 1.0.x | 1.146.0 | >=22 | Active |
+| 2.0.x | 1.146.0 | >=22 | Active |
+| 1.0.x | 1.146.0 | >=22 | Legacy（旧版兼容入口仍可用） |
 | 0.x | 1.136.0 | >=20 | Legacy |
 
 peerDependencies 精确锁定为 `cesium@1.146.0`。
+
+## 旧版内容移除（1.x → 2.0）
+
+2.0.0 移除了以下旧版兼容资产，属于 SemVer Major 破坏性变更：
+
+| 已移除符号 | 归属 | 迁移路径 |
+|---|---|---|
+| `Viewer` / `Map` / `LegacyViewerOptions` / `LegacyMapOptions` | 根入口与 `@arc3dlab/legacy` 包 | `Arc3D.create()` / `Arc3D.createSync()`，见 `docs/architecture/13-migration.md` |
+| `Arc3DPlugin.dependsOn` | `@arc3dlab/sdk` | 能力依赖使用 `requiresCapabilities`，插件依赖使用 `dependsOnPlugins` |
+| `AnalysisWorkerHost` | `@arc3dlab/analysis` | 使用 `AnalysisJobHost` |
+
+迁移窗口：1.x 期间旧版符号保持可用；自 2.0.0 起仅保留当前契约符号，消费者需在升级前完成迁移。
 
 ## 依赖锁定策略
 

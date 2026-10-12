@@ -83,19 +83,13 @@ import { CesiumEngine } from "arc3dlab/engine-cesium"
 
 根入口不再导出全部 Cesium 类。需要 Cesium 类型时从 `cesium` 导入。
 
-## 兼容入口
+## 兼容入口（已移除）
 
-```ts
-import { Viewer } from "arc3dlab"
-const viewer = new Viewer("map")
-viewer.app // Arc3DApp
-```
-
-`Viewer` 是 Legacy Adapter，文档主路径是 `Arc3D.create()`。
+`Viewer` / `Map` Legacy Adapter 与 `@arc3dlab/legacy` 包已在 2.0.0 移除。旧版用法统一迁移到 `Arc3D.create()`，迁移映射见 `docs/architecture/13-migration.md`。
 
 ## API 文档站
 
-公共 API 文档由自研生成器产出，形式对齐 CesiumJS ref-doc（JSDoc 默认结构类名、侧边栏包命名空间 + 类别分组），覆盖全部 13 个包：
+公共 API 文档由自研生成器产出，形式对齐 CesiumJS ref-doc（JSDoc 默认结构类名、侧边栏包命名空间 + 类别分组），覆盖全部 12 个内部包与顶层入口：
 
 ```bash
 # 提取类型模型并构建静态站点（输出 api-docs/api/）

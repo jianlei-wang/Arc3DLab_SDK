@@ -23,7 +23,7 @@ Updated: 2026-10-08
 
 ## Legacy Viewer 方法映射
 
-`Viewer`（`@arc3dlab/legacy`，根入口兼容导出）自 1.0.0-alpha.1 起标记 `@deprecated`，新代码使用 `Arc3D.create()`。
+`Viewer`（`@arc3dlab/legacy`，根入口兼容导出）自 1.0.0-alpha.1 起标记 `@deprecated`，并在 2.0.0 随 `@arc3dlab/legacy` 包一并移除。新代码使用 `Arc3D.create()`；下表保留旧成员到当前合同的映射，供 1.x 业务迁移参考。
 
 | Legacy 成员 | 新合同 | 说明 |
 |---|---|---|
@@ -48,6 +48,6 @@ Updated: 2026-10-08
 
 | 阶段 | 版本 | 动作 |
 |---|---|---|
-| 当前 | 1.0.x | `Viewer` 仅提供兼容映射，文档主路径为 `Arc3D.create()` |
-| 后续 | 1.x | 冻结方法集，只修复缺陷，不新增 legacy 能力 |
-| 计划 | 2.0 | 评估移除 `@arc3dlab/legacy` 与根入口 `Viewer` 导出，迁移到 `@arc3dlab/sdk` |
+| 已执行 | 1.0.x | `Viewer` 仅提供兼容映射，文档主路径为 `Arc3D.create()`；冻结方法集，只修复缺陷 |
+| 已执行 | 2.0.0 | 移除根入口 `Viewer` / `Map` 导出与 `@arc3dlab/legacy` 包，迁移到 `Arc3D.create()` |
+| 已执行 | 2.0.0 | 移除 `@arc3dlab/analysis` 的 `AnalysisWorkerHost` 别名与 `Arc3DPlugin.dependsOn` 废弃字段 |
