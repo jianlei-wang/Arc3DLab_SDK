@@ -618,7 +618,6 @@ export {
 } from "./jobs"
 export {
   AnalysisJobHost,
-  AnalysisJobHost as AnalysisWorkerHost,
   serializeAnalysisError,
   restoreAnalysisError,
 } from "./worker-host"

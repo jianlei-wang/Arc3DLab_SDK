@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { Arc3DError } from "@arc3dlab/core"
 import {
-  AnalysisWorkerHost,
+  AnalysisJobHost,
   executeAnalysisJob,
   restoreAnalysisError,
   serializeAnalysisError,
@@ -32,9 +32,9 @@ describe("executeAnalysisJob", () => {
   })
 })
 
-describe("AnalysisWorkerHost", () => {
+describe("AnalysisJobHost", () => {
   it("resolves a pure math job", async () => {
-    const host = new AnalysisWorkerHost()
+    const host = new AnalysisJobHost()
     const result = await host.run({
       type: "area",
       positions: [
@@ -52,7 +52,7 @@ describe("AnalysisWorkerHost", () => {
   })
 
   it("cancels a pending job through AbortSignal", async () => {
-    const host = new AnalysisWorkerHost()
+    const host = new AnalysisJobHost()
     const controller = new AbortController()
     const pending = host.run(
       {
@@ -71,7 +71,7 @@ describe("AnalysisWorkerHost", () => {
   })
 
   it("cancels in-flight jobs when destroyed", async () => {
-    const host = new AnalysisWorkerHost()
+    const host = new AnalysisJobHost()
     const pending = host.run({
       type: "cutfill-grid",
       polygon: [

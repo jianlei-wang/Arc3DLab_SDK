@@ -68,7 +68,7 @@ export function createMiningPlugin(): MiningPlugin {
   const plugin: MiningPlugin = {
     name: "mining",
     version: "1.0.0",
-    dependsOn: ["analysis:measure"],
+    requiresCapabilities: ["analysis:measure"],
     get status() {
       return status
     },

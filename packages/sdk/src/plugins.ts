@@ -11,9 +11,6 @@ export interface Arc3DPlugin<TApp = unknown> {
   name: string
   /** 插件版本。 */
   version?: string
-  /** 声明依赖的能力。 */
-  /** @deprecated use requiresCapabilities */
-  dependsOn?: string[]
   /** 声明所需的运行时能力。 */
   requiresCapabilities?: string[]
   /** 声明依赖的其他插件名称。 */
@@ -126,7 +123,7 @@ export class PluginManager<TApp = unknown> {
         )
       }
     }
-    const requires = plugin.requiresCapabilities ?? plugin.dependsOn ?? []
+    const requires = plugin.requiresCapabilities ?? []
     for (const capability of requires) {
       this.context.capabilities.require(
         capability,
