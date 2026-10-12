@@ -97,6 +97,59 @@ describe("Plugin owner isolation", () => {
     expect(context.capabilities.get("app:cap")?.provider).toBe("app")
   })
 
+  it("defaults extensions to spec.plugin during an in-flight install", async () => {
+    const { context } = createTestContext()
+    const manager = new PluginManager({ id: "app" }, context)
+    const gate = deferred<void>()
+
+    const usePromise = manager.use({
+      name: "holder",
+      async install(_app, _ctx, scope) {
+        scope.registerCommand({
+          name: "holder.run",
+          version: "1.0.0",
+          execute: () => 1,
+        })
+        await gate.promise
+      },
+    })
+    await tick()
+
+    // 外部注册只声明自己的 plugin，不传第二个 owner 参数。
+    context.commands.register({
+      name: "app.run",
+      version: "1.0.0",
+      plugin: "app",
+      execute: () => 2,
+    })
+    context.tools.register({
+      name: "app.tool",
+      version: "1.0.0",
+      plugin: "app",
+      activate: () => undefined,
+    })
+    context.capabilities.register({
+      name: "app:cap",
+      provider: "app",
+      version: "1.0.0",
+      available: true,
+    })
+
+    gate.resolve()
+    await usePromise
+
+    expect(context.commands.get("app.run")?.plugin).toBe("app")
+    expect(context.tools.list()).toContain("app.tool")
+    expect(context.capabilities.get("app:cap")?.provider).toBe("app")
+
+    await manager.uninstall("holder")
+
+    expect(context.commands.has("holder.run")).toBe(false)
+    expect(context.commands.get("app.run")?.plugin).toBe("app")
+    expect(context.tools.has("app.tool")).toBe(true)
+    expect(context.capabilities.get("app:cap")?.provider).toBe("app")
+  })
+
   it("rejects scope registration after the scope is closed", async () => {
     const { context } = createTestContext()
     const manager = new PluginManager({ id: "app" }, context)

@@ -31,6 +31,10 @@ const app = await Arc3D.create({
 - `resolveSpatialReference` / `resolveVerticalReference` / `assertGeographicPosition` / `tryCreateCoordinateTransform` / `assertTimeRange`
 - `DataCatalog` / `DataAsset` / `FeatureSchema` / `AttributeField` / `FeatureRef` / `LayerMetadata` / `LoadState`
 
+`DataCatalog` schema 生命周期：`registerSchema()` / `hasSchema()` / `unregisterSchema()`；资产携带的 schema 随 `unregisterAsset()` 一并移除，被存活资产拥有的 schema 拒绝独立注销。
+
+注册表读取默认返回防御性快照（`CommandBus.get()`、`CapabilityRegistry.get()/records()` 等），修改读取结果不影响内部状态；能力可用性只能经 `CapabilityRegistry.updateAvailability()` 修改。
+
 统一分析任务合同从 `@arc3dlab/analysis` 导出：
 
 - `runAnalysisTask` / `AnalysisTaskRegistry` / `createTaskExecutor`

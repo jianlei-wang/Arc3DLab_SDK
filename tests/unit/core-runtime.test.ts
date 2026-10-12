@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   Arc3DError,
+  DisposerStack,
   EventBus,
   LifecycleManager,
   ResourceRegistry,
@@ -139,5 +140,58 @@ describe("ResourceRegistry.clear robustness", () => {
     expect(removed).toEqual(["child"])
     removed.push("intruder")
     expect(tracker.childrenOf("parent")).toEqual([])
+  })
+})
+
+describe("cleanup error reporting is best-effort", () => {
+  it("keeps clearing resources when the error reporter itself throws", () => {
+    const registry = new ResourceRegistry()
+    const tracker = new ResourceTracker()
+    const destroyed: string[] = []
+
+    for (const id of ["a", "b", "c"]) {
+      registry.add(
+        createHandle({
+          id,
+          type: "polygon",
+          native: {},
+          onDestroy: () => {
+            destroyed.push(id)
+            if (id === "b") throw new Error("boom")
+          },
+        }),
+      )
+    }
+
+    const collected = registry.clear(tracker, () => {
+      throw new Error("reporter failed")
+    })
+
+    expect(destroyed).toEqual(expect.arrayContaining(["a", "b", "c"]))
+    expect(collected).toHaveLength(1)
+    expect(registry.ids()).toEqual([])
+    expect(tracker.size).toBe(0)
+  })
+
+  it("keeps running disposers when the error reporter itself throws", async () => {
+    const stack = new DisposerStack()
+    const order: string[] = []
+    stack.push(() => {
+      order.push("first")
+    })
+    stack.push(() => {
+      order.push("failing")
+      throw new Error("boom")
+    })
+    stack.push(() => {
+      order.push("last")
+    })
+
+    await stack.disposeAll(() => {
+      throw new Error("reporter failed")
+    })
+
+    expect(order).toEqual(["last", "failing", "first"])
+    expect(stack.size).toBe(0)
   })
 })

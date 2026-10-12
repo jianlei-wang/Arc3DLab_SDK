@@ -94,4 +94,38 @@ describe("PluginScope managed resources", () => {
     await manager.uninstall("closed")
     expect(() => captured?.manage(resource())).toThrow()
   })
+
+  it("skips destroy for resources released early via unmanage", async () => {
+    const { context } = createTestContext()
+    const manager = new PluginManager({ id: "app" }, context)
+    const released = resource()
+    const kept = resource()
+
+    await manager.use({
+      name: "early",
+      install: (_app, _ctx, scope) => {
+        scope.manage(released)
+        scope.manage(kept)
+        expect(scope.size).toBe(2)
+        expect(scope.unmanage(released)).toBe(true)
+        expect(scope.size).toBe(1)
+      },
+    })
+
+    await manager.uninstall("early")
+    expect(released.destroy).not.toHaveBeenCalled()
+    expect(kept.destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it("returns false when unmanaging an untracked resource", async () => {
+    const { context } = createTestContext()
+    const manager = new PluginManager({ id: "app" }, context)
+    await manager.use({
+      name: "loose",
+      install: (_app, _ctx, scope) => {
+        expect(scope.unmanage(resource())).toBe(false)
+      },
+    })
+    await manager.uninstall("loose")
+  })
 })

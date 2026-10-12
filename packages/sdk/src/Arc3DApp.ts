@@ -204,7 +204,7 @@ export class Arc3DApp {
     }
     await this.plugins.destroy()
     await this.context.disposers.disposeAll((error) => {
-      this.logger.error("Disposer failed during destroy", error)
+      this.logError("Disposer failed during destroy", error)
     })
     await this.runDestroyStep("ui", () => this.ui.destroy())
     await this.runDestroyStep("interaction", () => this.interaction.destroy())
@@ -215,7 +215,7 @@ export class Arc3DApp {
     await this.runDestroyStep("graphics", () => this.graphics.clear())
     await this.runDestroyStep("registry", () => {
       this.context.registry.clear(this.context.tracker, (error, id) => {
-        this.logger.error(`Resource destroy failed: ${id}`, error)
+        this.logError(`Resource destroy failed: ${id}`, error)
       })
     })
     await this.runDestroyStep("tracker", () => this.context.tracker.clear())
@@ -238,7 +238,16 @@ export class Arc3DApp {
     try {
       await step()
     } catch (error) {
-      this.logger.error(`Destroy step failed: ${label}`, error)
+      this.logError(`Destroy step failed: ${label}`, error)
+    }
+  }
+
+  /** best-effort 日志上报：日志器自身抛错不能中断销毁流程。 */
+  private logError(message: string, error: unknown): void {
+    try {
+      this.logger.error(message, error)
+    } catch {
+      // 忽略日志器异常，保证销毁步骤继续。
     }
   }
 }

@@ -196,7 +196,8 @@ export class PluginManager<TApp = unknown> {
       await this.safeUninstall(entry.plugin, "Plugin uninstall failed")
       const scopeErrors = await this.context.scopes.close(name)
       for (const scopeError of scopeErrors) {
-        this.context.logger.error(
+        safeLog(
+          this.context.logger,
           `Plugin scope cleanup failed: ${name}`,
           scopeError,
         )
@@ -231,7 +232,7 @@ export class PluginManager<TApp = unknown> {
       try {
         await this.performUninstall(name)
       } catch (error) {
-        this.context.logger.error(`Plugin uninstall failed: ${name}`, error)
+        safeLog(this.context.logger, `Plugin uninstall failed: ${name}`, error)
       }
     }
     this.closed = true
@@ -270,7 +271,7 @@ export class PluginManager<TApp = unknown> {
     try {
       await plugin.uninstall?.(this.app, this.context)
     } catch (error) {
-      this.context.logger.error(`${label}: ${plugin.name}`, error)
+      safeLog(this.context.logger, `${label}: ${plugin.name}`, error)
     }
   }
 }
@@ -305,6 +306,19 @@ async function dropPluginExtensions(
     errors.push(error)
   }
   for (const error of errors) {
-    context.logger.error(`Plugin extension cleanup failed: ${plugin}`, error)
+    safeLog(context.logger, `Plugin extension cleanup failed: ${plugin}`, error)
+  }
+}
+
+/** best-effort 日志上报：日志器自身抛错不应中断清理流程。 */
+function safeLog(
+  logger: { error(message: string, error?: unknown): void },
+  message: string,
+  error: unknown,
+): void {
+  try {
+    logger.error(message, error)
+  } catch {
+    // 忽略日志器异常。
   }
 }

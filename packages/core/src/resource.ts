@@ -115,7 +115,8 @@ export class ResourceRegistry<T extends ResourceHandle = ResourceHandle> {
    *
    * 单个资源的 `destroy()` 抛出异常不会中断其余资源的清理：每个资源独立
    * try/catch，错误会被收集并通过 `onError` 上报，最终在 `finally` 中无论
-   * 是否发生错误都清空注册表与追踪器的记录。
+   * 是否发生错误都清空注册表与追踪器的记录。错误上报本身是 best-effort，
+   * 上传回调抛出的异常不会中断释放流程。
    *
    * @param tracker - 提供父子关系的资源追踪器。
    * @param onError - 可选的错误回调，接收销毁失败的错误与资源标识。
@@ -140,7 +141,11 @@ export class ResourceRegistry<T extends ResourceHandle = ResourceHandle> {
         item.destroy()
       } catch (error) {
         errors.push(error)
-        onError?.(error, id)
+        try {
+          onError?.(error, id)
+        } catch {
+          // 错误上报是 best-effort：上报器自身抛错不应中断其余资源的释放。
+        }
       }
     }
     try {

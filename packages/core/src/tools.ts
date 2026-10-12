@@ -27,13 +27,6 @@ export class ToolRegistry {
   private current: ToolState = "idle"
   private queue: Promise<unknown> = Promise.resolve()
 
-  /**
-   * 创建工具注册表。
-   *
-   * @param ownerProvider - 可选的当前插件所有者提供函数。
-   */
-  constructor(private readonly ownerProvider?: () => string | undefined) {}
-
   /** 将状态迁移操作串行化到单一队列，避免并发激活/停用交错。 */
   private enqueue<T>(operation: () => Promise<T> | T): Promise<T> {
     const run = this.queue.then(operation, operation)
@@ -48,12 +41,12 @@ export class ToolRegistry {
    * 注册一个工具。
    *
    * @param spec - 工具定义。
-   * @param owner - 显式归属的插件名；省略时回退到当前活动作用域或 `spec.plugin`。
+   * @param owner - 显式归属的插件名；省略时仅用于归属记录，不授予保留命名空间。
    * @throws {Arc3DError} 当工具名非法或已被注册时抛出，错误码为 `INVALID_ARGUMENT` 或 `DUPLICATE_RESOURCE`。
    */
   register(spec: ToolSpec, owner?: string): void {
-    const resolved = owner ?? this.ownerProvider?.() ?? spec.plugin
-    assertWritableExtension(spec.name, resolved, "tool")
+    const resolved = owner ?? spec.plugin
+    assertWritableExtension(spec.name, owner, "tool")
     if (this.items.has(spec.name)) {
       throw new Arc3DError(
         "DUPLICATE_RESOURCE",
@@ -152,6 +145,10 @@ export class ToolRegistry {
   /**
    * 激活指定工具，必要时先停用当前工具。
    *
+   * 停用旧工具有明确的失败契约：若 `deactivate()` 抛错，则回滚旧工具为活动状态
+   * 并把状态恢复为 `active`，再向上抛出错误，避免遗留 `deactivating` 中间态。
+   * 新工具 `activate()` 抛错时清空活动状态并置为 `idle`。
+   *
    * @param name - 要激活的工具名称。
    * @returns 激活完成后的 Promise。
    * @throws {Arc3DError} 当工具未注册时抛出，错误码为 `RESOURCE_NOT_FOUND`。
@@ -171,7 +168,13 @@ export class ToolRegistry {
         const previous = this.items.get(previousName)
         this.current = "deactivating"
         this.active = undefined
-        await previous?.deactivate?.()
+        try {
+          await previous?.deactivate?.()
+        } catch (error) {
+          this.active = previousName
+          this.current = "active"
+          throw error
+        }
       }
       this.current = "activating"
       try {

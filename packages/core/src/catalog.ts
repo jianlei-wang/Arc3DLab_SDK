@@ -145,13 +145,16 @@ function copy<T>(value: T): T {
 export class DataCatalog {
   private readonly assets = new Map<string, DataAsset>()
   private readonly schemas = new Map<string, FeatureSchema>()
+  /** 由资产携带注册的 schema 归属：schemaId -> assetId。 */
+  private readonly schemaOwners = new Map<string, string>()
   private readonly layers = new Map<string, LayerMetadata>()
 
   /**
    * 注册数据资产及其可选要素结构。
    *
    * 该操作是事务性的：先校验资产 ID 与 schema ID 均无冲突，再一次性提交资产与
-   * schema；若 schema 冲突，资产不会被写入目录。
+   * schema；若 schema 冲突，资产不会被写入目录。资产携带的 schema 由该资产拥有，
+   * 注销资产时会一并移除其 schema。
    *
    * @param asset - 数据资产。
    * @returns 已注册资产的快照副本。
@@ -174,6 +177,7 @@ export class DataCatalog {
     this.assets.set(stored.id, stored)
     if (stored.schema) {
       this.schemas.set(stored.schema.id, copy(stored.schema))
+      this.schemaOwners.set(stored.schema.id, stored.id)
     }
     return copy(stored)
   }
@@ -219,17 +223,30 @@ export class DataCatalog {
   }
 
   /**
-   * 注销数据资产。
+   * 注销数据资产及其携带的 schema。
+   *
+   * 资产携带注册的 schema 归该资产所有：删除资产时会同时移除对应 schema，避免
+   * 出现悬挂 schema 并允许之后用相同 ID 重新注册。
    *
    * @param id - 资产 ID。
    * @returns 是否删除了资产。
    */
   unregisterAsset(id: string): boolean {
-    return this.assets.delete(id)
+    const asset = this.assets.get(id)
+    const deleted = this.assets.delete(id)
+    const schemaId = asset?.schema?.id
+    if (schemaId && this.schemaOwners.get(schemaId) === id) {
+      this.schemas.delete(schemaId)
+      this.schemaOwners.delete(schemaId)
+    }
+    return deleted
   }
 
   /**
-   * 注册要素结构。
+   * 注册一个独立于资产的要素结构。
+   *
+   * 通过本方法注册的 schema 不归任何资产所有，需通过 {@link unregisterSchema}
+   * 显式注销。
    *
    * @param schema - 要素结构。
    * @returns 已注册结构的快照副本。
@@ -245,6 +262,35 @@ export class DataCatalog {
     const stored = copy(schema)
     this.schemas.set(stored.id, stored)
     return copy(stored)
+  }
+
+  /**
+   * 判断要素结构是否存在。
+   *
+   * @param id - schema ID。
+   */
+  hasSchema(id: string): boolean {
+    return this.schemas.has(id)
+  }
+
+  /**
+   * 注销独立注册的要素结构。
+   *
+   * @param id - schema ID。
+   * @returns 是否删除了 schema。
+   * @throws {Arc3DError} 当 schema 归某个仍存在的资产所有时抛出 `INVALID_ARGUMENT`，
+   * 此时应先注销对应资产。
+   */
+  unregisterSchema(id: string): boolean {
+    const ownerId = this.schemaOwners.get(id)
+    if (ownerId && this.assets.has(ownerId)) {
+      throw new Arc3DError(
+        "INVALID_ARGUMENT",
+        `Feature schema owned by asset ${ownerId}: ${id}`,
+      )
+    }
+    this.schemaOwners.delete(id)
+    return this.schemas.delete(id)
   }
 
   /**
@@ -338,6 +384,7 @@ export class DataCatalog {
   clear(): void {
     this.assets.clear()
     this.schemas.clear()
+    this.schemaOwners.clear()
     this.layers.clear()
   }
 }

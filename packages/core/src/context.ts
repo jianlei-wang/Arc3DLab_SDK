@@ -10,16 +10,17 @@ import { ResourceRegistry, ResourceTracker } from "./resource"
 import { PluginScopeManager } from "./plugin-scope"
 import { ToolRegistry } from "./tools"
 
-function createCoreCommandBus(
-  ownerProvider?: () => string | undefined,
-): CommandBus {
-  const commands = new CommandBus(ownerProvider)
-  commands.register({
-    name: "core.ping",
-    version: "1.0.0",
-    plugin: "core",
-    execute: () => "pong",
-  })
+function createCoreCommandBus(): CommandBus {
+  const commands = new CommandBus()
+  commands.register(
+    {
+      name: "core.ping",
+      version: "1.0.0",
+      plugin: "core",
+      execute: () => "pong",
+    },
+    "core",
+  )
   return commands
 }
 
@@ -73,10 +74,9 @@ export function createContext(
   const resolvedLogger =
     logger ?? new ConsoleLogger(config.logger?.level ?? "warn")
   const scopes = new PluginScopeManager()
-  const ownerProvider = () => scopes.owner
-  const capabilities = new CapabilityRegistry(ownerProvider)
-  const commands = createCoreCommandBus(ownerProvider)
-  const tools = new ToolRegistry(ownerProvider)
+  const capabilities = new CapabilityRegistry()
+  const commands = createCoreCommandBus()
+  const tools = new ToolRegistry()
   scopes.setBinding({
     registerCommand: (spec, owner) =>
       commands.register({ ...spec, plugin: owner }, owner),

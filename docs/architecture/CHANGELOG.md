@@ -3,6 +3,18 @@
 > 面向 SDK 维护者的架构、合同与质量门禁迭代记录，按日期倒序排列。
 > 面向使用者的发布变更日志见根目录 `CHANGES.md`。
 
+## 2026-10-12（第三轮审阅整改：owner 授权、注册表快照与清理收敛）
+
+- 插件归属：取消注册表的隐式 `ownerProvider`（全局活动 owner）推断；`CommandBus` / `ToolRegistry` / `CapabilityRegistry` 构造不再接收 ownerProvider，默认 owner 收敛为 `spec.plugin` 仅作归属记录。保留命名空间（`core.` / `arc3dlab.`）授权改为只依据显式 owner，自报 `plugin` 不再能占用保留前缀；`createCoreCommandBus()` 显式以 `"core"` 注册 `core.ping`。
+- 注册表不可变性：`CommandBus.get()` 返回防御性快照（含 `params` / `dependsOn` 深拷贝）；`CapabilityRegistry.get()/records()` 返回副本，可用性只能经新增 `updateAvailability(name, available, provider?)` 修改。
+- 清理容错：`ResourceRegistry.clear()` 与 `DisposerStack.disposeAll()` 的错误上报回调包裹 `try/catch`，上报器抛错不再中断剩余释放；`Arc3DApp` 与 `plugins.ts` 分别经 `logError()` / `safeLog()` 统一 best-effort 日志。
+- 工具状态机：`ToolRegistry.activate()` 在旧工具 `deactivate()` 抛错时回滚 `active`/`current` 为 active 后再抛出，保证状态收敛。
+- 数据 schema 生命周期：`DataCatalog` 引入 `schemaOwners`，资产拥有的 schema 随资产注销移除；新增 `registerSchema` / `hasSchema` / `unregisterSchema`，被存活资产拥有的 schema 拒绝独立注销。
+- 插件资源托管：`DisposableResource.destroy()` 幂等列为公开契约；`PluginScope.manage()` 以幂等 disposer 托管并新增 `unmanage()` 支持提前解托管。
+- 性能证据分层：保留 `bench:check` 为合成 micro-benchmark；新增 `e2e/perf.spec.ts` 真实浏览器场景与 `.github/workflows/perf.yml`（每日定时 + 手动）趋势任务，时间数值仅归档、资源回收做结构性断言。
+- 发布治理：新增 `.github/PULL_REQUEST_TEMPLATE.md`，`12-engineering` 增补“公共 API 与 SemVer 治理”；`scripts/public-api-manifest.json` 随 API 变更刷新。
+- 新增/更新测试：`registry-immutability.test.ts`、`plugin-owner-isolation.test.ts`、`plugin-extensions.test.ts`、`tools-registry.test.ts`、`data-catalog.test.ts`、`plugin-managed-resources.test.ts`、`core-runtime.test.ts`、`plugins.test.ts`、`plugins-concurrency.test.ts`；`npm run gate:release` 与 `npm run test:e2e` 全绿。
+
 ## 2026-10-12（第二轮审阅整改：生命周期、数据语义与发布合同）
 
 - 生命周期与并发：`PluginManager` 引入关闭屏障（`closing`/`closed`/`shuttingDown`），`destroy()` 作为队列终止操作，`plugin.install()` 返回后若应用已进入销毁则回滚；`SerialIonTokenScope` 的无 token 分支纳入同一串行队列；插件 owner 通过 `PluginScope.registerCommand/Tool/Capability` 显式绑定，不再依赖跨 `await` 的全局活动 owner。

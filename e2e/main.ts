@@ -32,6 +32,32 @@ function nextFrames(count = 2): Promise<void> {
   })
 }
 
+function frameDurations(count: number): Promise<number[]> {
+  return new Promise((resolve) => {
+    const durations: number[] = []
+    let last = performance.now()
+    let remaining = count
+    const step = (): void => {
+      const now = performance.now()
+      durations.push(now - last)
+      last = now
+      remaining -= 1
+      if (remaining <= 0) {
+        resolve(durations)
+        return
+      }
+      window.requestAnimationFrame(step)
+    }
+    window.requestAnimationFrame(step)
+  })
+}
+
+function percentile(sorted: number[], ratio: number): number {
+  if (sorted.length === 0) return 0
+  const index = Math.min(sorted.length - 1, Math.floor(sorted.length * ratio))
+  return sorted[index]
+}
+
 function errorCode(error: unknown): string {
   if (error instanceof Arc3DError) return error.code
   if (error instanceof Error) return error.name
@@ -257,6 +283,61 @@ async function scenarioExternalService(): Promise<Record<string, unknown>> {
   return report
 }
 
+async function scenarioPerf(): Promise<Record<string, unknown>> {
+  const app = await Arc3D.create({ container: "app" })
+  const report: Record<string, unknown> = { reportKind: "perf" }
+  report.ready = (await app.scene.whenSceneReady({ timeoutMs: 20000 })).ready
+
+  const COUNT = 300
+  const ROUNDS = 3
+  const positions: Array<[number, number, number]> = []
+  for (let index = 0; index < COUNT; index += 1) {
+    positions.push([
+      POINT[0] + ((index % 20) - 10) * 0.0008,
+      POINT[1] + (Math.floor(index / 20) - 8) * 0.0008,
+      0,
+    ])
+  }
+
+  const createStart = performance.now()
+  const ids: string[] = []
+  for (const position of positions) {
+    ids.push(app.graphics.addPoint({ positions: position }).id)
+  }
+  report.createMs = performance.now() - createStart
+  report.createdCount = ids.length
+  report.registryBefore = app.context.registry.ids().length
+
+  const churnStart = performance.now()
+  for (let round = 0; round < ROUNDS; round += 1) {
+    for (const id of ids) app.graphics.remove(id)
+    for (let index = 0; index < COUNT; index += 1) {
+      ids[index] = app.graphics.addPoint({ positions: positions[index] }).id
+    }
+  }
+  report.churnMs = performance.now() - churnStart
+  report.churnOps = COUNT * ROUNDS * 2
+
+  app.camera.lookAt(POINT, 8000)
+  const durations = await frameDurations(60)
+  const sorted = [...durations].sort((a, b) => a - b)
+  report.frameCount = durations.length
+  report.avgFrameMs =
+    durations.reduce((total, value) => total + value, 0) / durations.length
+  report.p95FrameMs = percentile(sorted, 0.95)
+
+  const memory = (
+    performance as Performance & { memory?: { usedJSHeapSize: number } }
+  ).memory
+  if (memory) report.heapUsedMb = memory.usedJSHeapSize / (1024 * 1024)
+
+  await app.destroy()
+  report.graphicsRemaining = app.graphics.list().length
+  report.registryAfterDestroy = app.context.registry.ids().length
+  report.trackerAfterDestroy = app.context.tracker.size
+  return report
+}
+
 const SCENARIOS: Record<string, () => Promise<Record<string, unknown>>> = {
   runtime: scenarioRuntime,
   "init-failure": scenarioInitFailure,
@@ -264,6 +345,7 @@ const SCENARIOS: Record<string, () => Promise<Record<string, unknown>>> = {
   "multi-instance": scenarioMultiInstance,
   "task-cancel": scenarioTaskCancel,
   "external-service": scenarioExternalService,
+  perf: scenarioPerf,
 }
 
 async function boot(): Promise<void> {

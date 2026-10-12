@@ -223,17 +223,10 @@ export class CapabilityRegistry {
   private items = new Map<string, CapabilityRecord>()
 
   /**
-   * 创建能力注册表。
-   *
-   * @param ownerProvider - 可选的当前插件所有者提供函数。
-   */
-  constructor(private readonly ownerProvider?: () => string | undefined) {}
-
-  /**
    * 注册一项能力。
    *
    * @param name - 能力名称或完整的能力记录。
-   * @param owner - 显式归属的插件名；省略时回退到当前活动作用域。
+   * @param owner - 显式归属的提供方；省略时使用记录自带的 `provider`，字符串名称默认归属 `arc3dlab`。
    * @throws {Arc3DError} 当同名能力已由其他提供方注册时抛出，错误码为 `DUPLICATE_RESOURCE`。
    */
   register(name: string | CapabilityRecord, owner?: string): void {
@@ -241,10 +234,7 @@ export class CapabilityRegistry {
       typeof name === "string"
         ? { name, provider: "arc3dlab", version: "1.0.0", available: true }
         : { ...name }
-    const resolvedOwner = owner ?? this.ownerProvider?.()
-    const record: CapabilityRecord = resolvedOwner
-      ? { ...base, provider: resolvedOwner }
-      : base
+    const record: CapabilityRecord = owner ? { ...base, provider: owner } : base
     const existing = this.items.get(record.name)
     if (existing && existing.provider !== record.provider) {
       throw new Arc3DError(
@@ -268,11 +258,37 @@ export class CapabilityRegistry {
   /**
    * 获取指定能力的记录。
    *
+   * 返回防御性快照：修改读取结果不会改变内部注册状态，也不会影响按提供方注销。
+   *
    * @param name - 能力名称。
-   * @returns 能力记录，不存在时为 undefined。
+   * @returns 能力记录的副本，不存在时为 undefined。
    */
   get(name: string): CapabilityRecord | undefined {
-    return this.items.get(name)
+    const record = this.items.get(name)
+    return record ? { ...record } : undefined
+  }
+
+  /**
+   * 显式更新能力的可用性。
+   *
+   * 可用性只能通过本方法修改，调用方无法通过修改 {@link get} / {@link records}
+   * 的返回值绕过。
+   *
+   * @param name - 能力名称。
+   * @param available - 目标可用性。
+   * @param provider - 可选，仅当记录的提供方匹配时才更新。
+   * @returns 是否更新了能力记录。
+   */
+  updateAvailability(
+    name: string,
+    available: boolean,
+    provider?: string,
+  ): boolean {
+    const existing = this.items.get(name)
+    if (!existing) return false
+    if (provider && existing.provider !== provider) return false
+    this.items.set(name, { ...existing, available })
+    return true
   }
 
   /**
@@ -302,10 +318,12 @@ export class CapabilityRegistry {
   /**
    * 列出全部已注册能力记录。
    *
-   * @returns 能力记录数组。
+   * 返回防御性快照数组：修改元素不会改变内部注册状态。
+   *
+   * @returns 能力记录副本数组。
    */
   records(): CapabilityRecord[] {
-    return Array.from(this.items.values())
+    return Array.from(this.items.values(), (record) => ({ ...record }))
   }
 
   /**

@@ -63,24 +63,28 @@ export function assertExtensionName(
 }
 
 /**
- * 校验扩展名合法且未被非核心插件占用保留前缀。
+ * 校验扩展名合法且未被非核心方占用保留前缀。
+ *
+ * 保留前缀（`core.` / `arc3dlab.`）的授权只依据注册方显式声明的 `owner`：
+ * 省略 owner 时按非核心方处理。注册者自报的 `plugin` 字段不参与保留命名空间的
+ * 授权判断，避免插件通过伪造 `plugin` 字段抢占核心扩展。
  *
  * @param name - 扩展名。
- * @param plugin - 注册该扩展的插件。
+ * @param owner - 显式声明的所有者；undefined 表示未经作用域授权的调用。
  * @param kind - 扩展类型，命令或工具。
- * @throws {Arc3DError} 当名称非法或非核心插件试图覆盖核心扩展时抛出，错误码为 `INVALID_ARGUMENT`。
+ * @throws {Arc3DError} 当名称非法或非核心方试图占用保留前缀时抛出，错误码为 `INVALID_ARGUMENT`。
  */
 export function assertWritableExtension(
   name: string,
-  plugin: string,
+  owner: string | undefined,
   kind: "command" | "tool",
 ): void {
   assertExtensionName(name, kind)
   const reserved = RESERVED_EXTENSION_PREFIXES.some((prefix) =>
     name.startsWith(prefix),
   )
-  const corePlugin = plugin === "core" || plugin === "arc3dlab"
-  if (reserved && !corePlugin) {
+  const coreOwner = owner === "core" || owner === "arc3dlab"
+  if (reserved && !coreOwner) {
     throw new Arc3DError(
       "INVALID_ARGUMENT",
       `Cannot override core ${kind}: ${name}`,
@@ -192,27 +196,43 @@ export function validateCommandInput(
   return record
 }
 
+/**
+ * 生成命令定义的防御性快照，隔离调用方对读取结果与内部注册状态的修改。
+ *
+ * @param spec - 内部命令定义。
+ * @returns 独立副本。
+ */
+function snapshotCommand(spec: CommandSpec): CommandSpec {
+  return {
+    ...spec,
+    params: spec.params ? cloneParamFields(spec.params) : undefined,
+    dependsOn: spec.dependsOn ? [...spec.dependsOn] : undefined,
+  }
+}
+
+function cloneParamFields<T>(value: T): T {
+  if (value === null || typeof value !== "object") return value
+  try {
+    return structuredClone(value)
+  } catch {
+    return (Array.isArray(value) ? value.slice() : { ...value }) as T
+  }
+}
+
 /** 负责命令注册、校验与执行的命令总线。 */
 export class CommandBus {
   private items = new Map<string, CommandSpec>()
 
   /**
-   * 创建命令总线。
-   *
-   * @param ownerProvider - 可选的当前插件所有者提供函数。
-   */
-  constructor(private readonly ownerProvider?: () => string | undefined) {}
-
-  /**
    * 注册一条命令。
    *
    * @param spec - 命令定义。
-   * @param owner - 显式归属的插件名；省略时回退到当前活动作用域或 `spec.plugin`。
+   * @param owner - 显式归属的插件名；省略时仅用于归属记录，不授予保留命名空间。
    * @throws {Arc3DError} 当命令名非法或已被注册时抛出，错误码为 `INVALID_ARGUMENT` 或 `DUPLICATE_RESOURCE`。
    */
   register(spec: CommandSpec, owner?: string): void {
-    const resolved = owner ?? this.ownerProvider?.() ?? spec.plugin
-    assertWritableExtension(spec.name, resolved, "command")
+    const resolved = owner ?? spec.plugin
+    assertWritableExtension(spec.name, owner, "command")
     if (this.items.has(spec.name)) {
       throw new Arc3DError(
         "DUPLICATE_RESOURCE",
@@ -255,11 +275,15 @@ export class CommandBus {
   /**
    * 获取命令定义。
    *
+   * 返回防御性快照：修改读取结果不会改变内部注册状态，也不会影响按插件注销
+   * 时对 `plugin` 字段的判定。
+   *
    * @param name - 命令名称。
-   * @returns 命令定义，不存在时为 undefined。
+   * @returns 命令定义的副本，不存在时为 undefined。
    */
   get(name: string): CommandSpec | undefined {
-    return this.items.get(name)
+    const spec = this.items.get(name)
+    return spec ? snapshotCommand(spec) : undefined
   }
 
   /**

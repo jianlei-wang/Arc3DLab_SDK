@@ -143,4 +143,43 @@ describe("DataCatalog", () => {
     meta.loadState = "failed"
     expect(catalog.getLayer("l")?.loadState).toBe("idle")
   })
+
+  it("removes an asset-owned schema when the asset is unregistered", () => {
+    const catalog = new DataCatalog()
+    catalog.registerAsset(
+      asset("owned", { schema: { id: "owned-s", fields: [] } }),
+    )
+    expect(catalog.hasSchema("owned-s")).toBe(true)
+
+    expect(catalog.unregisterAsset("owned")).toBe(true)
+    expect(catalog.hasSchema("owned-s")).toBe(false)
+
+    // 相同 ID 的资产与 schema 可以重新注册。
+    expect(() =>
+      catalog.registerAsset(
+        asset("owned", { schema: { id: "owned-s", fields: [] } }),
+      ),
+    ).not.toThrow()
+    expect(catalog.getAsset("owned")?.schema?.id).toBe("owned-s")
+  })
+
+  it("manages standalone schemas independently of assets", () => {
+    const catalog = new DataCatalog()
+    catalog.registerSchema({ id: "standalone", fields: [] })
+    catalog.registerAsset(asset("plain"))
+
+    expect(catalog.hasSchema("standalone")).toBe(true)
+    expect(catalog.unregisterSchema("standalone")).toBe(true)
+    expect(catalog.hasSchema("standalone")).toBe(false)
+    expect(catalog.unregisterSchema("standalone")).toBe(false)
+  })
+
+  it("refuses to unregister a schema still owned by a live asset", () => {
+    const catalog = new DataCatalog()
+    catalog.registerAsset(
+      asset("owner", { schema: { id: "owner-s", fields: [] } }),
+    )
+    expect(() => catalog.unregisterSchema("owner-s")).toThrow(Arc3DError)
+    expect(catalog.hasSchema("owner-s")).toBe(true)
+  })
 })

@@ -20,9 +20,13 @@ export type ScopedCapabilityRecord = string | Omit<CapabilityRecord, "provider">
  *
  * 图形、图层、效果、事件监听器、分析任务等运行时资源均可实现该接口，
  * 并通过 {@link PluginScope.manage} 交由插件作用域统一回收。
+ *
+ * 公开契约：`destroy()` 必须幂等。当资源既被作用域托管、又被插件手动销毁
+ * （或经 {@link PluginScope.unmanage} 提前解除托管）时，SDK 可能重复调用
+ * `destroy()`，实现者需保证第二次及之后的调用为空操作。
  */
 export interface DisposableResource {
-  /** 释放资源；允许返回 Promise。 */
+  /** 释放资源；允许返回 Promise；对同一资源必须幂等。 */
   destroy(): void | Promise<void>
 }
 
@@ -57,13 +61,23 @@ export interface PluginScope {
    *
    * 这是插件创建图形、图层、效果、分析任务等外部资源时应使用的统一入口：
    * 资源创建后立即纳入作用域，插件卸载（含安装失败回滚）时会被自动回收，
-   * 无需在 `uninstall()` 中手动清理。销毁对同一资源幂等。
+   * 无需在 `uninstall()` 中手动清理。作用域只调用一次 `destroy()`；若资源在
+   * 托管期间已被插件手动销毁，需保证 `destroy()` 幂等（见 {@link DisposableResource}）。
    *
    * @param resource - 可销毁的资源句柄。
    * @returns 传入的资源本身，便于链式使用。
    * @throws {Arc3DError} 当作用域已关闭时抛出，错误码为 `INVALID_ARGUMENT`。
    */
   manage<T extends DisposableResource>(resource: T): T
+  /**
+   * 提前解除对某个已托管资源的托管，使其不再随插件卸载自动销毁。
+   *
+   * 适用于插件已经手动销毁资源、或将其所有权转移给其他所有者的场景。
+   *
+   * @param resource - 之前通过 {@link manage} 托管的资源。
+   * @returns 是否解除了托管；未托管时返回 false。
+   */
+  unmanage(resource: DisposableResource): boolean
   /**
    * 以本插件为所有者注册命令。
    *
@@ -96,6 +110,7 @@ export interface PluginScope {
 
 class PluginScopeImpl implements PluginScope {
   private items: Disposer[] = []
+  private readonly managed = new Map<DisposableResource, Disposer>()
   private current: PluginState = "installing"
   private isClosed = false
 
@@ -135,12 +150,23 @@ class PluginScopeImpl implements PluginScope {
   manage<T extends DisposableResource>(resource: T): T {
     this.assertOpen("manage")
     let disposed = false
-    this.items.push(async () => {
+    const disposer: Disposer = async () => {
       if (disposed) return
       disposed = true
       await resource.destroy()
-    })
+    }
+    this.items.push(disposer)
+    this.managed.set(resource, disposer)
     return resource
+  }
+
+  unmanage(resource: DisposableResource): boolean {
+    const disposer = this.managed.get(resource)
+    if (!disposer) return false
+    this.managed.delete(resource)
+    const index = this.items.lastIndexOf(disposer)
+    if (index >= 0) this.items.splice(index, 1)
+    return true
   }
 
   registerCommand(spec: ScopedCommandSpec): void {
@@ -186,6 +212,7 @@ class PluginScopeImpl implements PluginScope {
 
   async dispose(): Promise<unknown[]> {
     const pending = this.items.splice(0, this.items.length).reverse()
+    this.managed.clear()
     const errors: unknown[] = []
     for (const disposer of pending) {
       try {

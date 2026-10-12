@@ -29,6 +29,9 @@ export class DisposerStack {
    *
    * @param onError - 某个回调抛出异常时调用的错误处理器。
    * @returns 全部回调处理完成后 resolve 的 Promise。
+   *
+   * 错误上报是 best-effort：`onError` 自身抛出的异常会被忽略，不会中断剩余
+   * 释放回调的执行。
    */
   async disposeAll(onError?: (error: unknown) => void): Promise<void> {
     const pending = this.items.splice(0, this.items.length).reverse()
@@ -36,7 +39,11 @@ export class DisposerStack {
       try {
         await disposer()
       } catch (error) {
-        onError?.(error)
+        try {
+          onError?.(error)
+        } catch {
+          // 上报器异常不影响其他 disposer 的执行。
+        }
       }
     }
   }

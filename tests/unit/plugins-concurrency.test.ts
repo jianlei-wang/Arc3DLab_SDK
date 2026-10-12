@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { Arc3DError } from "@arc3dlab/core"
+import { Arc3DError, type PluginScope } from "@arc3dlab/core"
 import { PluginManager } from "../../packages/sdk/src/plugins"
 import { createTestContext } from "../fixtures/fake-context"
 
@@ -20,24 +20,21 @@ describe("PluginManager concurrency", () => {
 
     const alpha = {
       name: "alpha",
-      async install(_app: unknown, ctx: typeof context) {
+      async install(_app: unknown, _ctx: typeof context, scope: PluginScope) {
         events.push("alpha:start")
         await gate.promise
-        ctx.commands.register({
+        scope.registerCommand({
           name: "alpha.run",
           version: "1.0.0",
-          plugin: "spoof",
           execute: () => 1,
         })
-        ctx.tools.register({
+        scope.registerTool({
           name: "alpha.tool",
           version: "1.0.0",
-          plugin: "spoof",
           activate: () => undefined,
         })
-        ctx.capabilities.register({
+        scope.registerCapability({
           name: "alpha:cap",
-          provider: "spoof",
           version: "1.0.0",
           available: true,
         })
@@ -46,12 +43,11 @@ describe("PluginManager concurrency", () => {
     }
     const beta = {
       name: "beta",
-      install(_app: unknown, ctx: typeof context) {
+      install(_app: unknown, _ctx: typeof context, scope: PluginScope) {
         events.push("beta:start")
-        ctx.commands.register({
+        scope.registerCommand({
           name: "beta.run",
           version: "1.0.0",
-          plugin: "spoof",
           execute: () => 1,
         })
         events.push("beta:end")

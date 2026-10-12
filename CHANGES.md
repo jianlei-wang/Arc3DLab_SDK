@@ -12,6 +12,23 @@
 ### fix: :wrench: 修复bug
 ```
 
+## Unreleased - 2026-10-12
+
+### fix
+
+- 插件归属：取消注册表的全局活动 owner 推断，默认 owner 收敛为 `spec.plugin`；保留命名空间（`core.` / `arc3dlab.`）授权只依据显式 owner，插件无法通过伪造 `plugin` 字段抢占核心扩展
+- 注册表读取返回防御性快照（`CommandBus.get()`、`CapabilityRegistry.get()/records()`），修改读取结果不再影响内部 owner/provider/availability
+- `ResourceRegistry.clear()` 与 `DisposerStack.disposeAll()` 的错误上报回调抛错不再中断剩余资源释放
+- `ToolRegistry.activate()` 在旧工具 `deactivate()` 抛错时回滚状态，工具切换失败后状态机收敛
+- `DataCatalog` 明确 schema 生命周期：资产拥有的 schema 随资产注销移除，新增 `unregisterSchema()` / `hasSchema()` / `registerSchema()`
+
+### feat
+
+- `CapabilityRegistry.updateAvailability(name, available, provider?)`：显式修改能力可用性
+- `PluginScope.unmanage(resource)`：提前解除插件资源托管，配合 `manage()` 的幂等销毁契约
+- 新增真实浏览器性能趋势场景 `e2e/perf.spec.ts` 与 `.github/workflows/perf.yml`（每日定时 + 手动），时间数值仅归档、资源回收做结构性断言
+- 新增 `.github/PULL_REQUEST_TEMPLATE.md`，将公共 API/SemVer 影响、生命周期与资源契约纳入合并前置检查
+
 ## v1.0.0 - 2026-10-11
 
 ### feat

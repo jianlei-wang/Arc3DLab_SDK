@@ -66,6 +66,41 @@ describe("ToolRegistry serialized state machine", () => {
     expect(tools.list()).toEqual([])
     expect(tools.activeTool).toBeUndefined()
   })
+
+  it("rolls the previous tool back to active when its deactivate throws", async () => {
+    const tools = new ToolRegistry()
+    let failing = true
+    tools.register({
+      name: "t.a",
+      version: "1.0.0",
+      plugin: "p",
+      activate: () => undefined,
+      deactivate: () => {
+        if (failing) throw new Error("off failed")
+      },
+    })
+    tools.register({
+      name: "t.b",
+      version: "1.0.0",
+      plugin: "p",
+      activate: () => undefined,
+    })
+
+    await tools.activate("t.a")
+    await expect(tools.activate("t.b")).rejects.toThrow("off failed")
+
+    expect(tools.activeTool).toBe("t.a")
+    expect(tools.state).toBe("active")
+
+    failing = false
+    await tools.deactivate()
+    expect(tools.activeTool).toBeUndefined()
+    expect(tools.state).toBe("idle")
+
+    await tools.activate("t.b")
+    expect(tools.activeTool).toBe("t.b")
+    expect(tools.state).toBe("active")
+  })
 })
 
 describe("Plugin extension cleanup robustness", () => {

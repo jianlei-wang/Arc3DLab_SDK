@@ -25,6 +25,41 @@ describe("CommandBus", () => {
     }
   })
 
+  it("rejects reserved core names even when spec.plugin claims core", () => {
+    const bus = new CommandBus()
+    const registry = new ToolRegistry()
+    expect(() =>
+      bus.register({
+        name: "core.takeover",
+        version: "1.0.0",
+        plugin: "core",
+        execute: () => undefined,
+      }),
+    ).toThrow(Arc3DError)
+    expect(() =>
+      registry.register({
+        name: "arc3dlab.relay",
+        version: "1.0.0",
+        plugin: "arc3dlab",
+        activate: () => undefined,
+      }),
+    ).toThrow(Arc3DError)
+  })
+
+  it("allows reserved core names only for an explicit core owner", () => {
+    const bus = new CommandBus()
+    bus.register(
+      {
+        name: "core.internal",
+        version: "1.0.0",
+        plugin: "core",
+        execute: () => "ok",
+      },
+      "core",
+    )
+    expect(bus.has("core.internal")).toBe(true)
+  })
+
   it("validates required params and duplicate names", async () => {
     const bus = new CommandBus()
     bus.register({
