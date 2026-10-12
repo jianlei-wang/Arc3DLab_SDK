@@ -40,6 +40,15 @@ Entries discovered by the Agent during task execution should follow this format:
 
 [Project Knowledge Summary]
 - Date: 2026-10-11
+- Context: Discovered by Agent while diagnosing a CI failure (gate/docs/guide/e2e 全部在 npm ci 阶段失败)
+- Category: Build Methods
+- Instructions:
+  - 新增 npm 工作区包（如 `packages/plotting`）后必须同步更新 `package-lock.json`，否则 CI 的 `npm ci` 会因 package.json 与 lockfile 不同步而失败（本地因 node_modules 已存在不会暴露该问题）。
+  - 更新命令：`npm install --package-lock-only --ignore-scripts`（仅改 lockfile，不动 node_modules）；校验可用 `npm ci --dry-run`。
+  - 提交前可先跑 CI 覆盖但 `npm run gate` 不含的步骤：`npm run docs:build`、`npm run guide:build`、`npm run test:e2e`、`npm run lint:size`、`npm run test:pack`。
+
+[Project Knowledge Summary]
+- Date: 2026-10-11
 - Context: Discovered by Agent while implementing the LarkExplorer capability migration (P5/P6)
 - Category: Troubleshooting & Debugging
 - Instructions:
