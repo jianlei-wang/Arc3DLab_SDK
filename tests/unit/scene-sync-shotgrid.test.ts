@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
-import type { Arc3DContext, Extent } from "@arc3dlab/core"
 import {
+  LifecycleManager,
+  type Arc3DContext,
+  type Extent,
+} from "@arc3dlab/core"
+import {
+  SceneController,
   SyncViewer,
   subdivideExtent,
   captureGrid,
@@ -103,5 +108,49 @@ describe("captureGrid", () => {
     await expect(
       captureGrid(context, { rows: 1, columns: 1, extent: [0, 0, 1, 1] }),
     ).rejects.toThrow(/canvas/)
+  })
+})
+
+function sceneRuntime(viewer: unknown): Arc3DContext {
+  const lifecycle = new LifecycleManager()
+  lifecycle.transition("initializing")
+  lifecycle.transition("ready")
+  return {
+    lifecycle,
+    disposers: { push: () => {} },
+    engine: { native: { viewer } },
+  } as unknown as Arc3DContext
+}
+
+describe("SceneController facade", () => {
+  it("syncs the current viewer camera with follower views", () => {
+    const camera = {
+      position: {},
+      direction: { x: 1 },
+      up: { z: 1 },
+      setView: () => {},
+    }
+    const scene = new SceneController(sceneRuntime({ camera }))
+    const follower = new FakeCamera()
+    const sync = scene.sync([{ camera: follower }])
+    expect(sync.size).toBe(1)
+    sync.sync()
+    expect(follower.views).toHaveLength(1)
+    sync.destroy()
+  })
+
+  it("captures a grid through the scene facade", async () => {
+    const viewer = {
+      camera: { setView: () => {} },
+      scene: { canvas: { toDataURL: () => "data:image/png;base64,aaa" } },
+    }
+    const scene = new SceneController(sceneRuntime(viewer))
+    const shots = await scene.captureGrid({
+      rows: 1,
+      columns: 2,
+      extent: [0, 0, 1, 1],
+    })
+    expect(shots).toHaveLength(2)
+    expect(shots[0]!.image).toContain("data:image/png")
   })
 })
