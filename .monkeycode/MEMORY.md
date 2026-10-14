@@ -62,6 +62,7 @@ Entries discovered by the Agent during task execution should follow this format:
 - Instructions:
   - 新增 `@arc3dlab/*` 包时，需同步在 `e2e/vite.config.ts` 与 `demo-vue3/vite.config.ts` 的 `resolve.alias` 中补别名；否则 `npm run test:e2e` 或 5173 Sandcastle 预览会报 `Failed to resolve import`（P3 加入 `@arc3dlab/plotting` 后 e2e 已补，demo-vue3 曾遗漏导致 5173 预览白屏）。
   - 移除 `@arc3dlab/*` 包时，需同步清理：`tsconfig.json` `paths`、`typedoc.json` `entryPoints`、`scripts/api-docs/config.mjs` `PACKAGE_DISPLAY`、`scripts/release-gate.mjs` 的 `PUBLIC_EXPORT_NAMES` 与包依赖边界表、`packages/README.md`、两处 `resolve.alias`、根入口 re-export；再跑 `npm install --package-lock-only` 与 `node scripts/release-gate.mjs exports:update` 刷新 lockfile 与 API 基线（`checkWorkspaceAliases` 会校验 tsconfig 与 `packages/*` 一致）。
+  - 公共 API 是两层 barrel：发布入口 `src/index.ts`（`scripts/release-gate.mjs` 的 `PUBLIC_ENTRIES["."]`，精选 re-export）与内部完整 barrel `packages/sdk/src/index.ts`。新增公共符号必须同时改这两处，再跑 `node scripts/release-gate.mjs exports:update` 刷新 `scripts/public-api-manifest.json`，否则 `lint:exports` 报 `public API ... added`。
   - Playwright 浏览器已预装（`~/.cache/ms-playwright/chromium-1194`），可直接运行 `npm run test:e2e`（`playwright test`），webServer 使用端口 4310。
 
 [Project Knowledge Summary]
@@ -99,3 +100,54 @@ Entries discovered by the Agent during task execution should follow this format:
   - 现方案：`vite.config.ts` 只用 `vite-plugin-dts` 生成逐文件 `.d.ts`（`rollupTypes` 关闭），再由 `scripts/rollup-dts.mjs`（`npm run build` 末尾）先去掉别名改写的 `.ts` 扩展名，然后用 `@microsoft/api-extractor` + `tsconfig.rollup.json`（`baseUrl: ./dist`）打包成 `dist/index.d.ts`、`dist/engine-cesium.d.ts`。
   - `scripts/rollup-dts.mjs` 用 `Extractor.invoke({ localBuild: true })`，否则 release 级的 `@alpha/@public` 缺失警告会被当作错误导致 `succeeded: false`。
   - 验证发布类型：`npm run build && npm run test:pack`。
+
+[User Instruction Summary]
+- Date: 2026-10-12
+- Context: 旧版内容收敛任务完成并推送后，用户指示提交/推送权限
+- Instructions:
+  - 后续除非用户明确给出提交或推送代码的指令，不得自主执行 `git commit`、`git push` 等提交/推送操作。
+  - 可以在任务过程中完成改动与本地校验，但提交与推送需等待用户显式指令。
+
+[Project Knowledge Summary]
+- Date: 2026-10-13
+- Context: Discovered by Agent while expanding `demo-vue3` Sandcastle examples and running its `vue-tsc -b` check
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - `demo-vue3` 不在根 `tsconfig.json` 的 include 内，根 `npm run typecheck`（`tsc --noEmit`）不会检查它；demo 单独用 `cd demo-vue3 && npx vue-tsc -b` 校验。
+  - demo 依赖的是 npm 上发布的 `arc3dlab@0.0.3`，其 `dist/index.d.ts` 不含 `Arc3D`/`Arc3DApp`，直接 `import { Arc3D } from "arc3dlab"` 会报 TS2305。
+  - 不要给 `demo-vue3/tsconfig.app.json` 加 `@arc3dlab/*` 或 `arc3dlab` 的 `paths`（指向 `../packages/*/src` 或 `../src`）：会把整个 monorepo 源码拉进 demo 更严格的编译选项（`erasableSyntaxOnly`、`noUncheckedIndexedAccess`、`noUnusedLocals`）下并产生大量无关错误；`@arc3dlab/*` 在 `node_modules` 里是工作区符号链接，`types` 指向 `src/index.ts`，同样会被拉入。
+  - 现行方案：`src/arc3dlab-shim.d.ts` 用 `declare module "arc3dlab"` 声明 demo 用到的门面；`runner.ts` 用 `import.meta.glob("../../packages/{...}/src/index.ts", { eager: true })` 在运行期拿工作区命名空间（Vite 会打包），类型上保持 `any`，从而 `vue-tsc` 不再拉入 packages 源码。
+  - 校验命令：`cd demo-vue3 && npx vue-tsc -b --force`；5173 预览由 `npx vite --host` 提供，`.monkeycode-ai.online` 已在 `allowedHosts`。
+
+[User Instruction Summary]
+- Date: 2026-10-13
+- Context: 用户对 Sandcastle 示例提出的强制迭代要求
+- Instructions:
+  - Sandcastle 中所有示例必须支持 FPS 的控制显示，这是强制规定；该能力已在 `demo-vue3/src/runner.ts` 的 `mountFpsMeter` 中统一挂载（每个示例自动获得 FPS 开关与实时读数），示例代码内不要再自行添加 FPS 开关。
+  - `Polygon`、`Points`、`Polyline` 示例需绘制多个图形，并提供 GUI 控制面板，支持修改对应图形 SDK 支持的全部样式参数（面：fill/outline/outlineColor/outlineWidth/clampToGround；点：color/outlineColor/pixelSize/outlineWidth/clampToGround；线：color/width/clampToGround），并在样式变更时按 `remove` 后重建的方式重绘以规避样式不可变限制。
+
+[Project Knowledge Summary]
+- Date: 2026-10-13
+- Context: Discovered by Agent while fixing Sandcastle「polygon/polyline 切到 primitive 模式报 TypeError: Cannot read properties of undefined (reading '_uniforms')」
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 根因：`GroundPolylinePrimitive` / `Primitive` 渲染 `GroundPolylineGeometry` / `PolylineGeometry` 时，appearance 必须使用 `PolylineColorAppearance`（按 GeometryInstance 的 `color` 属性着色）；用 `PerInstanceColorAppearance` 会在 `GroundPolylinePrimitive.createCommands` 里读取 `material._uniforms`（`PerInstanceColorAppearance.material` 为 `undefined`）而崩溃。
+  - 适用位置：`packages/graphics/src/graphic-manager.ts` 的折线 primitive 分支与多边形轮廓 primitive 分支；`PolylineColorAppearance.VERTEX_FORMAT = POSITION_ONLY`，polyline/ground-polyline geometry 默认 vertexFormat 与之匹配，无需显式指定。
+  - verify 方式：`demo-vue3` 5173 预览里把 Polygon/Polyline 的「渲染模式」切到 primitive、并切换「贴地」开关，观察控制台不再报 `_uniforms`。
+
+[Project Knowledge Summary]
+- Date: 2026-10-13
+- Context: Discovered by Agent while fixing Sandcastle「Model / Graphic Style 示例在浏览器加载 glTF 模型报 404 与 CORS」
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - Sandcastle 示例用 `app.graphics.addModel({url})` 加载的外部模型，必须来自带 `Access-Control-Allow-Origin` 的地址，否则浏览器跨域拦截（`http://localhost:5173`）。
+  - `https://sandcastle.cesium.com/SampleData/...` 可直连下载但**不带 CORS 头**，浏览器会 `blocked by CORS policy`；`cdn.jsdelivr.net/gh/CesiumGS/cesium@.../Apps/SampleData/...` 当前返回 404。
+  - 可用地址：`https://cesium.com/downloads/cesiumjs/releases/<version>/Apps/SampleData/models/CesiumAir/Cesium_Air.glb`（返回 `access-control-allow-origin: *`，`content-type: model/gltf-binary`），或 `https://raw.githubusercontent.com/CesiumGS/cesium/<tag>/Apps/SampleData/...`。
+
+[User Instruction Summary]
+- Date: 2026-10-13
+- Context: 用户为 Sandcastle 示例缩略图提出规格要求（首张为 Hello World，用于避免示例增多后首页加载变慢）
+- Instructions:
+  - 示例缩略图统一为 `260×85`、`AVIF` 格式，并尽量压缩体积；编码参数可用 sharp：`avif({ quality: 40, effort: 9, chromaSubsampling: "4:2:0" })`。
+  - 存放目录 `demo-vue3/src/assets/thumbnails/<id>.avif`，在 `catalog.ts` 的示例对象用可选字段 `thumbnail`（`import` 资源 URL）引用。
+  - 未提供 `thumbnail` 的示例由 `ExampleGallery` 回退到渐变占位（`span.thumb`），有缩略图则渲染 `<img class="thumb">`（`object-fit: cover`、`loading="lazy"`）。

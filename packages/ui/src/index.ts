@@ -6,6 +6,7 @@ import {
   removeOwnedTooltip,
   tooltipOffsetStyle,
 } from "./tooltip-dom"
+import { NavigationBar, type NavigationBarOptions } from "./navigation-bar"
 
 export {
   TOOLTIP_OWNED_ATTR,
@@ -128,8 +129,17 @@ export class UIManager {
    * 创建 UI 管理器实例。
    * @param context - Arc3D 运行时上下文
    */
-  constructor(context: Arc3DContext) {
+  constructor(private readonly context: Arc3DContext) {
     this.tooltip = new TooltipService(context)
+  }
+
+  /**
+   * 创建导航条控件（缩放、复位、指北针等）。
+   * @param options - 导航条选项，涵盖控件集合、缩放比例与文案。
+   * @returns 导航条实例；调用其 `mount` 方法挂载到视图容器。
+   */
+  navigation(options?: NavigationBarOptions): NavigationBar {
+    return new NavigationBar(this.context, options)
   }
 
   /**

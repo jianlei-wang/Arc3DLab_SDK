@@ -28,6 +28,7 @@ export {
   addDynamicPolyline,
   addPanel,
 } from "./dynamic/index"
+export { DynamicGraphicManager } from "./dynamic/manager"
 export {
   RadarNormalMaterialProperty,
   registerRadarNormalMaterial,

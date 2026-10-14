@@ -1,74 +1,104 @@
 # 动态图形与特效
 
-动态图形、体素、压平与粒子/天气能力，分别由 `@arc3dlab/graphics` 与 `@arc3dlab/effects` 提供。
+动态图形、粒子、体素与压平通过 `app.graphics` / `app.effects` 的公共方法使用，天气特效通过 `app.effects.weather`。
+
+## 天气特效
+
+`app.effects.weather` 支持 `rain`、`snow`、`fog`、`lightning`：
+
+```ts
+app.effects.weather.enable("rain", { rainSpeed: 120 })
+app.effects.weather.configure("fog", { near: 10, far: 1000, farAlpha: 0.8 })
+app.effects.weather.disable("snow")
+app.effects.weather.clear()
+```
+
+选项按类型区分：
+
+| 类型 | 选项 |
+| --- | --- |
+| `rain` | `tiltAngle`、`rainSize`、`rainSpeed` |
+| `snow` | `snowSize`、`snowSpeed` |
+| `fog` | `color`、`near`、`nearAlpha`、`far`、`farAlpha` |
+
+`configure()` 在特效未启用时会记录配置，待 `enable()` 时一并生效。
 
 ## 动态图形
 
-`graphics/dynamic` 导出一组工厂函数，接收 `Arc3DContext` 并返回 `DynamicGraphicHandle`：
+`app.graphics.dynamic` 是动态图形管理器，各方法接收选项对象并返回可释放的句柄：
 
 ```ts
-import {
-  addSpreadPoint,
-  addRadarNormal,
-  addCircleDiffusion,
-  addDynamicPolyline,
-} from "@arc3dlab/graphics"
-
-const spread = addSpreadPoint(app.context, {
+const spread = app.graphics.dynamic.spreadPoint({
   position: { longitude: 116.39, latitude: 39.9 },
+  radius: 500,
+  color: "#00aaff",
 })
 
-spread.destroy() // 移除图元并解除销毁登记
+const radar = app.graphics.dynamic.radarNormal({
+  position: { longitude: 116.4, latitude: 39.9 },
+  radius: 2000,
+  speed: 2,
+})
+
+const trail = app.graphics.dynamic.polyline({ positions, width: 6 })
+const panel = app.graphics.dynamic.panel({
+  position: { longitude: 116.41, latitude: 39.9 },
+  text: "热点",
+  type: "hot",
+})
+
+spread.destroy()
 ```
 
-可用工厂：`addBillboard`、`addSpreadPoint`、`addRadarNormal`、`addRiver`、`addCircleDiffusion`、`addDynamicPolyline`、`addPanel`。句柄的销毁会登记到 `context.disposers`，应用销毁时自动清理。
+可用方法：`billboard`、`spreadPoint`、`radarNormal`、`river`、`circleDiffusion`、`polyline`、`panel`。返回的 `DynamicGraphicHandle` 含 `id`、`native` 与 `destroy()`。
 
-雷达材质可单独注册：`registerRadarNormalMaterial()` 与 `RadarNormalMaterialProperty`（名称常量 `RADAR_NORMAL_MATERIAL`）。
+## 粒子特效
+
+`app.effects.particles` 创建火焰、爆炸与水枪三类粒子系统：
+
+```ts
+const fire = app.effects.particles.fire({
+  longitude: 116.39,
+  latitude: 39.9,
+  height: 10,
+})
+const boom = app.effects.particles.explosion(position)
+const gun = app.effects.particles.waterGun(source, target)
+
+fire.setVisible(false)
+gun.destroy()
+```
+
+`ParticleHandle` 提供 `setVisible(visible)`、`visible` 与 `destroy()`。
 
 ## 体素
 
-`MultiTileVoxel` 通过 `GridVoxelProvider` 与 `VoxelPrimitive` 渲染多瓦片体素：
+`app.graphics.addVoxel(pointData, options?)` 将离散点插值为体素盒并按数值着色：
 
 ```ts
-import { MultiTileVoxel } from "@arc3dlab/graphics"
+const voxel = app.graphics.addVoxel(
+  [{ x: 116.39, y: 39.9, z: 0, value: 12 }],
+  { dimensions: 15 },
+)
 
-const voxel = new MultiTileVoxel(app.context, { /* VoxelOptions */ })
+const value = voxel.interpolate(116.39, 39.9, 0)
 voxel.showPoints(true)
-voxel.interpolate(x, y, z)
 voxel.destroy()
 ```
 
-## 压平
+`VoxelPoint` 为 `{ x, y, z, value }`（`x`/`y` 为经纬度、`z` 为高程），`VoxelOptions` 含 `dimensions` 与 `colorsList`。
 
-`ModelFlatten` 基于裁剪多边形集合压平模型：
+## 模型压平
+
+`app.graphics.addFlatten(target?, options?)` 将多边形裁剪集合应用到目标模型或瓦片集：
 
 ```ts
-import { ModelFlatten } from "@arc3dlab/graphics"
-
-const flatten = new ModelFlatten(app.context, { /* ModelFlattenOptions */ })
+const flatten = app.graphics.addFlatten(model.clippingPolygons, {
+  enabled: true,
+})
 flatten.addPolygon(positions)
-flatten.setEnabled(true)
-flatten.clear()
+flatten.setEnabled(false)
+flatten.destroy()
 ```
-
-## 粒子与天气
-
-```ts
-import {
-  createFireParticle,
-  createExplosionParticle,
-  createWaterGunParticle,
-} from "@arc3dlab/effects"
-
-const fire = createFireParticle(app.context, { longitude: 116.39, latitude: 39.9 })
-createExplosionParticle(app.context, position)
-createWaterGunParticle(app.context, source, target)
-
-app.effects.weather.enable("rain", { intensity: 0.6 })
-app.effects.weather.configure("fog", { density: 0.0003 })
-app.effects.weather.disable("snow")
-```
-
-`WeatherKind` 支持 `rain`、`snow`、`fog`、`lightning`。
 
 相关：[材质与后处理](/effects-ui/effects)。

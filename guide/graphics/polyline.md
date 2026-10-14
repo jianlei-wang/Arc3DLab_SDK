@@ -35,6 +35,8 @@ line.setPositions([
 ])
 ```
 
+`setPositions()` 仅 `entity` 模式支持；若手动指定 `renderMode: "primitive"`，更新坐标会抛 `UNSUPPORTED_CAPABILITY`，需要变更坐标时删除后重建。
+
 ## 提示
 
 - `width` 为像素宽度。

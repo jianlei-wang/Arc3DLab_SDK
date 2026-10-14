@@ -32,6 +32,7 @@ import {
   PointPrimitiveCollection,
   PolygonGeometry,
   PolygonHierarchy,
+  PolylineColorAppearance,
   PolylineGeometry,
   Primitive,
   Transforms,
@@ -43,9 +44,21 @@ import {
   type ConcreteRenderMode,
 } from "./policy"
 import { applyPositionUpdates } from "./pool"
-import { asList, parseColor, toLngLatHeights } from "./helpers"
+import {
+  asList,
+  closeCartesianRing,
+  parseColor,
+  toLngLatHeights,
+} from "./helpers"
 import { syncPointCollection } from "./points"
 import { ManagedGraphic } from "./managed-graphic"
+import { DynamicGraphicManager } from "./dynamic/manager"
+import { MultiTileVoxel, type VoxelOptions, type VoxelPoint } from "./voxel"
+import {
+  ModelFlatten,
+  type FlattenTarget,
+  type ModelFlattenOptions,
+} from "./flatten"
 import type { Graphic, GraphicCreateOptions, ModelCreateOptions } from "./types"
 
 /**
@@ -87,6 +100,41 @@ export class GraphicManager {
    */
   addPoints(options: GraphicCreateOptions): Graphic[] {
     return this.createPoints(asList(options.positions), options)
+  }
+
+  private dynamicManager: DynamicGraphicManager | undefined
+
+  /**
+   * 动态图形管理器，用于创建扩散、雷达、尾迹等动态图形。
+   */
+  get dynamic(): DynamicGraphicManager {
+    this.dynamicManager ??= new DynamicGraphicManager(this.context)
+    return this.dynamicManager
+  }
+
+  /**
+   * 根据离散点数据创建多瓦片体素。
+   * @param pointData - 体素点数据。
+   * @param options - 体素配置。
+   * @returns 新建的多瓦片体素对象。
+   */
+  addVoxel(pointData: VoxelPoint[], options?: VoxelOptions): MultiTileVoxel {
+    this.context.lifecycle.assertUsable("add voxel")
+    return new MultiTileVoxel(this.context, pointData, options)
+  }
+
+  /**
+   * 创建模型压平对象。
+   * @param target - 可选的压平目标对象。
+   * @param options - 压平选项。
+   * @returns 新建的模型压平对象。
+   */
+  addFlatten(
+    target?: FlattenTarget,
+    options?: ModelFlattenOptions,
+  ): ModelFlatten {
+    this.context.lifecycle.assertUsable("add flatten")
+    return new ModelFlatten(this.context, target, options)
   }
 
   /**
@@ -153,15 +201,13 @@ export class GraphicManager {
       const primitive = onGround
         ? new GroundPolylinePrimitive({
             geometryInstances: instance,
-            appearance: new PerInstanceColorAppearance({
-              flat: true,
+            appearance: new PolylineColorAppearance({
               translucent: color.alpha < 1,
             }),
           })
         : new Primitive({
             geometryInstances: instance,
-            appearance: new PerInstanceColorAppearance({
-              flat: true,
+            appearance: new PolylineColorAppearance({
               translucent: color.alpha < 1,
             }),
           })
@@ -226,7 +272,7 @@ export class GraphicManager {
         },
         polyline: outline
           ? {
-              positions: cartesians,
+              positions: closeCartesianRing(cartesians),
               width: outlineWidth,
               material: outlineColor,
               clampToGround: onGround,
@@ -253,7 +299,9 @@ export class GraphicManager {
             )
           }
           if (entity.polyline)
-            entity.polyline.positions = new ConstantProperty(nextCartesians)
+            entity.polyline.positions = new ConstantProperty(
+              closeCartesianRing(nextCartesians),
+            )
         },
       )
     }
@@ -605,14 +653,15 @@ export class GraphicManager {
 
     let outlinePrimitive: GroundPolylinePrimitive | Primitive | undefined
     if (options.outline) {
+      const outlineCartesians = closeCartesianRing(options.cartesians)
       const lineInstance = new GeometryInstance({
         geometry: options.onGround
           ? new GroundPolylineGeometry({
-              positions: options.cartesians,
+              positions: outlineCartesians,
               width: options.outlineWidth,
             })
           : new PolylineGeometry({
-              positions: options.cartesians,
+              positions: outlineCartesians,
               width: options.outlineWidth,
             }),
         attributes: {
@@ -623,16 +672,14 @@ export class GraphicManager {
       outlinePrimitive = options.onGround
         ? new GroundPolylinePrimitive({
             geometryInstances: lineInstance,
-            appearance: new PerInstanceColorAppearance({
-              flat: true,
-              translucent: false,
+            appearance: new PolylineColorAppearance({
+              translucent: options.outlineColor.alpha < 1,
             }),
           })
         : new Primitive({
             geometryInstances: lineInstance,
-            appearance: new PerInstanceColorAppearance({
-              flat: true,
-              translucent: false,
+            appearance: new PolylineColorAppearance({
+              translucent: options.outlineColor.alpha < 1,
             }),
           })
       viewer.scene.primitives.add(outlinePrimitive)

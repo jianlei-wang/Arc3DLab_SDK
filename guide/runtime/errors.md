@@ -26,24 +26,22 @@ try {
 | `UNSUPPORTED_CAPABILITY` | 需要的能力未注册。 |
 | `AUTH_FAILED` | 令牌缺失或鉴权失败。 |
 | `NETWORK_FAILURE` | 网络请求失败。 |
+| `MISSING_CREDENTIALS` | 缺少服务凭据（如 Web 服务 Key）。 |
+| `PROVIDER_UNAVAILABLE` | 依赖的提供者未注入或不可用。 |
 | `ENGINE_FAILURE` | 引擎层失败。 |
 | `CANCELLED` | 操作被取消。 |
 | `APP_DESTROYED` | 应用已销毁。 |
 
 ## 加载错误分类
 
-影像、地形、数据源的加载错误会经过分类，便于按阶段处理：
+影像、地形与数据源的加载错误会被统一归类后，以 `Arc3DError` 抛出或通过 `error` 事件上报，便于按阶段定位：
 
-```ts
-import { classifyLoadError } from "arc3dlab/engine-cesium"
-```
-
-分类结果包含 `code`、`stage` 与 `message`，`stage` 取值：
-
-- `token`：令牌缺失或无效。
-- `network`：网络失败。
-- `format`：数据格式问题。
-- `engine`：引擎内部失败。
+| 阶段 | 对应错误码 | 说明 |
+| --- | --- | --- |
+| `token` | `AUTH_FAILED` | 令牌缺失或无效。 |
+| `network` | `NETWORK_FAILURE` | 网络失败。 |
+| `format` | `INVALID_FORMAT` | 数据格式问题。 |
+| `engine` | `ENGINE_FAILURE` | 引擎内部失败。 |
 
 ## 全局错误事件
 

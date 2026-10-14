@@ -18,6 +18,16 @@ import { ViewportController } from "./viewport"
 import { ClockController } from "./clock"
 import { EnvironmentController } from "./environment"
 import {
+  SyncViewer,
+  type SyncableView,
+  type SyncableCamera,
+} from "./sync-viewer"
+import {
+  captureGrid,
+  type ShotGridOptions,
+  type ShotGridShot,
+} from "./shot-grid"
+import {
   PostRenderController,
   type RemovableEventListener,
 } from "./post-render"
@@ -142,6 +152,25 @@ export class SceneController {
     const viewer = this.viewer()
     viewer.render()
     return viewer.scene.canvas.toDataURL("image/png")
+  }
+
+  /**
+   * 创建多屏联动，将当前视图相机变化同步到其他视图。
+   * @param views - 需要跟随当前视图同步的其他视图。
+   * @returns 多屏联动对象。
+   */
+  sync(views: SyncableView[]): SyncViewer {
+    const viewer = this.viewer()
+    return new SyncViewer({ camera: viewer.camera as SyncableCamera }, views)
+  }
+
+  /**
+   * 按网格分幅导出场景图片。
+   * @param options - 出图选项，含分幅行列数与出图范围。
+   * @returns 每幅图片及其对应的经纬度范围。
+   */
+  captureGrid(options: ShotGridOptions): Promise<ShotGridShot[]> {
+    return captureGrid(this.context, options)
   }
 
   /**

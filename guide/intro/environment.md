@@ -3,7 +3,7 @@
 ## 运行时要求
 
 - 现代浏览器（支持 WebGL 与 ES2020）。
-- Node.js 18+（用于构建工具链）。
+- Node.js 22+（用于构建工具链）。
 
 ## 依赖
 
@@ -73,4 +73,4 @@ await app.basemap.set({ type: "tdt", mode: "img" })
 import {} from "arc3dlab/engine-cesium"
 ```
 
-内部包（`packages/*/src`）不属于公共合同，请勿深路径导入。
+公共入口只有 `arc3dlab` 与 `arc3dlab/engine-cesium`。`packages/*` 下的 `@arc3dlab/*` 均为私有包，不单独发布，外部使用者无法导入，也不属于公共 API 合同。

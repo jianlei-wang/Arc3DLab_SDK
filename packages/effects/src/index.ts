@@ -1,6 +1,7 @@
 import { Arc3DError, type Arc3DContext } from "@arc3dlab/core"
 import { PostProcessManager } from "./postprocess"
 import { WeatherEffects } from "./weather"
+import { ParticleManager } from "./particles-manager"
 import { registerArc3DMaterials } from "./materials"
 
 /**
@@ -107,6 +108,10 @@ export class EffectsManager {
    * 天气特效管理器实例。
    */
   readonly weather: WeatherEffects
+  /**
+   * 粒子特效管理器实例。
+   */
+  readonly particles: ParticleManager
 
   /**
    * 创建效果管理器实例。
@@ -116,6 +121,7 @@ export class EffectsManager {
     this.materials = new MaterialRegistry(context)
     this.postprocess = new PostProcessManager(context)
     this.weather = new WeatherEffects(context)
+    this.particles = new ParticleManager(context)
     registerArc3DMaterials()
   }
 
@@ -155,6 +161,7 @@ export {
   type ParticleEmitterShape,
   type ResolvedParticlePreset,
 } from "./particles"
+export { ParticleManager } from "./particles-manager"
 export {
   DynamicSpreadMaterialProperty,
   PolylineTrailMaterialProperty,

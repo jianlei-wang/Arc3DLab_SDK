@@ -28,9 +28,11 @@ graphic.setStyle({ color: "#ff3b30", pixelSize: 14 })
 | `auto` | 由运行时根据数量与动态性自动选择（默认）。 |
 | `entity` | 使用 Cesium Entity，易于动态编辑。 |
 | `primitive` | 使用 Primitive，适合静态大数据量。 |
-| `buffer` | 预留的缓冲模式。 |
+| `buffer` | 预留模式，暂未实现；请求时抛 `UNSUPPORTED_CAPABILITY`。 |
 
 配合 `dynamic: true` 声明坐标会被频繁更新，帮助运行时选择合适模式。
+
+`setPositions()` 仅在 `entity` 模式可用（`auto` 在小数据量下即选用 `entity`）。`primitive` 模式的图形不可编辑，手动指定 `renderMode: "primitive"` 后更新坐标会抛 `UNSUPPORTED_CAPABILITY`，需要变更坐标时删除后重建。
 
 ## 批量操作
 

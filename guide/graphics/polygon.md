@@ -1,6 +1,6 @@
 # 面
 
-多边形至少需要 3 个坐标点。
+多边形至少需要 3 个坐标点。轮廓会自动闭合，末尾无需重复首点。
 
 ## 单个多边形
 
@@ -36,6 +36,8 @@ const polygons = app.graphics.addPolygons([
 polygon.setStyle({ fill: "#9b51e0", outlineWidth: 2 })
 polygon.setPositions(newRing)
 ```
+
+`setPositions()` 仅 `entity` 模式支持；若手动指定 `renderMode: "primitive"`，更新坐标会抛 `UNSUPPORTED_CAPABILITY`，需要变更坐标时删除后重建。
 
 ## 样式字段（面常用）
 

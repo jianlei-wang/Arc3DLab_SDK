@@ -87,7 +87,10 @@ export {
   DEFAULT_VERTICAL_FOV,
   extentFromCenter,
   metersPerPixelAtHeight,
+  subdivideExtent,
   type RemovableEventListener,
+  type ShotGridOptions,
+  type ShotGridShot,
 } from "@arc3dlab/scene"
 export {
   ScreenEventController,
@@ -98,4 +101,20 @@ export {
   type ScreenEventHandler,
   type ScreenPoint,
 } from "@arc3dlab/interaction"
+export {
+  ActiveStyle,
+  activeFrameValue,
+  activePropertyKey,
+  triangularWave,
+  type ActiveFrameValue,
+  type ActiveGeometry,
+  type ActiveStyleOptions,
+  type ActiveStyleWriter,
+  type ActiveType,
+} from "@arc3dlab/core"
+export {
+  createGaodeProvider,
+  type GaodeProviderOptions,
+  type WebServiceProvider,
+} from "@arc3dlab/data"
 export { CesiumEngine } from "@arc3dlab/engine-cesium"

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { Cartesian3 } from "cesium"
 import {
   Arc3DError,
   ResourceRegistry,
@@ -18,6 +19,7 @@ import {
   graphicChildId,
   resolveRenderMode,
 } from "../../packages/graphics/src/policy"
+import { closeCartesianRing } from "../../packages/graphics/src/helpers"
 
 describe("resolveRenderMode", () => {
   it("keeps explicit entity and primitive modes", () => {
@@ -114,6 +116,34 @@ describe("graphic child ids", () => {
     expect(graphicChildId("poly-1", "fill")).toBe("poly-1#fill")
     expect(graphicChildId("poly-1", "outline")).toBe("poly-1#outline")
     expect(graphicChildId("points-1", 0)).toBe("points-1#0")
+  })
+})
+
+describe("closeCartesianRing", () => {
+  it("appends the first position to close an open ring", () => {
+    const ring = [
+      new Cartesian3(1, 2, 3),
+      new Cartesian3(4, 5, 6),
+      new Cartesian3(7, 8, 9),
+    ]
+    const closed = closeCartesianRing(ring)
+    expect(closed).toHaveLength(4)
+    expect(Cartesian3.equals(closed[0], closed[3])).toBe(true)
+    expect(closed.slice(0, 3)).toEqual(ring)
+  })
+
+  it("keeps an already closed ring untouched", () => {
+    const ring = [
+      new Cartesian3(1, 2, 3),
+      new Cartesian3(4, 5, 6),
+      new Cartesian3(1, 2, 3),
+    ]
+    expect(closeCartesianRing(ring)).toBe(ring)
+  })
+
+  it("returns an empty array unchanged", () => {
+    const ring: Cartesian3[] = []
+    expect(closeCartesianRing(ring)).toBe(ring)
   })
 })
 

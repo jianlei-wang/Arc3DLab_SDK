@@ -1,38 +1,40 @@
 # 多屏联动与网格出图
 
-`@arc3dlab/scene` 新增多视图相机联动与按网格分幅出图能力。
+多视图相机联动与按网格分幅出图挂在 `app.scene` 上，`subdivideExtent` 从 `arc3dlab` 具名导出。
 
 ## 多屏联动
 
-`SyncViewer` 以主视图为基准，把相机变化同步到其他视图：
+`app.scene.sync(views)` 以当前视图为主视图，把相机变化同步到其他视图，返回 `SyncViewer`：
 
 ```ts
-import { SyncViewer } from "@arc3dlab/scene"
+const sync = app.scene.sync([
+  { camera: leftViewer.camera },
+  { camera: rightViewer.camera },
+])
 
-const sync = new SyncViewer(primaryView, [secondaryView])
-sync.size // 跟随视图数量
-sync.sync() // 手动立即同步
+sync.size // 跟随视图数量（不含主视图）
+sync.sync() // 立即手动同步一次
 sync.destroy() // 结束联动并释放监听
 ```
 
-`SyncableView` 需暴露 `camera`，其 `changed` 事件用于驱动自动同步。
+参与联动的视图（`SyncableView`）只需暴露一个相机对象（`SyncableCamera`）：`position`、`direction`、`up`、`setView`，以及可选的 `changed` 事件，用于驱动自动同步。
 
 ## 网格出图
 
-`captureGrid` 按行列分幅导出图像集合，`subdivideExtent` 负责范围切分：
+`app.scene.captureGrid(options)` 按行列分幅导出图像集合：
 
 ```ts
-import { captureGrid, subdivideExtent } from "@arc3dlab/scene"
+import { subdivideExtent } from "arc3dlab"
 
-const shots = await captureGrid({
+const shots = await app.scene.captureGrid({
+  extent: [116.3, 39.8, 116.5, 40.0],
   rows: 2,
   columns: 3,
-  extent: [116.3, 39.8, 116.5, 40.0],
-  format: "image/png",
-  delayMs: 50,
 })
+
+const cells = subdivideExtent([116.3, 39.8, 116.5, 40.0], 2, 3)
 ```
 
-每个 `ShotGridShot` 含 `row`、`column`、`extent` 与 `image`（数据地址）。
+`ShotGridOptions` 含 `rows`、`columns`、`extent` 与可选的 `format`、`delayMs`；每个分幅（`ShotGridShot`）含 `row`、`column`、`extent` 与 `image`（数据地址）。`subdivideExtent(extent, rows, columns)` 返回按行优先排列的子范围数组。
 
 相关：[相机与导航](/camera/view)、[渲染模式](/scene/mode)。

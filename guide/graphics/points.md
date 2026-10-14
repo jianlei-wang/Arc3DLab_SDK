@@ -26,7 +26,7 @@ const points = app.graphics.addPoints({
 
 ## 图形句柄
 
-`addPoint` / `addPoints` 返回 `Graphic`：
+`addPoint` 返回单个 `Graphic`，`addPoints` 返回 `Graphic[]`：
 
 ```ts
 point.visible = false
@@ -51,7 +51,7 @@ point.remove()
 | `id` | `string` | 图形 ID，未提供时自动生成。 |
 | `positions` | `PositionInput \| PositionInput[]` | 坐标。 |
 | `style` | `GraphicStyle` | 样式。 |
-| `renderMode` | `"auto" \| "entity" \| "primitive" \| "buffer"` | 期望渲染模式。 |
+| `renderMode` | `"auto" \| "entity" \| "primitive"` | 期望渲染模式；`buffer` 为预留值，传入会抛 `UNSUPPORTED_CAPABILITY`。 |
 | `dynamic` | `boolean` | 是否需要动态更新。 |
 | `properties` | `Record<string, unknown>` | 附加属性。 |
 

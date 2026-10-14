@@ -4,7 +4,7 @@ import {
   type LngLatHeight,
   type PositionInput,
 } from "@arc3dlab/core"
-import { Color } from "cesium"
+import { Cartesian3, Color } from "cesium"
 
 /**
  * 将 CSS 颜色字符串解析为 Cesium 颜色对象。
@@ -51,4 +51,16 @@ export function asList(
  */
 export function toLngLatHeights(inputs: PositionInput[]): LngLatHeight[] {
   return inputs.map((input) => parsePosition(input))
+}
+
+/**
+ * 将坐标环闭合：当首尾坐标不重合时，在末尾追加首坐标。
+ * @param positions - 原始笛卡尔坐标数组。
+ * @returns 首尾相接的坐标数组；当首尾已经重合时返回原数组。
+ */
+export function closeCartesianRing(positions: Cartesian3[]): Cartesian3[] {
+  if (positions.length === 0) return positions
+  const first = positions[0]
+  const last = positions[positions.length - 1]
+  return Cartesian3.equals(first, last) ? positions : [...positions, first]
 }

@@ -29,7 +29,7 @@ const arrow = app.plotting.draw("attackArrow", {
 
 ## 符号分类
 
-`PLOT_SYMBOLS` 汇总全部符号，并按类别导出：`PLOT_POINT_SYMBOLS`、`PLOT_LINE_SYMBOLS`、`PLOT_POLYGON_SYMBOLS`、`PLOT_ARROW_SYMBOLS`。常用符号包括 `attackArrow`、`fineArrow`、`pincerArrow`、`circle`、`ellipse`、`sector`、`regularPolygon`、`flag`、`formation`、`label` 等。
+`PLOT_SYMBOLS` 汇总全部符号，并按类别导出：`PLOT_POINT_SYMBOLS`、`PLOT_LINE_SYMBOLS`、`PLOT_POLYGON_SYMBOLS`、`PLOT_ARROW_SYMBOLS`。常用符号包括 `attackArrow`、`lineArrow`、`straightArrow`、`pincerArrow`、`circle`、`ellipse`、`sector`、`regularPolygon`、`flag`、`formation`、`label` 等。
 
 ## 样式与选项
 
