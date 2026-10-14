@@ -44,7 +44,17 @@ const grouped = computed(() => {
           :class="{ active: item.id === activeId }"
           @click="emit('select', item.id)"
         >
-          <span class="thumb" />
+          <img
+            v-if="item.thumbnail"
+            class="thumb"
+            :src="item.thumbnail"
+            alt=""
+            width="260"
+            height="85"
+            loading="lazy"
+            decoding="async"
+          />
+          <span v-else class="thumb" />
           <strong>{{ item.title }}</strong>
           <small>{{ item.summary }}</small>
         </button>
@@ -124,7 +134,9 @@ const grouped = computed(() => {
 
 .thumb {
   display: block;
+  width: 100%;
   height: 86px;
+  object-fit: cover;
   background:
     linear-gradient(160deg, #4a3d12 0%, #1a3348 55%, #0f1c14 100%);
   border-bottom: 1px solid #3a3e42;

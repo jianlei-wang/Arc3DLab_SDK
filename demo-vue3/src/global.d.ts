@@ -3,6 +3,7 @@ declare global {
   interface Window {
     app?: import("arc3dlab").Arc3DApp
     gui?: import("./sandcastle-gui").SandcastleGui
+    sdk?: import("./runner").SandcastleSdk
     viewer?: unknown
     Arc3DLab?: unknown
   }

@@ -23,10 +23,11 @@ const emit = defineEmits<{
   copied: []
 }>()
 
-const extensions = [javascript(), oneDark]
+const extensions = [javascript(), oneDark, EditorView.lineWrapping]
 const bootstrapExtensions = [
   javascript(),
   oneDark,
+  EditorView.lineWrapping,
   EditorState.readOnly.of(true),
   EditorView.editable.of(false),
 ]
@@ -206,14 +207,11 @@ const copy = async () => {
   line-height: 1.45;
 }
 
-.editor {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
+/* vue-codemirror 根节点带内联 display:contents，其 flex/overflow 不生效；
+   直接让 .cm-editor 参与 .panel 的纵向 flex 布局并占满剩余高度。 */
 .editor :deep(.cm-editor) {
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   font-size: 13px;
 }
 

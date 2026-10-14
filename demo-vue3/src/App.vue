@@ -338,4 +338,39 @@ onUnmounted(() => {
   font: 12px "Trebuchet MS", "Segoe UI", sans-serif;
   cursor: pointer;
 }
+
+.gui-host :deep(.gui-field) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid #4a4e53;
+  background: #3a3e42;
+  border-radius: 3px;
+  color: #fff;
+  font: 12px "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+.gui-host :deep(.gui-field input[type="range"]) {
+  width: 96px;
+}
+
+.gui-host :deep(.gui-field input[type="number"]),
+.gui-host :deep(.gui-field input[type="text"]) {
+  width: 84px;
+  height: 20px;
+  padding: 0 4px;
+  background: #242526;
+  border: 1px solid #4a4e53;
+  border-radius: 2px;
+  color: #fff;
+  font: inherit;
+}
+
+.gui-host :deep(.gui-field-value) {
+  min-width: 30px;
+  text-align: right;
+  color: #e8c547;
+}
 </style>
