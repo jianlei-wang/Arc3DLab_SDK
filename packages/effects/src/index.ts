@@ -126,10 +126,11 @@ export class EffectsManager {
   }
 
   /**
-   * 销毁效果管理器并释放后处理与天气资源。
+   * 销毁效果管理器并释放后处理、天气与粒子资源。
    */
   destroy(): void {
     this.weather.destroy()
+    this.particles.destroy()
     this.postprocess.destroy()
   }
 }

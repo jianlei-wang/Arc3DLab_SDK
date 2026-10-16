@@ -30,6 +30,7 @@ function dtsRollupWatch(): Plugin {
 export default defineConfig({
   base: "./",
   resolve: { alias },
+  worker: { format: "es" },
   plugins: [
     dts({
       entryRoot: ".",

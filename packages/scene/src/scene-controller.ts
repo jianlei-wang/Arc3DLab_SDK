@@ -60,6 +60,7 @@ export class SceneController {
   /** 渲染后回调控制器。 */
   readonly postRender: PostRenderController
   private cancelMorph: (() => void) | undefined
+  private readonly syncViewers = new Set<SyncViewer>()
 
   /**
    * 创建场景控制器并初始化各子控制器。
@@ -161,7 +162,12 @@ export class SceneController {
    */
   sync(views: SyncableView[]): SyncViewer {
     const viewer = this.viewer()
-    return new SyncViewer({ camera: viewer.camera as SyncableCamera }, views)
+    const syncViewer = new SyncViewer(
+      { camera: viewer.camera as SyncableCamera },
+      views,
+    )
+    this.syncViewers.add(syncViewer)
+    return syncViewer
   }
 
   /**
@@ -245,11 +251,13 @@ export class SceneController {
   }
 
   /**
-   * 销毁场景控制器并取消未完成的形变恢复。
+   * 销毁场景控制器并取消未完成的形变恢复、释放全部多屏联动。
    */
   destroy(): void {
     this.cancelMorph?.()
     this.cancelMorph = undefined
+    for (const syncViewer of this.syncViewers) syncViewer.destroy()
+    this.syncViewers.clear()
     this.postRender.destroy()
   }
 }

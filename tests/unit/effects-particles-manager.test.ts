@@ -42,22 +42,39 @@ function fakeRuntime() {
   const lifecycle = new LifecycleManager()
   lifecycle.transition("initializing")
   lifecycle.transition("ready")
+  let demands = 0
+  const engineViewer = {
+    acquireContinuousRender: () => {
+      demands += 1
+      return () => {
+        demands -= 1
+      }
+    },
+  }
   const context = {
     lifecycle,
-    engine: { native: { viewer } },
+    engine: { native: { viewer }, viewer: engineViewer },
+    logger: { error: () => {} },
   } as unknown as Arc3DContext
-  return { context, preUpdate, removed }
+  return {
+    context,
+    viewer,
+    preUpdate,
+    removed,
+    demandCount: () => demands,
+  }
 }
 
 describe("ParticleManager", () => {
   it("creates, toggles and destroys a fire particle", () => {
-    const { context, preUpdate, removed } = fakeRuntime()
+    const { context, preUpdate, removed, demandCount } = fakeRuntime()
     const particles = new ParticleManager(context)
     const handle = particles.fire(
       { longitude: 116.39, latitude: 39.9, height: 10 },
       { image: "data:image/png;base64,AAAA" },
     )
     expect(preUpdate.size).toBe(1)
+    expect(demandCount()).toBe(1)
     expect(handle.visible).toBe(true)
     handle.setVisible(false)
     expect(handle.visible).toBe(false)
@@ -65,6 +82,7 @@ describe("ParticleManager", () => {
     handle.destroy()
     expect(removed).toHaveLength(1)
     expect(preUpdate.size).toBe(0)
+    expect(demandCount()).toBe(0)
   })
 
   it("creates an explosion particle", () => {
@@ -88,5 +106,46 @@ describe("ParticleManager", () => {
     )
     expect(handle.visible).toBe(true)
     handle.destroy()
+  })
+
+  it("tracks every handle and releases them all on destroy", () => {
+    const { context, removed, preUpdate, demandCount } = fakeRuntime()
+    const particles = new ParticleManager(context)
+    const image = { image: "data:image/png;base64,AAAA" }
+    particles.fire({ longitude: 116.39, latitude: 39.9 }, image)
+    particles.explosion({ longitude: 116.4, latitude: 39.9 }, image)
+    expect(particles.size).toBe(2)
+    particles.destroy()
+    expect(particles.size).toBe(0)
+    expect(removed).toHaveLength(2)
+    expect(preUpdate.size).toBe(0)
+    expect(demandCount()).toBe(0)
+  })
+
+  it("does not double-release a handle already destroyed", () => {
+    const { context, removed } = fakeRuntime()
+    const particles = new ParticleManager(context)
+    const handle = particles.explosion(
+      { longitude: 116.4, latitude: 39.9 },
+      { image: "data:image/png;base64,AAAA" },
+    )
+    handle.destroy()
+    particles.destroy()
+    expect(removed).toHaveLength(1)
+  })
+
+  it("overrides and restores clock.shouldAnimate by reference count", () => {
+    const { context, viewer } = fakeRuntime()
+    const particles = new ParticleManager(context)
+    const image = { image: "data:image/png;base64,AAAA" }
+    expect(viewer.clock.shouldAnimate).toBe(false)
+    const first = particles.fire({ longitude: 116.39, latitude: 39.9 }, image)
+    expect(viewer.clock.shouldAnimate).toBe(true)
+    particles.explosion({ longitude: 116.4, latitude: 39.9 }, image)
+    expect(viewer.clock.shouldAnimate).toBe(true)
+    first.destroy()
+    expect(viewer.clock.shouldAnimate).toBe(true)
+    particles.destroy()
+    expect(viewer.clock.shouldAnimate).toBe(false)
   })
 })

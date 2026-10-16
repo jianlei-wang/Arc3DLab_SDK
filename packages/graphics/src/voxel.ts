@@ -1,4 +1,8 @@
-import type { Arc3DContext } from "@arc3dlab/core"
+import {
+  createId,
+  type Arc3DContext,
+  type ResourceHandle,
+} from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
 import {
   Cartesian3,
@@ -15,24 +19,33 @@ import {
   type Viewer,
 } from "cesium"
 
-/** 体素点数据，坐标为经纬度与高程，`value` 为标量值。 */
+/** 体素点数据，坐标为经纬度与高程，`value` 为标量值；`value` 为 `NaN` 表示缺失。 */
 export interface VoxelPoint {
-  /** 经度。 */
+  /** WGS84 经度（度）。 */
   x: number
-  /** 纬度。 */
+  /** WGS84 纬度（度）。 */
   y: number
-  /** 高程（米）。 */
+  /** 相对 WGS84 椭球面的高程（米）。 */
   z: number
-  /** 标量值。 */
+  /** 标量值；`NaN` 表示缺失。 */
   value: number
 }
+
+/** 体素插值方法。 */
+export type VoxelInterpolationMethod = "idw" | "nearest"
 
 /** 体素创建选项。 */
 export interface VoxelOptions {
   /** 每个维度的体元数量，默认为 15。 */
   dimensions?: number
-  /** 颜色刻度列表（CSS 颜色字符串）。 */
+  /** 颜色刻度列表（CSS 颜色字符串），高值映射到列表首项。 */
   colorsList?: string[]
+  /** 插值方法，默认为 `idw`。 */
+  method?: VoxelInterpolationMethod
+  /** IDW 权重幂次，默认为 2。 */
+  power?: number
+  /** 各维度按米扩展体素盒范围，默认为 0。 */
+  padding?: number
 }
 
 /** 体素数据请求选项。 */
@@ -62,6 +75,17 @@ const DEFAULT_COLORS = [
   "#0de01f",
 ]
 
+/** 纬度每度对应的米数。 */
+const METERS_PER_DEGREE_LATITUDE = 110540
+/** 赤道处经度每度对应的米数，其余纬度按 `cos(latitude)` 折算。 */
+const METERS_PER_DEGREE_LONGITUDE = 111320
+/** 零跨度维度的最小跨度（米），保证体素盒非退化。 */
+const MIN_AXIS_SPAN = 1
+/** 默认的 IDW 权重幂次。 */
+const DEFAULT_POWER = 2
+/** 判定查询点与输入点重合的距离阈值（米）。 */
+const DISTANCE_EPSILON = 1e-9
+
 const VOXEL_SHADER_TEXT = `void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
 {
     material.diffuse = fsInput.metadata.color.rgb;
@@ -72,16 +96,42 @@ const VOXEL_SHADER_TEXT = `void fragmentMain(FragmentInput fsInput, inout czm_mo
 
 /**
  * 多瓦片体素对象，将离散点数据插值为体素盒并按数值着色。
+ *
+ * 该对象实现 {@link ResourceHandle} 合同：由 `GraphicManager.addVoxel` 创建时登记进
+ * 共享资源注册表，`destroy()` 幂等，可经自身或应用级销毁释放图元与点集合资源。
  */
-export class MultiTileVoxel {
+export class MultiTileVoxel implements ResourceHandle<
+  VoxelPrimitive | PointPrimitiveCollection | undefined
+> {
+  /** 资源唯一标识。 */
+  readonly id: string = createId("voxel")
+  /** 资源类型。 */
+  readonly type = "voxel"
+  /** 资源是否由本 SDK 持有并负责销毁。 */
+  readonly owned = true
   /** 体素点数据。 */
   readonly pointData: VoxelPoint[]
   /** 各维度的体元数量。 */
   readonly dimensions: number
   /** 颜色刻度。 */
   readonly colorsList: string[]
+  /** 插值方法。 */
+  readonly method: VoxelInterpolationMethod
+  /** IDW 权重幂次。 */
+  readonly power: number
+  /** 各维度按米扩展的范围。 */
+  readonly padding: number
+  private readonly validPoints: VoxelPoint[]
   private readonly minValue: number
   private readonly maxValue: number
+  private readonly centerLon: number
+  private readonly centerLat: number
+  private readonly centerZ: number
+  private readonly spanX: number
+  private readonly spanY: number
+  private readonly spanZ: number
+  private readonly metersPerDegLon: number
+  private readonly metersPerDegLat: number
   private readonly viewer: Viewer | undefined
   private primitive: VoxelPrimitive | undefined
   private pointCollection: PointPrimitiveCollection | undefined
@@ -98,37 +148,59 @@ export class MultiTileVoxel {
     options: VoxelOptions = {},
   ) {
     this.pointData = pointData
-    this.dimensions = options.dimensions ?? 15
-    this.colorsList = options.colorsList ?? DEFAULT_COLORS
-    const values = pointData.map((point) => point.value)
+    this.dimensions = Math.max(1, Math.floor(options.dimensions ?? 15))
+    this.colorsList =
+      options.colorsList && options.colorsList.length > 0
+        ? options.colorsList
+        : DEFAULT_COLORS
+    this.method = options.method === "nearest" ? "nearest" : "idw"
+    this.power =
+      options.power !== undefined && options.power > 0
+        ? options.power
+        : DEFAULT_POWER
+    this.padding =
+      options.padding !== undefined && options.padding > 0 ? options.padding : 0
+    this.validPoints = pointData.filter((point) => Number.isFinite(point.value))
+    const values = this.validPoints.map((point) => point.value)
     this.minValue = values.length > 0 ? Math.min(...values) : 0
     this.maxValue = values.length > 0 ? Math.max(...values) : 1
+
+    const bounds = this.computeBounds()
+    this.centerLon = bounds.centerLon
+    this.centerLat = bounds.centerLat
+    this.centerZ = bounds.centerZ
+    this.metersPerDegLat = METERS_PER_DEGREE_LATITUDE
+    this.metersPerDegLon = Math.max(
+      METERS_PER_DEGREE_LONGITUDE *
+        Math.max(Math.cos((this.centerLat * Math.PI) / 180), 1e-6),
+      1e-6,
+    )
+    this.spanX = Math.max(
+      bounds.spanLon * this.metersPerDegLon + 2 * this.padding,
+      MIN_AXIS_SPAN,
+    )
+    this.spanY = Math.max(
+      bounds.spanLat * this.metersPerDegLat + 2 * this.padding,
+      MIN_AXIS_SPAN,
+    )
+    this.spanZ = Math.max(bounds.spanZ + 2 * this.padding, MIN_AXIS_SPAN)
+
     this.viewer = getCesiumViewer(context.engine.native.viewer) as
       Viewer | undefined
     this.buildPrimitive()
   }
 
   /**
-   * 按最近邻在离散点之间插值，返回最接近目标位置的点值。
-   * @param x - 查询点经度。
-   * @param y - 查询点纬度。
-   * @param z - 查询点高程。
-   * @returns 插值得到的标量值。
+   * 在离散点之间按配置方法插值，返回查询位置的标量值。
+   *
+   * `x` / `y` / `z` 与 `VoxelPoint` 使用相同坐标系统（经度、纬度、高程）。
+   * @param x - 查询点经度（度）。
+   * @param y - 查询点纬度（度）。
+   * @param z - 查询点高程（米）。
+   * @returns 插值得到的标量值；无有效输入点时返回 `NaN`。
    */
   interpolate(x: number, y: number, z: number): number {
-    let nearestDistance = Number.POSITIVE_INFINITY
-    let nearestValue = 0
-    for (const point of this.pointData) {
-      const dx = point.x - x
-      const dy = point.y - y
-      const dz = point.z - z
-      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
-      if (distance < nearestDistance) {
-        nearestDistance = distance
-        nearestValue = point.value
-      }
-    }
-    return nearestValue
+    return this.sampleAt(x, y, z)
   }
 
   /**
@@ -140,18 +212,45 @@ export class MultiTileVoxel {
     if (options.tileLevel > 0) return undefined
     const dimensions = this.dimensions
     const channelCount = 4
-    const data = new Float32Array(dimensions ** 3 * channelCount)
+    const nodeCount = dimensions ** 3
+    const samples = new Float32Array(nodeCount)
+    let sampleMin = Number.POSITIVE_INFINITY
+    let sampleMax = Number.NEGATIVE_INFINITY
+    let hasSample = false
     let cursor = 0
     for (let z = 0; z < dimensions; z++) {
       for (let y = 0; y < dimensions; y++) {
         for (let x = 0; x < dimensions; x++) {
-          const sample = this.sampleGrid(x, y, z)
-          const color = this.colorForValue(sample)
-          data[cursor++] = color.red
-          data[cursor++] = color.green
-          data[cursor++] = color.blue
-          data[cursor++] = 1
+          const node = this.nodeCoordinate(x, y, z)
+          const sample = this.sampleAt(node.lon, node.lat, node.height)
+          samples[cursor++] = sample
+          if (Number.isFinite(sample)) {
+            sampleMin = Math.min(sampleMin, sample)
+            sampleMax = Math.max(sampleMax, sample)
+            hasSample = true
+          }
         }
+      }
+    }
+    const data = new Float32Array(nodeCount * channelCount)
+    cursor = 0
+    for (let i = 0; i < nodeCount; i++) {
+      const sample = samples[i]!
+      if (Number.isFinite(sample)) {
+        const color = this.colorForValue(
+          sample,
+          hasSample ? sampleMin : 0,
+          hasSample ? sampleMax : 1,
+        )
+        data[cursor++] = color.red
+        data[cursor++] = color.green
+        data[cursor++] = color.blue
+        data[cursor++] = 1
+      } else {
+        data[cursor++] = 0
+        data[cursor++] = 0
+        data[cursor++] = 0
+        data[cursor++] = 0
       }
     }
     return Promise.resolve([data])
@@ -166,9 +265,10 @@ export class MultiTileVoxel {
     if (visible && !this.pointCollection) {
       const collection = new PointPrimitiveCollection()
       for (const point of this.pointData) {
+        if (!Number.isFinite(point.value)) continue
         collection.add({
           position: Cartesian3.fromDegrees(point.x, point.y, point.z),
-          color: this.colorForValue(point.value),
+          color: this.colorForValue(point.value, this.minValue, this.maxValue),
         })
       }
       this.pointCollection = this.viewer.scene.primitives.add(
@@ -176,6 +276,25 @@ export class MultiTileVoxel {
       ) as unknown as PointPrimitiveCollection
     }
     if (this.pointCollection) this.pointCollection.show = visible
+  }
+
+  /**
+   * 底层原生对象，优先返回体素图元，其次返回点集合。
+   */
+  get native(): VoxelPrimitive | PointPrimitiveCollection | undefined {
+    return this.primitive ?? this.pointCollection
+  }
+
+  /**
+   * 体素与点集合的可见性。
+   */
+  get visible(): boolean {
+    return this.primitive?.show ?? this.pointCollection?.show ?? false
+  }
+
+  set visible(value: boolean) {
+    if (this.primitive) this.primitive.show = value
+    if (this.pointCollection) this.pointCollection.show = value
   }
 
   /**
@@ -193,33 +312,134 @@ export class MultiTileVoxel {
     }
   }
 
-  private buildPrimitive(): void {
-    const scene = this.viewer?.scene
-    if (!scene) return
-    const count = this.pointData.length
-    if (count === 0) return
+  /**
+   * 计算有效点边界与体素盒中心、地理跨度。
+   * @returns 盒中心坐标与经度、纬度、高程跨度；无有效点时全部为零。
+   */
+  private computeBounds(): {
+    centerLon: number
+    centerLat: number
+    centerZ: number
+    spanLon: number
+    spanLat: number
+    spanZ: number
+  } {
+    if (this.validPoints.length === 0) {
+      return {
+        centerLon: 0,
+        centerLat: 0,
+        centerZ: 0,
+        spanLon: 0,
+        spanLat: 0,
+        spanZ: 0,
+      }
+    }
     let minX = Number.POSITIVE_INFINITY
     let minY = Number.POSITIVE_INFINITY
     let minZ = Number.POSITIVE_INFINITY
     let maxX = Number.NEGATIVE_INFINITY
     let maxY = Number.NEGATIVE_INFINITY
-    for (const point of this.pointData) {
+    let maxZ = Number.NEGATIVE_INFINITY
+    for (const point of this.validPoints) {
       minX = Math.min(minX, point.x)
       minY = Math.min(minY, point.y)
       minZ = Math.min(minZ, point.z)
       maxX = Math.max(maxX, point.x)
       maxY = Math.max(maxY, point.y)
+      maxZ = Math.max(maxZ, point.z)
     }
-    const width = Math.max(1, (maxX - minX) * 111000)
-    const height = Math.max(1, (maxY - minY) * 111000)
-    const depth = Math.max(1, this.maxValue - this.minValue)
+    return {
+      centerLon: (minX + maxX) / 2,
+      centerLat: (minY + maxY) / 2,
+      centerZ: (minZ + maxZ) / 2,
+      spanLon: maxX - minX,
+      spanLat: maxY - minY,
+      spanZ: maxZ - minZ,
+    }
+  }
+
+  /**
+   * 将网格节点索引映射为采样地理坐标。
+   * @param xIndex - 经度方向节点索引。
+   * @param yIndex - 纬度方向节点索引。
+   * @param zIndex - 高程方向节点索引。
+   * @returns 节点经纬度与高程。
+   */
+  private nodeCoordinate(
+    xIndex: number,
+    yIndex: number,
+    zIndex: number,
+  ): { lon: number; lat: number; height: number } {
+    const east = (this.axisRatio(xIndex) - 0.5) * this.spanX
+    const north = (this.axisRatio(yIndex) - 0.5) * this.spanY
+    const up = (this.axisRatio(zIndex) - 0.5) * this.spanZ
+    return {
+      lon: this.centerLon + east / this.metersPerDegLon,
+      lat: this.centerLat + north / this.metersPerDegLat,
+      height: this.centerZ + up,
+    }
+  }
+
+  private axisRatio(index: number): number {
+    return this.dimensions === 1 ? 0 : index / (this.dimensions - 1)
+  }
+
+  /**
+   * 在 ENU 米制距离下按配置方法对查询点插值。
+   * @param lon - 查询点经度。
+   * @param lat - 查询点纬度。
+   * @param height - 查询点高程。
+   * @returns 插值结果；无有效输入点时返回 `NaN`。
+   */
+  private sampleAt(lon: number, lat: number, height: number): number {
+    if (this.validPoints.length === 0) return Number.NaN
+    if (this.method === "nearest") {
+      let nearestDistance = Number.POSITIVE_INFINITY
+      let nearestValue = Number.NaN
+      for (const point of this.validPoints) {
+        const distance = this.distanceMeters(point, lon, lat, height)
+        if (distance < nearestDistance) {
+          nearestDistance = distance
+          nearestValue = point.value
+        }
+      }
+      return nearestValue
+    }
+    let weightedSum = 0
+    let weightTotal = 0
+    for (const point of this.validPoints) {
+      const distance = this.distanceMeters(point, lon, lat, height)
+      if (distance < DISTANCE_EPSILON) return point.value
+      const weight = 1 / distance ** this.power
+      weightedSum += weight * point.value
+      weightTotal += weight
+    }
+    return weightTotal === 0 ? Number.NaN : weightedSum / weightTotal
+  }
+
+  private distanceMeters(
+    point: VoxelPoint,
+    lon: number,
+    lat: number,
+    height: number,
+  ): number {
+    const dx = (lon - point.x) * this.metersPerDegLon
+    const dy = (lat - point.y) * this.metersPerDegLat
+    const dz = height - point.z
+    return Math.sqrt(dx * dx + dy * dy + dz * dz)
+  }
+
+  private buildPrimitive(): void {
+    const scene = this.viewer?.scene
+    if (!scene) return
+    if (this.validPoints.length === 0) return
     const center = Cartesian3.fromDegrees(
-      (minX + maxX) / 2,
-      (minY + maxY) / 2,
-      minZ + depth / 2,
+      this.centerLon,
+      this.centerLat,
+      this.centerZ,
     )
     const modelMatrix = Transforms.eastNorthUpToFixedFrame(center)
-    const scale = new Cartesian3(width / 2, height / 2, depth / 2)
+    const scale = new Cartesian3(this.spanX / 2, this.spanY / 2, this.spanZ / 2)
     Matrix4Scale(modelMatrix, scale)
     const shader = new CustomShader({ fragmentShaderText: VOXEL_SHADER_TEXT })
     this.primitive = scene.primitives.add(
@@ -231,26 +451,13 @@ export class MultiTileVoxel {
     ) as unknown as VoxelPrimitive
   }
 
-  private sampleGrid(x: number, y: number, z: number): number {
-    const cx = minMax(0, this.dimensions, x)
-    const cy = minMax(0, this.dimensions, y)
-    const cz = minMax(0, this.dimensions, z)
-    return (cx + cy + cz) / (this.dimensions * 3)
-  }
-
-  private colorForValue(value: number): Color {
-    const min = this.minValue
-    const max = this.maxValue
+  private colorForValue(value: number, min: number, max: number): Color {
     const clamped = Math.min(Math.max(value, min), max)
     const ratio = max === min ? 0 : 1 - (clamped - min) / (max - min)
     let index = Math.floor(ratio * this.colorsList.length)
     if (!this.colorsList[index]) index = this.colorsList.length - 1
     return Color.fromCssColorString(this.colorsList[index]!) ?? Color.WHITE
   }
-}
-
-function minMax(min: number, max: number, value: number): number {
-  return Math.min(Math.max(value, min), max)
 }
 
 function Matrix4Scale(matrix: unknown, scale: Cartesian3): void {

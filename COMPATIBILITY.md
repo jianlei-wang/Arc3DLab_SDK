@@ -43,6 +43,21 @@ peerDependencies 精确锁定为 `cesium@1.146.0`。
 - **支持范围**：`@arc3dlab/*` 内部包随主包一起发布，不单独发版，消费者不感知内部版本。
 - **构建期**：`vite` / `typescript` / `vitest` 采用 `^` 范围，仅影响开发与构建，不进入运行时合同。
 
+### Cesium 内部 API 依赖（升级高风险点）
+
+SDK 直接依赖以下 Cesium 内部实现入口，它们带下划线、不属于 Cesium 公开 API，也不属于 Arc3DLab 的稳定公开合同，**不得被无限期依赖**。升级 `cesium` 时必须逐项核查。
+
+| 内部 API | 使用位置 | 用途 |
+|---|---|---|
+| `Material._materialCache.addMaterial` / `getMaterial` | `packages/effects/src/materials.ts`（动态扩散、线尾迹）、`packages/graphics/src/dynamic/materials.ts`（雷达） | 注册自定义材质类型 |
+
+- **原因**：Cesium 1.146.0 未提供公开的材质注册 API，`Material.fromType` 自身也消费同一内部缓存。
+- **缓解措施**：
+  - `cesium` 在 `peerDependencies` 中精确锁定为 `1.146.0`，降低近期不兼容概率。
+  - 注册入口以 `if (!cache) return` 守卫访问，结构缺失时静默跳过而非抛错。
+  - `tests/integration/cesium-material-registration.test.ts` 针对锁定版本做版本契约集成测试：探针缓存结构、校验三类材质进入缓存、并复用 Cesium 真实编译路径（`Material.fromType`）。
+  - 升级流程：升级 `cesium` → 运行该集成测试与浏览器 E2E → 若失败，更新访问层与测试后重新锁定版本。
+
 ## SemVer 承诺范围
 
 | 变更类型 | 版本位 | 示例 |

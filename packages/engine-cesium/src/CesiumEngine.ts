@@ -4,7 +4,6 @@ import type {
   EngineViewer,
   EngineViewerOptions,
   CreditMode,
-  DefaultBaseLayerState,
   SceneReadyOptions,
   SceneReadyResult,
 } from "@arc3dlab/core"
@@ -12,6 +11,9 @@ import { Arc3DError, classifyLoadFailure } from "@arc3dlab/core"
 import * as Cesium from "cesium"
 import globeImg from "./assets/globe-img"
 import { CreditManager } from "./credits"
+import { DefaultBaseLayerController } from "./default-base-layer"
+import { createIonTokenRunner } from "./ion"
+import { RenderModeCoordinator } from "./render-mode"
 
 function resolveContainer(container: string | Element): Element {
   if (typeof container !== "string") return container
@@ -46,7 +48,8 @@ export class CesiumEngineViewer implements EngineViewer {
   /** 版权信息管理器。 */
   readonly credits: CreditManager
   private destroyed = false
-  private defaultBaseLayerState: DefaultBaseLayerState = "disabled"
+  private readonly defaultBaseLayer: DefaultBaseLayerController
+  private readonly renderMode: RenderModeCoordinator
 
   /**
    * 创建并初始化 Cesium 引擎视图。
@@ -61,18 +64,22 @@ export class CesiumEngineViewer implements EngineViewer {
     this.canvas = viewer.canvas
     this.credits = new CreditManager(viewer)
     this.credits.setMode(options.creditMode ?? "default")
+    this.defaultBaseLayer = new DefaultBaseLayerController({
+      addToBottom: (layer) => viewer.imageryLayers.add(layer, 0),
+      lowerToBottom: (layer) => viewer.imageryLayers.lowerToBottom(layer),
+      requestRender: () => viewer.scene.requestRender(),
+    })
 
     if (options.defaultBaseLayer !== false) {
-      this.defaultBaseLayerState = "loading"
+      this.defaultBaseLayer.markLoading()
       void Promise.resolve(createDefaultBaseLayer())
         .then((layer) => {
           if (this.destroyed) return
-          viewer.imageryLayers.add(layer, 0)
-          this.defaultBaseLayerState = "ready"
+          this.defaultBaseLayer.attach(layer)
         })
         .catch((error) => {
           if (this.destroyed) return
-          this.defaultBaseLayerState = "failed"
+          this.defaultBaseLayer.markFailed()
           const message = error instanceof Error ? error.message : String(error)
           options.onError?.({ message, code: "ENGINE_FAILURE" })
         })
@@ -88,8 +95,7 @@ export class CesiumEngineViewer implements EngineViewer {
         ? window.devicePixelRatio
         : options.resolutionScale
     viewer.scene.debugShowFramesPerSecond = options.fpsShow ?? false
-    viewer.scene.requestRenderMode = true
-    viewer.scene.maximumRenderTimeChange = Infinity
+    this.renderMode = new RenderModeCoordinator(viewer.scene)
 
     if (options.controls === "mapbox") {
       applyMapboxControls(viewer)
@@ -127,6 +133,46 @@ export class CesiumEngineViewer implements EngineViewer {
   }
 
   /**
+   * 设置默认占位底图的可见性。
+   *
+   * 业务设置自定义底图时隐藏占位图，移除后恢复；该开关在占位图尚未
+   * 加载完成时也会被记录，加载完成后按最新状态生效，因此不依赖两种
+   * 资源加载的先后顺序。
+   *
+   * @param visible - 是否显示默认占位底图。
+   */
+  setDefaultBaseLayerVisible(visible: boolean): void {
+    if (this.destroyed) return
+    this.defaultBaseLayer.setVisible(visible)
+  }
+
+  /**
+   * 设置按需渲染模式。
+   *
+   * 当存在活动的持续渲染需求时，实际渲染模式仍会被临时强制为持续渲染；
+   * 需求全部解除后恢复到此处设置的基准模式。
+   *
+   * @param enabled - 是否启用按需渲染。
+   */
+  setRequestRenderMode(enabled: boolean): void {
+    this.renderMode.setEnabled(enabled)
+  }
+
+  /**
+   * 声明一段需要持续渲染的动画需求。
+   *
+   * 依赖逐帧推进的效果在活动期间应持有该需求，全部释放后引擎自动回到
+   * 按需渲染模式，避免静态场景无谓地持续绘制。
+   *
+   * @param reason - 需求来源说明，便于诊断。
+   * @returns 释放该需求的函数；视图已销毁时返回空操作。
+   */
+  acquireContinuousRender(reason = "animation"): () => void {
+    if (this.destroyed) return () => {}
+    return this.renderMode.acquire(reason)
+  }
+
+  /**
    * 等待场景与默认底图加载就绪。
    * @param options - 超时等就绪检测选项。
    * @returns 场景就绪结果的 Promise。
@@ -141,7 +187,7 @@ export class CesiumEngineViewer implements EngineViewer {
         remainingTiles: 0,
         timedOut: false,
         destroyed: true,
-        defaultBaseLayer: this.defaultBaseLayerState,
+        defaultBaseLayer: this.defaultBaseLayer.state,
       })
     }
 
@@ -165,13 +211,13 @@ export class CesiumEngineViewer implements EngineViewer {
           remainingTiles: globe?.tilesLoaded ? 0 : remainingTiles,
           timedOut,
           destroyed: this.destroyed,
-          defaultBaseLayer: this.defaultBaseLayerState,
+          defaultBaseLayer: this.defaultBaseLayer.state,
         })
       }
 
       const maybeSettle = (): void => {
         const tilesLoaded = !globe || globe.tilesLoaded
-        const baseSettled = this.defaultBaseLayerState !== "loading"
+        const baseSettled = this.defaultBaseLayer.state !== "loading"
         if (tilesLoaded && baseSettled) settle(false)
       }
 
@@ -199,6 +245,8 @@ export class CesiumEngineViewer implements EngineViewer {
   destroy(): void {
     if (this.destroyed) return
     this.destroyed = true
+    this.defaultBaseLayer.clear()
+    this.renderMode.dispose()
     this.native.destroy()
   }
 }
@@ -273,6 +321,7 @@ export function createCesiumEngineContext(
       viewer: viewer.native,
     },
     engine,
+    runWithIonToken: createIonTokenRunner(options.ionToken),
   }
 }
 

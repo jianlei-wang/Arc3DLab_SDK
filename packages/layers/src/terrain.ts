@@ -1,9 +1,10 @@
-import { Arc3DError, assertAlive, type Arc3DContext } from "@arc3dlab/core"
 import {
-  getCesiumViewer,
-  readIonToken,
-  withIonAccessToken,
-} from "@arc3dlab/engine-cesium"
+  Arc3DError,
+  assertAlive,
+  runWithIonToken,
+  type Arc3DContext,
+} from "@arc3dlab/core"
+import { getCesiumViewer, readIonToken } from "@arc3dlab/engine-cesium"
 import {
   CesiumTerrainProvider,
   EllipsoidTerrainProvider,
@@ -58,8 +59,10 @@ export class TerrainManager {
           "Ion terrain requires a runtime ion token",
         )
       }
-      const provider = await withIonAccessToken(token, () =>
-        CesiumTerrainProvider.fromIonAssetId(spec.assetId as number),
+      const provider = await runWithIonToken(
+        this.context,
+        () => CesiumTerrainProvider.fromIonAssetId(spec.assetId as number),
+        token,
       )
       assertAlive(this.context.lifecycle, "set terrain")
       viewer.terrainProvider = provider

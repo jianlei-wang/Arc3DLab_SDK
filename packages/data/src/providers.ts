@@ -1,4 +1,9 @@
-import { Arc3DError, classifyLoadError, createId } from "@arc3dlab/core"
+import {
+  Arc3DError,
+  classifyLoadError,
+  createId,
+  type RunWithIonToken,
+} from "@arc3dlab/core"
 import {
   ArcGisMapServerImageryProvider,
   Credit,
@@ -62,6 +67,21 @@ export interface ProviderHandle {
 }
 
 /**
+ * 影像提供者创建选项。
+ */
+export interface ProviderOptions {
+  /** 天地图备用令牌，用于规格未提供令牌的场景。 */
+  tdtToken?: string
+  /**
+   * 实例级 Ion 令牌执行入口。
+   *
+   * 提供时，Ion 提供者的创建会在该入口内执行，从而应用实例令牌；省略时
+   * 直接创建（例如无引擎的测试环境）。
+   */
+  runWithIonToken?: RunWithIonToken
+}
+
+/**
  * 根据模式与令牌构造天地图 WMTS 服务地址。
  * @param mode - 天地图影像模式。
  * @param token - 天地图服务令牌。
@@ -74,16 +94,16 @@ export function tdtUrl(mode: string, token: string): string {
 /**
  * 根据规格创建对应的影像提供者，并统一处理加载错误。
  * @param spec - 影像提供者规格。
- * @param fallbackToken - 可选的备用令牌，用于规格未提供令牌的场景。
+ * @param options - 创建选项，含备用令牌与 Ion 令牌执行入口。
  * @returns 影像提供者的 Promise。
  * @throws {Arc3DError} 当提供者类型不受支持或加载失败时抛出。
  */
 export async function createImageryProvider(
   spec: ProviderSpec,
-  fallbackToken?: string,
+  options: ProviderOptions = {},
 ): Promise<ImageryProvider> {
   try {
-    return await createImageryProviderUnchecked(spec, fallbackToken)
+    return await createImageryProviderUnchecked(spec, options)
   } catch (error) {
     throw classifyLoadError(error)
   }
@@ -91,8 +111,9 @@ export async function createImageryProvider(
 
 async function createImageryProviderUnchecked(
   spec: ProviderSpec,
-  fallbackToken?: string,
+  options: ProviderOptions,
 ): Promise<ImageryProvider> {
+  const fallbackToken = options.tdtToken
   const credit = spec.credit ? new Credit(spec.credit) : undefined
   if (spec.type === "xyz") {
     return new UrlTemplateImageryProvider({
@@ -153,7 +174,11 @@ async function createImageryProviderUnchecked(
     if (spec.assetId === undefined) {
       throw new Arc3DError("INVALID_ARGUMENT", "Ion imagery requires assetId")
     }
-    return IonImageryProvider.fromAssetId(spec.assetId)
+    const assetId = spec.assetId
+    const create = () => IonImageryProvider.fromAssetId(assetId)
+    return options.runWithIonToken
+      ? options.runWithIonToken(create, spec.token)
+      : create()
   }
   if (spec.type === "single") {
     return SingleTileImageryProvider.fromUrl(spec.url ?? "")
@@ -167,15 +192,15 @@ async function createImageryProviderUnchecked(
 /**
  * 创建影像提供者并封装为携带元数据的句柄。
  * @param spec - 影像提供者规格。
- * @param fallbackToken - 可选的备用令牌，用于规格未提供令牌的场景。
+ * @param options - 创建选项，含备用令牌与 Ion 令牌执行入口。
  * @returns 影像提供者句柄的 Promise。
  * @throws {Arc3DError} 当提供者类型不受支持或加载失败时抛出。
  */
 export async function createProviderHandle(
   spec: ProviderSpec,
-  fallbackToken?: string,
+  options: ProviderOptions = {},
 ): Promise<ProviderHandle> {
-  const native = await createImageryProvider(spec, fallbackToken)
+  const native = await createImageryProvider(spec, options)
   return {
     id: createId("provider"),
     type: spec.type,

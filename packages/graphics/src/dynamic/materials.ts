@@ -126,7 +126,6 @@ export class RadarNormalMaterialProperty {
 
   /**
    * 获取指定时间的材质值。
-   * @param time - 当前时间。
    * @param result - 复用的结果对象。
    * @returns 材质 uniform 值。
    */

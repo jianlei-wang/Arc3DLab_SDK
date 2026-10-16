@@ -187,6 +187,40 @@ export interface EngineViewer {
    * @param reason - 触发渲染的原因，便于调试。
    */
   requestRender(reason?: string): void
+  /**
+   * 设置按需渲染模式。
+   *
+   * 开启后场景仅在需要时渲染；关闭后场景持续渲染。当存在活动的
+   * 持续渲染需求时，引擎会临时强制持续渲染，需求全部解除后恢复到
+   * 此处设置的模式。省略时由具体引擎决定默认行为。
+   *
+   * @param enabled - 是否启用按需渲染。
+   */
+  setRequestRenderMode?(enabled: boolean): void
+  /**
+   * 声明一段需要持续渲染的动画需求。
+   *
+   * 依赖逐帧推进的效果（雨雪、闪电、粒子、动态材质等）应持有该需求，
+   * 以保证在用户不操作相机、场景没有其他触发条件时仍能持续刷新。
+   * 返回的释放函数调用后需求解除；当不存在任何活动需求时，引擎恢复到
+   * 按需渲染模式。省略时表示引擎不支持该能力，调用方应回退到手动
+   * `requestRender`。
+   *
+   * @param reason - 需求来源说明，便于诊断。
+   * @returns 释放该需求的函数。
+   */
+  acquireContinuousRender?(reason?: string): () => void
+  /**
+   * 设置引擎内置默认占位底图的可见性。
+   *
+   * 默认占位底图与业务自定义底图共用最底层槽位，二者应互斥：业务设置
+   * 自定义底图时传入 `false` 隐藏占位图，移除自定义底图后传入 `true`
+   * 恢复。该开关在占位图尚未加载完成时同样生效，因此对“占位图先完成”
+   * 与“业务底图先完成”两种时序都成立。省略时表示引擎没有占位底图。
+   *
+   * @param visible - 是否显示默认占位底图。
+   */
+  setDefaultBaseLayerVisible?(visible: boolean): void
   /** 销毁 Viewer。 */
   destroy(): void
   /**
@@ -246,6 +280,17 @@ export interface Engine {
   destroy(): void
 }
 
+/**
+ * 在实例 Ion 令牌作用域内执行异步工作的函数类型。
+ *
+ * @param work - 需要在该令牌作用域内执行的工作。
+ * @param token - 覆盖令牌；省略时使用实例令牌。
+ */
+export type RunWithIonToken = <T>(
+  work: () => Promise<T>,
+  token?: string,
+) => Promise<T>
+
 /** 引擎运行时上下文。 */
 export interface EngineContext {
   /** 引擎类型标识。 */
@@ -258,6 +303,17 @@ export interface EngineContext {
   }
   /** 引擎适配器。 */
   readonly engine?: Engine
+  /**
+   * 在实例 Ion 令牌作用域内执行异步工作。
+   *
+   * 引擎实现负责：应用实例令牌（或被 `token` 覆盖）、保证并发调用按串行
+   * 顺序设置与恢复全局令牌、并在工作结束（含异常）后恢复全局令牌。省略
+   * 时表示引擎不提供该能力，调用方应直接执行工作。
+   *
+   * @param work - 需要执行的异步工作。
+   * @param token - 覆盖令牌；省略时使用实例令牌。
+   */
+  runWithIonToken?: RunWithIonToken
 }
 
 /** Arc3D 运行时配置。 */

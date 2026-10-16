@@ -21,7 +21,7 @@ Vite library mode + TypeScript + `vite-plugin-dts`。主产物为 ESM。UMD 降�
 - 当前发布：单一包 `arc3dlab`
 - 内部包：`@arc3dlab/core` 等，`private: true`
 - Cesium peer：`1.146.0`
-- Active 矩阵：Arc3DLab 1.0.x + Cesium 1.146.0
+- Active 矩阵：Arc3DLab 2.0.x + Cesium 1.146.0
 
 ## 许可证
 

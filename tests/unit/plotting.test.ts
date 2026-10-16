@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  Arc3DError,
   LifecycleManager,
   ToolRegistry,
   type Arc3DContext,
@@ -22,11 +23,19 @@ import {
 const center: PlotPoint = [116.39, 39.9]
 const east: PlotPoint = [116.4, 39.9]
 
-function makeContext(): { manager: PlottingManager; added: unknown[] } {
+function makeContext(options: { failOnAdd?: number } = {}): {
+  manager: PlottingManager
+  added: unknown[]
+} {
   const added: unknown[] = []
+  let addCount = 0
   const viewer = {
     entities: {
       add(entity: unknown): unknown {
+        addCount += 1
+        if (options.failOnAdd === addCount) {
+          throw new Error("entity add failed")
+        }
         added.push(entity)
         return entity
       },
@@ -42,6 +51,15 @@ function makeContext(): { manager: PlottingManager; added: unknown[] } {
     tools: new ToolRegistry(),
   } as unknown as Arc3DContext
   return { manager: new PlottingManager(context), added }
+}
+
+function captureError(run: () => unknown): Arc3DError {
+  try {
+    run()
+  } catch (error) {
+    return error as Arc3DError
+  }
+  throw new Error("expected function to throw")
 }
 
 describe("plotting geometry", () => {
@@ -176,6 +194,75 @@ describe("PlottingManager", () => {
       positions: [{ longitude: 116.39, latitude: 39.9 }],
     })
     expect(() => manager.destroy()).not.toThrow()
+    expect(manager.results).toHaveLength(0)
+  })
+
+  it("rejects a duplicate result id before creating entities", () => {
+    const { manager, added } = makeContext()
+    const first = manager.draw("point", {
+      id: "alpha",
+      positions: [{ longitude: 116.39, latitude: 39.9 }],
+    })
+    const entityCount = added.length
+    const error = captureError(() =>
+      manager.draw("point", {
+        id: "alpha",
+        positions: [{ longitude: 116.4, latitude: 39.91 }],
+      }),
+    )
+    expect(error.code).toBe("DUPLICATE_RESOURCE")
+    expect(added).toHaveLength(entityCount)
+    expect(manager.get("alpha")).toBe(first)
+    expect(manager.results).toHaveLength(1)
+  })
+
+  it("rejects an empty explicit result id", () => {
+    const { manager, added } = makeContext()
+    const error = captureError(() =>
+      manager.draw("point", {
+        id: "",
+        positions: [{ longitude: 116.39, latitude: 39.9 }],
+      }),
+    )
+    expect(error.code).toBe("INVALID_ARGUMENT")
+    expect(added).toHaveLength(0)
+    expect(manager.results).toHaveLength(0)
+  })
+
+  it("rolls back created entities when a later entity fails", () => {
+    const { manager, added } = makeContext({ failOnAdd: 2 })
+    expect(() =>
+      manager.draw("circle", {
+        positions: [
+          { longitude: 116.39, latitude: 39.9 },
+          { longitude: 116.4, latitude: 39.9 },
+        ],
+      }),
+    ).toThrow(/entity add failed/)
+    expect(added).toHaveLength(0)
+    expect(manager.results).toHaveLength(0)
+  })
+
+  it("commits multi-shape results and removes them all", () => {
+    const { manager, added } = makeContext()
+    const circle = manager.draw("circle", {
+      id: "ring",
+      positions: [
+        { longitude: 116.39, latitude: 39.9 },
+        { longitude: 116.4, latitude: 39.9 },
+      ],
+    })
+    const flag = manager.draw("flag", {
+      positions: [
+        { longitude: 116.38, latitude: 39.9 },
+        { longitude: 116.39, latitude: 39.905 },
+      ],
+    })
+    expect(circle.entities).toHaveLength(circle.shapes.length)
+    expect(added).toHaveLength(circle.shapes.length + flag.shapes.length)
+    expect(manager.results).toHaveLength(2)
+    manager.removeAll()
+    expect(added).toHaveLength(0)
     expect(manager.results).toHaveLength(0)
   })
 })

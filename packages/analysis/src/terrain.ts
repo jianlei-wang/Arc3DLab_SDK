@@ -40,10 +40,14 @@ export interface SlopeResult extends HeightSample {
   sampleMeters: number
 }
 
-/** 地形剖面采样点，附加沿剖面起点的距离。 */
+/** 地形剖面采样点，附加沿剖面起点的距离与高程来源、状态。 */
 export interface ProfilePoint extends LngLatHeight {
   /** 沿剖面起点到该点的距离，单位为米。 */
   distance: number
+  /** 高程来源。 */
+  source: TerrainHeightSource
+  /** 采样状态，地形不可用时为 `unavailable`，据此区分回退值与真实高程。 */
+  status: TerrainSampleStatus
 }
 
 /** 地形分析服务，提供高程、坡度与剖面采样能力。 */
@@ -205,6 +209,8 @@ export class TerrainAnalysis {
         latitude: item.latitude,
         height: item.height,
         distance: distances[index],
+        source: item.source,
+        status: item.status,
       })),
     }
   }

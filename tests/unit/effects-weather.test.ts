@@ -10,7 +10,11 @@ import {
   resolveSnowOptions,
 } from "@arc3dlab/effects"
 
-function weather(): { effects: WeatherEffects; stages: unknown[] } {
+function weather(): {
+  effects: WeatherEffects
+  stages: unknown[]
+  demandCount: () => number
+} {
   const stages: unknown[] = []
   const postProcessStages = {
     add(stage: unknown) {
@@ -22,11 +26,27 @@ function weather(): { effects: WeatherEffects; stages: unknown[] } {
       if (index >= 0) stages.splice(index, 1)
     },
   }
+  let demands = 0
+  const viewer = {
+    acquireContinuousRender: () => {
+      demands += 1
+      return () => {
+        demands -= 1
+      }
+    },
+  }
   const context = {
     lifecycle: new LifecycleManager(),
-    engine: { native: { viewer: { scene: { postProcessStages } } } },
+    engine: {
+      native: { viewer: { scene: { postProcessStages } } },
+      viewer,
+    },
   } as Arc3DContext
-  return { effects: new WeatherEffects(context), stages }
+  return {
+    effects: new WeatherEffects(context),
+    stages,
+    demandCount: () => demands,
+  }
 }
 
 describe("weather option resolution", () => {
@@ -84,5 +104,19 @@ describe("WeatherEffects", () => {
     effects.clear()
     expect(effects.list()).toEqual([])
     expect(stages).toHaveLength(0)
+  })
+
+  it("holds continuous rendering only for frame-driven effects", () => {
+    const { effects, demandCount } = weather()
+    effects.enable("fog")
+    expect(demandCount()).toBe(0)
+    effects.enable("rain")
+    effects.enable("snow")
+    effects.enable("lightning")
+    expect(demandCount()).toBe(3)
+    effects.disable("rain")
+    expect(demandCount()).toBe(2)
+    effects.clear()
+    expect(demandCount()).toBe(0)
   })
 })

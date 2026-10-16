@@ -1,4 +1,8 @@
-import { createId, type Arc3DContext } from "@arc3dlab/core"
+import {
+  acquireContinuousRender,
+  createId,
+  type Arc3DContext,
+} from "@arc3dlab/core"
 import { getCesiumViewer, toCartesian3 } from "@arc3dlab/engine-cesium"
 import {
   Cartesian2,
@@ -49,6 +53,8 @@ function viewerOf(context: Arc3DContext): Viewer {
  * @param id - 图形标识。
  * @param native - 底层原生对象。
  * @param remove - 移除原生对象的回调。
+ * @param animated - 是否为依赖逐帧推进的动画；为 true 时持有持续渲染需求，
+ *   保证在静态场景下动画仍能刷新，销毁时自动释放。
  * @returns 动态图形句柄。
  */
 function createHandle(
@@ -56,10 +62,15 @@ function createHandle(
   id: string,
   native: unknown,
   remove: () => void,
+  animated = false,
 ): DynamicGraphicHandle {
   let destroyed = false
+  const releaseRender = animated
+    ? acquireContinuousRender(context, `graphics:${id}`)
+    : () => {}
   const release = context.disposers.push(() => {
     if (!destroyed) remove()
+    releaseRender()
   })
   return {
     id,
@@ -67,6 +78,7 @@ function createHandle(
     destroy(): void {
       if (destroyed) return
       destroyed = true
+      releaseRender()
       release()
       remove()
     },
@@ -134,9 +146,15 @@ export function addSpreadPoint(
           : HeightReference.CLAMP_TO_GROUND,
     },
   })
-  return createHandle(context, id, entity, () => {
-    if (viewer.entities) viewer.entities.remove(entity)
-  })
+  return createHandle(
+    context,
+    id,
+    entity,
+    () => {
+      if (viewer.entities) viewer.entities.remove(entity)
+    },
+    true,
+  )
 }
 
 /**
@@ -167,9 +185,15 @@ export function addRadarNormal(
       heightReference: HeightReference.CLAMP_TO_GROUND,
     },
   })
-  return createHandle(context, id, entity, () => {
-    if (viewer.entities) viewer.entities.remove(entity)
-  })
+  return createHandle(
+    context,
+    id,
+    entity,
+    () => {
+      if (viewer.entities) viewer.entities.remove(entity)
+    },
+    true,
+  )
 }
 
 /**
@@ -210,9 +234,15 @@ export function addRiver(
     }),
   })
   viewer.scene.primitives.add(primitive)
-  return createHandle(context, id, primitive, () => {
-    if (viewer.scene?.primitives) viewer.scene.primitives.remove(primitive)
-  })
+  return createHandle(
+    context,
+    id,
+    primitive,
+    () => {
+      if (viewer.scene?.primitives) viewer.scene.primitives.remove(primitive)
+    },
+    true,
+  )
 }
 
 /**
@@ -266,10 +296,16 @@ export function addCircleDiffusion(
     },
   })
   viewer.scene.postProcessStages.add(stage)
-  return createHandle(context, id, stage, () => {
-    if (viewer.scene?.postProcessStages)
-      viewer.scene.postProcessStages.remove(stage)
-  })
+  return createHandle(
+    context,
+    id,
+    stage,
+    () => {
+      if (viewer.scene?.postProcessStages)
+        viewer.scene.postProcessStages.remove(stage)
+    },
+    true,
+  )
 }
 
 /**
@@ -297,9 +333,15 @@ export function addDynamicPolyline(
       }),
     },
   })
-  return createHandle(context, id, entity, () => {
-    if (viewer.entities) viewer.entities.remove(entity)
-  })
+  return createHandle(
+    context,
+    id,
+    entity,
+    () => {
+      if (viewer.entities) viewer.entities.remove(entity)
+    },
+    true,
+  )
 }
 
 /**

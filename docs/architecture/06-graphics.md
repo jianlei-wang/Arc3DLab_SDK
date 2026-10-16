@@ -1,6 +1,6 @@
 # Graphics 模块
 
-Updated: 2026-10-08
+Updated: 2026-10-16
 
 ## 领域对象
 
@@ -51,3 +51,23 @@ const model = app.graphics.addModel({
 ```
 
 Model 走 Graphic 生命周期：`remove()` / `destroy()` 回收 Entity。第一阶段渲染后端为 Entity。
+
+## 体素与压平
+
+```ts
+const voxel = app.graphics.addVoxel(points, { dimensions: 16 })
+voxel.showPoints(true)
+
+const flatten = app.graphics.addFlatten(target, { enabled: true })
+flatten.addPolygon(ring)
+```
+
+`addVoxel` 返回 `MultiTileVoxel`，`addFlatten` 返回 `ModelFlatten`。两者实现资源句柄合同（`id` / `type` / `owned` / `native` / `visible` / `destroy()`），创建时经 `registerAtomically` 登记进共享 `Arc3DContext.registry` 并记入 `GraphicManager` 的 `extras`：
+
+- 单对象 `destroy()` 幂等；`graphics.clear()` 或应用级 `registry.clear()` 会一并释放。
+- 应用销毁后调用 `addVoxel` / `addFlatten` 抛 `Arc3DError("APP_DESTROYED")`。
+- `ModelFlatten` 仅在其目标 `clippingPolygons` 仍指向自身集合时解除关联，不覆盖外部替换后的集合。
+
+## 坐标副本
+
+`graphic.positions` 返回防御性副本，`setPositions()` 保存独立副本；调用方原地修改返回值或入参都不会绕过变更通知。

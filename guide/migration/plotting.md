@@ -47,12 +47,14 @@ const arrow = app.plotting.draw("attackArrow", {
 | `image` | `string` | 图片地址，仅 `billboard`。 |
 | `id` | `string` | 结果标识，未提供时自动生成。 |
 
-## 管理
+## 管理与一致性
 
 ```ts
 app.plotting.remove(arrow.id)
 app.plotting.removeAll()
 ```
+
+结果 `id` 在创建任何实体之前校验：同一管理器内重复的 `id` 抛出 `Arc3DError`（`DUPLICATE_RESOURCE`），不会覆盖既有记录，也不会创建实体；显式传入空字符串 `id` 抛出 `INVALID_ARGUMENT`。创建过程是原子的——任一实体创建失败都会回滚本次已创建的实体，不写入记录，并原样抛出错误，因此 `remove()` / `removeAll()` 始终能完整清理已提交的结果。
 
 `algorithm` 子模块导出贝塞尔、弓形、箭头、集结地等纯几何算法（`getBezierPoints`、`getQBSplinePoints`、`doubleArrow`、`formationPoints` 等），可在无引擎环境下复用。
 

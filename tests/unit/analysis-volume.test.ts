@@ -52,6 +52,38 @@ describe("VolumeAnalysis", () => {
     expect(result.designHeight).toBe(90)
     expect(result.resolutionMeters).toBeGreaterThan(0)
     expect(result.estimatedErrorCubicMeters).toBeGreaterThanOrEqual(0)
+    expect(result.status).toBe("computed")
+  })
+
+  it("flags degenerate polygons instead of silently reporting zero", async () => {
+    const { analysis } = volume(() => 100)
+    const result = await analysis.cutFill({
+      positions: [
+        [120.0, 30.0],
+        [120.02, 30.0],
+      ],
+      samples: 8,
+    })
+    expect(result.status).toBe("invalid-polygon")
+    expect(result.sampleCount).toBe(0)
+    expect(result.cutCubicMeters).toBe(0)
+    expect(result.fillCubicMeters).toBe(0)
+    expect(result.estimatedErrorCubicMeters).toBe(0)
+  })
+
+  it("reports an empty grid for a collinear ring", async () => {
+    const { analysis } = volume(() => 100)
+    const result = await analysis.cutFill({
+      positions: [
+        [120.0, 30.0],
+        [120.02, 30.0],
+        [120.04, 30.0],
+      ],
+      samples: 8,
+    })
+    expect(result.status).toBe("empty-grid")
+    expect(result.sampleCount).toBe(0)
+    expect(Number.isFinite(result.cutCubicMeters)).toBe(true)
   })
 
   it("reports fill when terrain sits below the design height", async () => {

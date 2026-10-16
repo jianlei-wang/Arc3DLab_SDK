@@ -27,6 +27,7 @@ interface FakePrimitive {
 function makeContext(): {
   flood: FloodAnalysis
   primitives: FakePrimitive[]
+  demandCount: () => number
 } {
   const primitives: FakePrimitive[] = []
   const viewer = {
@@ -43,11 +44,24 @@ function makeContext(): {
       },
     },
   }
+  let demands = 0
+  const engineViewer = {
+    acquireContinuousRender: () => {
+      demands += 1
+      return () => {
+        demands -= 1
+      }
+    },
+  }
   const context = {
     lifecycle: new LifecycleManager(),
-    engine: { native: { viewer } },
-  } as Arc3DContext
-  return { flood: new FloodAnalysis(context), primitives }
+    engine: { native: { viewer }, viewer: engineViewer },
+  } as unknown as Arc3DContext
+  return {
+    flood: new FloodAnalysis(context),
+    primitives,
+    demandCount: () => demands,
+  }
 }
 
 const region: Array<[number, number]> = [
@@ -97,5 +111,15 @@ describe("FloodAnalysis water surface", () => {
     flood.setWaterLevel(10)
     flood.destroy()
     expect(primitives).toHaveLength(0)
+  })
+
+  it("holds continuous rendering only while water is visible", () => {
+    const { flood, demandCount } = makeContext()
+    flood.setRegion(region)
+    expect(demandCount()).toBe(0)
+    flood.setWaterLevel(10)
+    expect(demandCount()).toBe(1)
+    flood.clear()
+    expect(demandCount()).toBe(0)
   })
 })

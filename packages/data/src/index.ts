@@ -5,6 +5,7 @@ import {
   classifyLoadError,
   createHandle,
   createId,
+  runWithIonToken,
   type Arc3DContext,
   type ResourceHandle,
 } from "@arc3dlab/core"
@@ -63,7 +64,11 @@ export class DataManager {
    */
   async createProvider(spec: ProviderSpec): Promise<ProviderHandle> {
     this.context.lifecycle.assertUsable("create provider")
-    return createProviderHandle(spec, this.context.config.tokens?.tdt)
+    return createProviderHandle(spec, {
+      tdtToken: this.context.config.tokens?.tdt,
+      runWithIonToken: (work, token) =>
+        runWithIonToken(this.context, work, token),
+    })
   }
 
   /**
@@ -131,6 +136,7 @@ export class DataManager {
         viewer.dataSources.remove(source, true)
         this.context.registry.unregister(id)
         this.context.catalog.unregisterLayer(id)
+        this.context.catalog.unregisterAsset(id)
         this.context.events.emit("layerRemoved", { id, type: spec.type })
       },
     })
@@ -139,6 +145,7 @@ export class DataManager {
     } catch (error) {
       viewer.dataSources.remove(source, true)
       this.context.catalog.unregisterLayer(id)
+      this.context.catalog.unregisterAsset(id)
       throw error
     }
     this.context.catalog.updateLayer(id, { loadState: "ready" })
@@ -179,6 +186,7 @@ export {
   createProviderHandle,
   tdtUrl,
   type ProviderHandle,
+  type ProviderOptions,
   type ProviderSpec,
   type ProviderType,
 } from "./providers"

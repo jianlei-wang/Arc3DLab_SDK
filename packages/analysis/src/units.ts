@@ -21,6 +21,16 @@ export type AreaUnit = typeof ANALYSIS_UNITS.area
 export type AngleUnit = typeof ANALYSIS_UNITS.angle
 /** 高度基准，目前仅支持椭球高。 */
 export type HeightDatum = "ellipsoid"
+/** 产生结果所依据的数值计算模型，用于说明结果的近似性质与适用范围。 */
+export type ComputationModel =
+  /** 地心直角坐标三维弦长，含地球曲率，并非椭球面最短路径。 */
+  | "ecef-chord"
+  /** 半径取 WGS84 长半轴的球面近似，相对 WGS84 椭球量存在随纬度增大的误差。 */
+  | "spherical"
+  /** 以原点固定经度缩放系数的局部东-北平面近似，仅在原点附近小范围内有效。 */
+  | "local-planar"
+  /** 椭球高差，垂直方向，与高程基准一致。 */
+  | "ellipsoid-delta"
 /** 距离计算模式，支持笛卡尔三维空间与测地线两种。 */
 export type DistanceMode = "cartesian" | "geodesic"
 /** 面积计算模式，支持测地线与平面两种。 */
@@ -39,6 +49,8 @@ export interface LengthResult {
   units: LengthUnit
   /** 距离计算模式。 */
   mode: DistanceMode
+  /** 数值计算模型，说明结果的近似性质与适用范围。 */
+  model: ComputationModel
   /** 高度基准。 */
   heightDatum: HeightDatum
 }
@@ -51,6 +63,8 @@ export interface AreaResult {
   units: AreaUnit
   /** 面积计算模式。 */
   mode: AreaMode
+  /** 数值计算模型，说明结果的近似性质与适用范围。 */
+  model: ComputationModel
 }
 
 /** 角度测量结果。 */
@@ -69,6 +83,8 @@ export interface HeightResult {
   meters: number
   /** 高度单位标识。 */
   units: LengthUnit
+  /** 数值计算模型，说明结果的近似性质与适用范围。 */
+  model: ComputationModel
   /** 高度基准。 */
   heightDatum: HeightDatum
 }

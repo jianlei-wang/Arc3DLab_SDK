@@ -1,30 +1,29 @@
-# Arc3DLab SDK Vue3 示例
+# Arc3DLab Sandcastle
 
-本项目演示了如何在 Vue3 项目中使用 Arc3DLab SDK。
+基于 Vue 3 + Vite 的 Arc3DLab SDK 交互式示例浏览器（Sandcastle）。左侧为可编辑的示例代码，右侧为实时三维场景，示例覆盖图形、相机、场景、底图地形、图层数据、交互、分析、特效、标绘、动态图形、模型与导航服务等类别。
 
-## 开发说明
-
-如果您正在开发 Arc3DLab SDK 并希望在此示例中测试本地构建的版本，请按以下步骤操作：
-
-1. 在项目根目录运行 `npm run build` 构建 SDK
-2. 确保 `vite.config.ts` 中的别名配置正确指向本地构建文件
-3. 运行 `npm run dev` 启动开发服务器
-
-## 本地开发工作流程
-
-在主项目中使用以下命令：
+## 运行
 
 ```bash
-# 开发监听模式 - 自动监听文件更改并重新构建
-npm run dev:watch
-```
+# 进入示例目录
+cd demo-vue3
 
-然后在本项目中运行：
+# 安装依赖
+npm install
 
-```bash
+# 启动开发服务器（默认 5173）
 npm run dev
+
+# 生产构建（vue-tsc 类型检查 + vite build）
+npm run build
 ```
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+## 与工作区 SDK 的关系
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+示例始终消费仓库内的 SDK 源码，而非已发布的 npm 包：
+
+- `vite.config.ts` 通过 `resolve.alias` 把 `arc3dlab` 与 `@arc3dlab/*` 指向根入口 `../src/index.ts` 与 `../packages/*/src/index.ts`，改源码后保存即热更新。
+- `src/arc3dlab-shim.d.ts` 为 `vue-tsc` 声明示例用到的门面类型，避免类型检查跟随工作区软链进入 `packages/*/src`。
+- 示例代码以字符串形式保存于 `src/examples/catalog.ts`，运行时由 `src/runner.ts` 注入 `app`、`gui`、`sdk` 后执行。
+
+因此不需要在 `package.json` 中声明 `arc3dlab` 依赖；请先在仓库根目录确保依赖就绪（`npm install`），再运行本目录的开发服务器。

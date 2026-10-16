@@ -53,6 +53,8 @@ app.credits.setContainer(element)
 
 `default` 显示 Cesium 版权容器。应用如需自定义展示，使用 `custom` 并提供容器。
 
+`compact` 与 `default` 都保留版权信息本身，只区别布局：`compact` 在归属信息保持可见的前提下压缩占位，不隐藏版权区域。切换模式时容器会先移回原始父节点并清除压缩样式，因此 `default` / `compact` / `custom` 可反复切换且位置可逆。
+
 ## 多引擎路线图（非当前 API 合同）
 
 以下内容是可替换渲染后端的**长期路线图**，不构成当前 API 承诺，任何一项都不得据此编写业务代码。

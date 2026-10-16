@@ -1,6 +1,6 @@
 # Effects / UI / Plugin
 
-Updated: 2026-10-09
+Updated: 2026-10-16
 
 ## Effects
 
@@ -14,6 +14,20 @@ app.effects.materials.list()
 ```
 
 内置 `color` 材质。业务通过 Registry 取材质。
+
+内置的动态扩散、线尾迹与雷达材质通过 `registerArc3DMaterials()` / `registerRadarNormalMaterial()` 注册到 Cesium 内部入口 `Material._materialCache`（Cesium 1.146.0 无公开注册 API）。该内部依赖已在 `COMPATIBILITY.md` 登记为升级高风险点，并由 `tests/integration/cesium-material-registration.test.ts` 针对锁定版本守卫。
+
+## 粒子
+
+`app.effects.particles` 创建火焰、爆炸与水枪粒子并返回 `ParticleHandle`：
+
+```ts
+const handle = app.effects.particles.fire(position, { image })
+handle.setVisible(false)
+handle.destroy()
+```
+
+`ParticleManager` 托管全部已创建句柄，`app.effects.destroy()` 会统一释放。粒子创建会以引用计数方式覆盖 `viewer.clock.shouldAnimate`：首个粒子保存原值并置为 `true`，全部粒子释放后恢复原值；重复销毁安全。单一释放失败经日志上报，不中断其余释放。
 
 ## PostProcess
 

@@ -73,20 +73,38 @@ gun.destroy()
 
 ## 体素
 
-`app.graphics.addVoxel(pointData, options?)` 将离散点插值为体素盒并按数值着色：
+`app.graphics.addVoxel(pointData, options?)` 将离散点数据空间插值为体素盒并按数值着色：
 
 ```ts
 const voxel = app.graphics.addVoxel(
-  [{ x: 116.39, y: 39.9, z: 0, value: 12 }],
-  { dimensions: 15 },
+  [
+    { x: 116.39, y: 39.9, z: 0, value: 12 },
+    { x: 116.4, y: 39.91, z: 20, value: 40 },
+  ],
+  { dimensions: 15, method: "idw", power: 2, padding: 0 },
 )
 
-const value = voxel.interpolate(116.39, 39.9, 0)
+const value = voxel.interpolate(116.395, 39.905, 10)
 voxel.showPoints(true)
 voxel.destroy()
 ```
 
-`VoxelPoint` 为 `{ x, y, z, value }`（`x`/`y` 为经纬度、`z` 为高程），`VoxelOptions` 含 `dimensions` 与 `colorsList`。
+### 数据合同
+
+- `VoxelPoint` 为 `{ x, y, z, value }`：`x` 为 WGS84 经度（度），`y` 为 WGS84 纬度（度），`z` 为相对 WGS84 椭球面的高程（米），`value` 为应用自定义标量。
+- `value` 为 `NaN` 表示缺失：缺失点不参与边界、颜色定义域与插值；无有效输入的网格节点输出透明颜色，`interpolate` 返回 `NaN`。
+- 体素盒地理范围由有效点的经度、纬度、高程最小/最大值决定，垂直跨度取高程跨度 `maxZ - minZ`；`padding`（米）在各维度两侧扩展范围，默认 `0`。
+
+### 插值与颜色
+
+| `method` | 说明 |
+| --- | --- |
+| `idw`（默认） | 反距离加权，权重为距离倒数的 `power` 次幂（`power` 默认 `2`）；查询点与输入点重合时返回该点值 |
+| `nearest` | 最近邻，取距离最小输入点的值 |
+
+距离在盒中心的东-北-天局部坐标系中以米计算，经度按 `cos(centerLat)` 折算。颜色定义域取自有效采样值的 `[min, max]`，高值映射到 `colorsList` 首项、低值映射到末项。
+
+`VoxelOptions` 字段：`dimensions`（默认 `15`）、`colorsList`、`method`、`power`、`padding`。
 
 ## 模型压平
 

@@ -16,6 +16,7 @@ export { getNativeSceneModeName, morphNativeScene } from "./scene-mode"
 export {
   withIonAccessToken,
   readIonToken,
+  createIonTokenRunner,
   SerialIonTokenScope,
   sharedIonTokenScope,
   type IonTokenScope,

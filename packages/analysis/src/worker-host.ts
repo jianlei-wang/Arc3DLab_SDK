@@ -1,80 +1,113 @@
-import { Arc3DError, type Arc3DErrorCode } from "@arc3dlab/core"
+import { Arc3DError } from "@arc3dlab/core"
 import {
   executeAnalysisJob,
   type AnalysisJob,
   type AnalysisJobResult,
 } from "./jobs"
 import type { AnalysisTaskOptions } from "./scheduler"
+import {
+  restoreAnalysisError,
+  serializeAnalysisError,
+  type AnalysisWorkerFactory,
+  type AnalysisWorkerLike,
+  type AnalysisWorkerResponse,
+} from "./worker-protocol"
 
-/** 可跨线程传递的序列化错误信息。 */
-export interface SerializedAnalysisError {
-  /** 错误码。 */
-  code: string
-  /** 错误消息。 */
-  message: string
+export {
+  serializeAnalysisError,
+  restoreAnalysisError,
+  type SerializedAnalysisError,
+  type AnalysisWorkerLike,
+  type AnalysisWorkerFactory,
+} from "./worker-protocol"
+
+/** 未完成的作业条目。 */
+interface PendingEntry {
+  /** 以结果兑现 Promise。 */
+  resolve: (result: AnalysisJobResult) => void
+  /** 以错误拒绝 Promise。 */
+  reject: (error: Arc3DError) => void
+  /** 移除该条目的取消监听等副作用。 */
+  cleanup: () => void
+}
+
+/** 创建分析作业宿主的配置。 */
+export interface AnalysisJobHostOptions {
+  /** 进程内执行器，缺省为 {@link executeAnalysisJob}。 */
+  execute?: (job: AnalysisJob) => AnalysisJobResult
+  /** Worker 工厂，缺省在运行环境支持时创建独立线程 Worker。 */
+  createWorker?: AnalysisWorkerFactory
 }
 
 /**
- * 将任意错误序列化为可传递的错误信息。
- * @param error - 待序列化的错误。
- * @returns 序列化后的错误信息。
+ * 在支持的环境创建独立线程 Worker。
+ * @returns Worker 实例；运行环境不具备 `Worker` 或创建失败时返回 undefined。
  */
-export function serializeAnalysisError(
-  error: unknown,
-): SerializedAnalysisError {
-  if (error instanceof Arc3DError) {
-    return { code: error.code, message: error.message }
-  }
-  return {
-    code: "ENGINE_FAILURE",
-    message: error instanceof Error ? error.message : String(error),
+function createDefaultWorker(): AnalysisWorkerLike | undefined {
+  if (typeof Worker === "undefined") return undefined
+  try {
+    return new Worker(new URL("./analysis-worker-entry.ts", import.meta.url), {
+      type: "module",
+    }) as unknown as AnalysisWorkerLike
+  } catch {
+    return undefined
   }
 }
 
 /**
- * 将序列化的错误信息还原为 Arc3DError。
- * @param payload - 序列化的错误信息。
- * @returns 还原得到的 Arc3DError。
+ * 校验作业是否可结构化克隆。
+ * @param job - 待校验的作业。
+ * @throws {Arc3DError} 作业不可克隆时抛出。
  */
-export function restoreAnalysisError(
-  payload: SerializedAnalysisError,
-): Arc3DError {
-  return new Arc3DError(payload.code as Arc3DErrorCode, payload.message)
+function assertCloneableJob(job: AnalysisJob): void {
+  if (typeof structuredClone !== "function") return
+  try {
+    structuredClone(job)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    throw new Arc3DError(
+      "INVALID_FORMAT",
+      `Analysis job must be structured-cloneable: ${detail}`,
+    )
+  }
 }
 
 /**
- * 在主线程内同步运行分析作业的宿主。
+ * 运行纯数值分析作业的宿主。
  *
- * 特意命名为 AnalysisJobHost：它以异步方式调度与取消作业，但尚未启动真正的
- * Web Worker。在真实工作线程实现完成前，此宿主即为该实现需要满足的契约。
- *
- * 路线图（非当前实现）：真实 Web Worker 落地时，本类应改为 `postMessage`
- * 驱动的宿主，并满足以下约束——
- * 1. 作业与结果必须可结构化克隆，或通过 Transferable 传递；不可克隆的输入应
- *    在 `run` 前以 `INVALID_FORMAT` 拒绝。
- * 2. 取消通过 `Worker.terminate()` 或应用级取消消息实现，语义保持为抛出
- *    `Arc3DError("CANCELLED")`。
+ * 当运行环境提供 `Worker` 时，作业被投递到独立线程执行；否则降级为进程内
+ * 执行，两者遵循相同的调度与取消契约：
+ * 1. 作业与结果必须可结构化克隆，不可克隆的输入在 `run` 前以
+ *    `INVALID_FORMAT` 拒绝。
+ * 2. 取消通过 `Worker.terminate()`（Worker 路径）或协作式检查（进程内路径）
+ *    实现，语义保持为抛出 `Arc3DError("CANCELLED")`。
  * 3. 跨线程错误沿用 {@link serializeAnalysisError} / {@link restoreAnalysisError}，
  *    保持 `Arc3DError` 错误码不丢失。
- * 当前无落地时间表；在此之前不得在业务代码中假设作业运行于独立线程。
  */
 export class AnalysisJobHost {
   private seq = 0
-  private pending = new Map<number, { reject: (error: Arc3DError) => void }>()
+  private pending = new Map<number, PendingEntry>()
   private terminated = false
+  private worker: AnalysisWorkerLike | undefined
+  private workerUnavailable = false
+  private readonly execute: (job: AnalysisJob) => AnalysisJobResult
+  private readonly createWorker: AnalysisWorkerFactory
 
   /**
    * 创建分析作业宿主。
-   * @param execute - 作业执行函数，默认为进程内执行器。
+   * @param options - 宿主配置，缺省使用进程内执行器与默认 Worker 工厂。
    */
-  constructor(private readonly execute = executeAnalysisJob) {}
+  constructor(options: AnalysisJobHostOptions = {}) {
+    this.execute = options.execute ?? executeAnalysisJob
+    this.createWorker = options.createWorker ?? createDefaultWorker
+  }
 
   /**
    * 异步运行一个分析作业，支持取消。
    * @param job - 待运行的分析作业。
    * @param options - 任务选项，包含取消信号。
    * @returns 作业执行结果。
-   * @throws {Arc3DError} 宿主已终止或作业被取消时抛出。
+   * @throws {Arc3DError} 宿主已终止、作业被取消或输入不可克隆时抛出。
    */
   async run(
     job: AnalysisJob,
@@ -86,39 +119,52 @@ export class AnalysisJobHost {
     if (options?.signal?.aborted) {
       throw new Arc3DError("CANCELLED", "Cancelled analysis job")
     }
-
+    assertCloneableJob(job)
+    const worker = this.ensureWorker()
     const id = (this.seq += 1)
-    return new Promise((resolve, reject) => {
-      const finish = (error?: unknown, result?: AnalysisJobResult) => {
-        if (!this.pending.has(id)) return
+    return new Promise<AnalysisJobResult>((resolve, reject) => {
+      const settle = (error?: unknown, result?: AnalysisJobResult) => {
+        const entry = this.pending.get(id)
+        if (!entry) return
         this.pending.delete(id)
-        options?.signal?.removeEventListener("abort", onAbort)
-        if (error) {
-          reject(
+        entry.cleanup()
+        if (error !== undefined) {
+          entry.reject(
             error instanceof Arc3DError
               ? error
               : restoreAnalysisError(serializeAnalysisError(error)),
           )
           return
         }
-        resolve(result as AnalysisJobResult)
+        entry.resolve(result as AnalysisJobResult)
       }
       const onAbort = () => {
-        finish(new Arc3DError("CANCELLED", "Cancelled analysis job"))
+        if (worker) this.abortWorker()
+        settle(new Arc3DError("CANCELLED", "Cancelled analysis job"))
       }
-      this.pending.set(id, { reject })
+      const cleanup = () =>
+        options?.signal?.removeEventListener("abort", onAbort)
+      this.pending.set(id, { resolve, reject, cleanup })
       options?.signal?.addEventListener("abort", onAbort, { once: true })
+      if (worker) {
+        try {
+          worker.postMessage({ id, job })
+        } catch (error) {
+          settle(error)
+        }
+        return
+      }
       queueMicrotask(() => {
         if (!this.pending.has(id)) return
         try {
           const result = this.execute(job)
           if (options?.signal?.aborted) {
-            finish(new Arc3DError("CANCELLED", "Cancelled analysis job"))
+            settle(new Arc3DError("CANCELLED", "Cancelled analysis job"))
             return
           }
-          finish(undefined, result)
+          settle(undefined, result)
         } catch (error) {
-          finish(error)
+          settle(error)
         }
       })
     })
@@ -127,9 +173,74 @@ export class AnalysisJobHost {
   /** 终止宿主并拒绝所有未完成的作业。 */
   destroy(): void {
     this.terminated = true
-    for (const entry of this.pending.values()) {
-      entry.reject(new Arc3DError("CANCELLED", "Analysis worker terminated"))
+    this.rejectAll(new Arc3DError("CANCELLED", "Analysis worker terminated"))
+    this.resetWorker()
+  }
+
+  private ensureWorker(): AnalysisWorkerLike | undefined {
+    if (this.worker) return this.worker
+    if (this.workerUnavailable) return undefined
+    let created: AnalysisWorkerLike | undefined
+    try {
+      created = this.createWorker()
+    } catch {
+      created = undefined
     }
+    if (!created) {
+      this.workerUnavailable = true
+      return undefined
+    }
+    created.onmessage = (event) => this.handleMessage(event.data)
+    created.onerror = (event) => this.handleWorkerError(event)
+    this.worker = created
+    return this.worker
+  }
+
+  private handleMessage(data: unknown): void {
+    const message = data as AnalysisWorkerResponse
+    if (typeof message?.id !== "number") return
+    const entry = this.pending.get(message.id)
+    if (!entry) return
+    this.pending.delete(message.id)
+    entry.cleanup()
+    if ("error" in message) {
+      entry.reject(restoreAnalysisError(message.error))
+    } else {
+      entry.resolve(message.result)
+    }
+  }
+
+  private handleWorkerError(event: unknown): void {
+    this.workerUnavailable = true
+    const detail =
+      event instanceof Error ? event.message : "Analysis worker failed"
+    this.rejectAll(new Arc3DError("ENGINE_FAILURE", detail))
+    this.resetWorker()
+  }
+
+  private abortWorker(): void {
+    this.rejectAll(new Arc3DError("CANCELLED", "Cancelled analysis job"))
+    this.resetWorker()
+  }
+
+  private rejectAll(error: Arc3DError): void {
+    const entries = Array.from(this.pending.values())
     this.pending.clear()
+    for (const entry of entries) {
+      entry.cleanup()
+      entry.reject(error)
+    }
+  }
+
+  private resetWorker(): void {
+    if (!this.worker) return
+    this.worker.onmessage = null
+    this.worker.onerror = null
+    try {
+      this.worker.terminate()
+    } catch {
+      // 终止失败不影响宿主状态。
+    }
+    this.worker = undefined
   }
 }

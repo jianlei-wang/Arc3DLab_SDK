@@ -1,6 +1,6 @@
 # Data 与 Provider
 
-Updated: 2026-10-10
+Updated: 2026-10-16
 
 ```ts
 const provider = await app.data.createProvider({
@@ -28,6 +28,8 @@ await app.data.addCzml({ id, url })
 - `LayerMetadata`：`kind: "data"`，`loadState` 在加载过程由 `loading → ready`，失败进入 `failed` 并写入 `error`。
 
 `FeatureSchema / AttributeField` 描述字段模式（`type / unit / enum / required / displayName / derived`）。`FeatureRef` 用 `assetId + featureId + version` 稳定引用业务对象；删除图层不清除资产。
+
+数据源句柄（`app.data.load` 的返回值）销毁时同时注销 `LayerMetadata` 与 `DataAsset`，不残留悬挂资产；注册表登记阶段失败时同样回滚两者。加载失败时图层进入 `failed` 并保留资产，作为一致的失败记录。
 
 ```ts
 context.catalog.getAsset("roads")

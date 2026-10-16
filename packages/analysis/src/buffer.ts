@@ -49,6 +49,9 @@ function closeRing(ring: LngLatLike[]): LngLatLike[] {
 
 /**
  * 构造单点的圆形缓冲区边界。
+ *
+ * 采用局部东-北平面近似（`"local-planar"`），以圆心为原点固定经度缩放，
+ * 仅适用于圆心附近、非极区的小半径缓冲；高纬与大半径会产生失真。
  * @param center - 圆心坐标。
  * @param distance - 缓冲半径，单位为米，取值必须大于 0。
  * @param segments - 圆周分段数量，默认 64。
@@ -79,6 +82,9 @@ export function bufferPoint(
 
 /**
  * 构造折线的缓冲区边界。
+ *
+ * 采用局部东-北平面近似（`"local-planar"`），以首个顶点为原点固定经度缩放，
+ * 仅适用于折线附近、非极区的小距离缓冲。
  * @param positions - 折线顶点列表，至少包含两个顶点。
  * @param distance - 缓冲距离，单位为米，取值必须大于 0。
  * @param options - 可选参数，包含插值步长。
@@ -133,6 +139,9 @@ export function bufferPolyline(
 
 /**
  * 构造多边形环的缓冲区边界，支持外扩与内缩。
+ *
+ * 采用局部东-北平面近似（`"local-planar"`），以环首点为原点固定经度缩放，
+ * 仅适用于多边形附近、非极区的小距离缓冲。
  * @param ring - 多边形环顶点列表，至少包含三个顶点。
  * @param distance - 缓冲距离，单位为米；正值外扩，负值内缩，取值不能为 0。
  * @returns 闭合的缓冲区边界点列表。

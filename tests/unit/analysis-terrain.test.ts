@@ -126,6 +126,50 @@ describe("TerrainAnalysis", () => {
     expect(result.points[0].distance).toBe(0)
     expect(result.points[4].distance).toBeGreaterThan(result.points[1].distance)
     expect(result.points.every((point) => point.height === 12)).toBe(true)
+    expect(result.points.every((point) => point.source === "globe")).toBe(true)
+    expect(result.points.every((point) => point.status === "sampled")).toBe(
+      true,
+    )
+  })
+
+  it("flags profile points when terrain is unavailable", async () => {
+    const analysis = new TerrainAnalysis({
+      lifecycle: new LifecycleManager(),
+      engine: {
+        native: {
+          viewer: {
+            scene: {
+              sampleHeightSupported: false,
+              globe: { getHeight: () => undefined },
+            },
+          },
+        },
+      },
+    } as Arc3DContext)
+    const result = await analysis.profile({
+      positions: [
+        [120, 30],
+        [120.1, 30],
+      ],
+      samples: 3,
+    })
+    expect(result.points).toHaveLength(3)
+    expect(result.points.every((point) => point.height === 0)).toBe(true)
+    expect(result.points.every((point) => point.source === "ellipsoid")).toBe(
+      true,
+    )
+    expect(result.points.every((point) => point.status === "unavailable")).toBe(
+      true,
+    )
+  })
+
+  it("carries source and status on the single-point profile path", async () => {
+    const result = await terrain(() => 7).profile({ positions: [[120, 30]] })
+    expect(result.points).toHaveLength(1)
+    expect(result.points[0].distance).toBe(0)
+    expect(result.points[0].source).toBe("globe")
+    expect(result.points[0].status).toBe("sampled")
+    expect(result.points[0].height).toBe(7)
   })
 
   it("computes a west-facing slope from east-high samples", async () => {

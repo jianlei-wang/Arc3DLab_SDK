@@ -3,6 +3,151 @@
 > 面向 SDK 维护者的架构、合同与质量门禁迭代记录，按日期倒序排列。
 > 面向使用者的发布变更日志见根目录 `CHANGES.md`。
 
+## 2026-10-16（最终产物同步：API 文档 / Sandcastle / 开发指南）
+
+- 目标：任务 1-16 改动完成后，对 SDK 包、API 文档、Sandcastle 与开发指南做最终一致性核对并保证四者可构建。
+- API 文档：`npm run docs:build` 生成 533 页 / 520 符号、覆盖 12 个包命名空间；修复 `packages/graphics/src/dynamic/materials.ts` 中 `RadarNormalMaterialProperty.getValue` 的未使用 `@param time` 告警（形参为 `_time`），提取零告警；`npm run lint:docs` 覆盖率 summary 100.0% / params 98.6%。
+- Sandcastle：校验示例中全部 `sdk.*` 引用（粒子工厂、动态图形工厂、`ModelFlatten`、`NavigationBar`、`captureGrid`、`createGaodeProvider`）均由各包 `src/index.ts` 导出；`package.json` 包名 `my-vue-app` → `arc3dlab-sandcastle`，删除过期的 `arc3dlab@^0.0.3` 依赖并将 `package-lock.json` 同步（示例经 `vite.config.ts` alias 直接消费工作区源码）；更新 `src/arc3dlab-shim.d.ts` 注释与 `README.md`。
+- 开发指南：复核 `guide/` 源码未引用已移除 API（`Viewer` 仅存于迁移页），`PeerLinks.vue` 端口映射（5173/5174/5175）与 `11-api.md` 一致，`npm run guide:build` 通过。
+- 公共 API：仅修正 JSDoc，无导出变更，`scripts/public-api-manifest.json` 未变。
+- 验证：`npm run build`、`docs:build`、`lint:docs`、`guide:build`、`demo-vue3` 的 `npm run build` 均成功；`npm run gate:fast` 全绿（86 文件 / 571 通过 | 1 跳过）。需求与设计见 `.monkeycode/specs/2026-10-16-final-artifact-sync/`。
+
+## 2026-10-16（文档与发布合同同步）
+
+- 问题：根 `package.json` 已为 `2.0.0`，`@arc3dlab/legacy` 与根入口 `Viewer` / `Map` 已移除，SDK 采用 Cesium-first 定位；但 `README.md` 仍展示 `Viewer` 兼容示例，`docs/guides/sdk-development.md` 仍记录版本 `1.0.0`、`legacy/` 目录、`sdk -> legacy` 依赖与「Cesium 只出现在 engine-cesium」边界描述，`docs/architecture/12-engineering.md` 的 Active 矩阵仍为 `1.0.x`，`CHANGES.md` 用 `Unreleased` 承载已定版内容。
+- 修复：`README.md` 旧入口示例改为「已在 2.0.0 移除」说明并指向 `docs/architecture/13-migration.md`；`sdk-development.md` 版本号统一为 `2.0.0`、删除 `legacy/` 与 `sdk -> legacy`、补 `plotting/`、依赖边界改为 Cesium-first 事实并引用 `03-engine.md` 与 `CESIUM_PACKAGES` 门禁、测试覆盖描述改为多包现状、发布示例改为 `v2.0.0`；`12-engineering.md` Active 矩阵改为 `2.0.x`；`docs/guides/migration.md` 增补移除状态声明。
+- 版本日志：`CHANGES.md` 版本头 `Unreleased` → `v2.0.0`，并在 `chore` 段登记本次同步。
+- 边界：迁移与历史文档中作为对照的 `1.0.0-alpha.1`、旧 `Viewer` 示例保留；不涉及导出变更，`scripts/public-api-manifest.json` 未变。
+- 验证：检索确认旧版残留清除；`npm run format:check`。需求与设计见 `.monkeycode/specs/2026-10-16-doc-release-contract-sync/`。
+
+## 2026-10-16（数值分析计算模型定位与地形状态）
+
+- 问题：`packages/analysis/src/geometry.ts` 的 `geodesicDistanceMeters()` / `geodesicRingArea()` 实为半径取 WGS84 长半轴的球面公式，却被命名为 `geodesic`，`DistanceMode` / `AreaMode: "geodesic"` 让调用者误以为结果是 WGS84 椭球精确量；`toLocalMeters()` / `fromLocalMeters()` 把 `cos(lat)` 固定在投影原点，`buffer*`、土方网格与平面面积仅在小范围/非极区有效但未标注边界；`terrain.profile()` 丢弃采样 `source` / `status`，地形不可用（回退 0 米）与真实 0 米无法区分；`VolumeAnalysis.cutFill()` 对顶点不足或空网格静默返回未标注的全 0 结果。
+- 计算模型字段（非破坏新增）：`units.ts` 新增 `ComputationModel`（`"ecef-chord"` / `"spherical"` / `"local-planar"` / `"ellipsoid-delta"`），`LengthResult` / `AreaResult` / `HeightResult` 各新增只读 `model`；`index.ts` 以 `modelForDistance()` / `modelForArea()` 从既有 `mode` 派生，单一真值来源；既有 `mode` / `units` / `heightDatum` / `reference` 语义与取值不变。
+- 地形状态：`terrain.ts` 的 `ProfilePoint` 新增 `source` / `status`，`profile()` 的单点退化路径与多段路径均从 `sampleCartographics()` 结果透传，语义与 `terrain.sampleHeight()` 一致。
+- 土方状态：`volume.ts` 新增 `CutFillStatus`（`"computed"` / `"invalid-polygon"` / `"empty-grid"`），`CutFillResult` 新增只读 `status`；非法多边形仍返回零值结果，仅新增可识别状态，不改变返回形态。
+- 文档与 JSDoc：`docs/architecture/09-analysis.md` 新增「计算模型与适用边界」小节（各模型含义、适用边界与误差、`estimatedErrorCubicMeters` 为经验量级而非数学上界、高程基准仅椭球高且缺失按 0）；`geometry.ts` / `buffer.ts` / `cutfill.ts` 受影响函数 JSDoc 标注所属模型与边界。
+- 退化输入：不改运行时，补单元测试固化——空数组、重复顶点、共线环、零长度线段、单点路径返回有限值或抛 `INVALID_ARGUMENT`，不产生 `NaN`。
+- 公共 API：`@arc3dlab/analysis` 新增导出 `ComputationModel` / `CutFillStatus`，`scripts/public-api-manifest.json` 随刷新。
+- 验证：扩展 `analysis-measure` / `analysis-terrain` / `analysis-volume` / `analysis-buffer` / `analysis-geometry` 测试；typecheck / 全量测试 / 门禁通过。需求与设计见 `.monkeycode/specs/2026-10-16-numeric-analysis-positioning/`。
+
+## 2026-10-16（Cesium 内部材质缓存依赖治理）
+
+- 背景：`registerArc3DMaterials()`（`packages/effects/src/materials.ts`）与 `registerRadarNormalMaterial()`（`packages/graphics/src/dynamic/materials.ts`）经 `Material._materialCache.addMaterial(...)` 注册自定义材质。`_materialCache` 是 Cesium 私有入口（`_materials` + `addMaterial` / `getMaterial`），Cesium 1.146.0 无公开替代，`Material.fromType` 亦消费同一缓存。已精确锁定 `cesium@1.146.0`，属升级高风险点而非当前必须重写。
+- 风险登记：在 `COMPATIBILITY.md`「依赖锁定策略」下新增「Cesium 内部 API 依赖（升级高风险点）」，列出依赖清单、使用位置、原因、缓解（精确锁定、`if (!cache) return` 守卫、版本契约测试、升级核查），并声明其不属于稳定公开合同。
+- 架构说明：`docs/architecture/10-effects-ui-plugin.md` 补充内置材质注册依赖内部入口并引用风险登记。
+- 版本契约集成测试：新增 `tests/integration/cesium-material-registration.test.ts`（3 项）——探针 `Material._materialCache` 结构与 `addMaterial` / `getMaterial`；断言动态扩散、线尾迹、雷达三类模板进入缓存且 `fabric.type` / `fabric.source` 正确；对无纹理材质复用 Cesium 真实 `Material.fromType` 编译并断言 `shaderSource` 含 `czm_getMaterial`。node 下 `getUniformType` 会 `instanceof` 浏览器构造器，测试在 `beforeAll` 注入占位类、`afterAll` 还原；线尾迹的 `image` 纹理路径触发浏览器纹理加载，留待 E2E 层。
+- 验证：`npx vitest run tests/integration/cesium-material-registration.test.ts` 3 项通过；全量门禁通过。需求与设计见 `.monkeycode/specs/2026-10-16-cesium-material-cache-risk/`。
+
+## 2026-10-16（Credits 展示模式布局与位置可逆）
+
+- 问题：`packages/engine-cesium/src/credits.ts` 的 `CreditManager.setMode()` 把「布局压缩」与「版权是否显示」混在一起——`compact` 直接对 `viewer.cesiumWidget.creditContainer` 设 `display: none`，连同第三方数据源署名一起隐藏；`custom` 把容器 `appendChild` 到业务节点后，切回 `default` 只把 `display` 置空，容器仍留在自定义节点内，原始位置未恢复，`getContainer()` 语义随之混乱。自定义容器判定用 `container instanceof HTMLElement`，在无 DOM 环境不可测。
+- 拆分合同：`default` 与 `compact` 均保留版权信息，只区别布局；`compact` 以 `fontSize` / `lineHeight` / `padding` 压缩占位，不再改写 `display`。构造时缓存 `creditContainer`、其 `parentNode`（`originalParent`）与基线 `display`。
+- 可逆切换：每次 `setMode` 先 `restore()`——若容器已不在原始父节点则 `appendChild` 移回，`display` 恢复基线值，清空压缩样式——再按目标模式施加最小改动；`custom` 记录 `customContainer` 并挂载，未提供可挂载容器时自然落入 `default` 表现。`getContainer()` 返回 `customContainer ?? creditContainer`。
+- 挂载判定：以 `isMountable()`（具备 `appendChild` / `removeChild`）替代 `instanceof HTMLElement`，兼容 `SVGElement` 等非 `HTMLElement` 的 `Element` 并支持无 DOM 单测。
+- 验证：新增 `tests/unit/engine-credits.test.ts`（5 项），用最小假 DOM 覆盖 `compact` 不隐藏且压缩、`custom` 挂载与 `default` 归位、完整 `default → custom → compact → default` 流程、保留既有基线 `display`、无容器回退；typecheck / 全量测试 / 门禁通过。需求与设计见 `.monkeycode/specs/2026-10-16-credit-mode-layout/`。
+
+## 2026-10-16（动态材质跨日时间与相等性）
+
+- 问题：`packages/effects/src/materials.ts` 的 `DynamicSpreadMaterialProperty` / `PolylineTrailMaterialProperty` 以 `epoch = time.secondsOfDay` 记录动画起点并计算 `(time.secondsOfDay - epoch)`。`secondsOfDay` 取值 `[0, 86400)`，每天午夜回绕，跨日动画的差值突变甚至为负，动画重置或倒退；且 `epoch` 若保存的是调用方传入的 `JulianDate` 引用，会随 `viewer.clock.currentTime` 的就地推进而漂移。两类材质的 `equals()` 只比较颜色与 `gradient` / `image`，遗漏 `duration`。
+- 时间合同：改用 `JulianDate.secondsDifference(time, epoch)`（按 `dayNumber` 与 `secondsOfDay` 联合求差，跨日连续），`JulianDate` 由 `type` 导入改为值导入；`epoch` 用 `JulianDate.clone(time)` 保存独立副本，避免引用漂移。`time` 的「周期数」语义与默认 `duration = 1000` 不变。
+- 相等性合同：`DynamicSpreadMaterialProperty.equals()` 增加 `duration` 比较，`PolylineTrailMaterialProperty.equals()` 增加 `duration` 比较，覆盖全部影响结果的字段。
+- 验证：扩展 `tests/unit/effects-material-properties.test.ts`（跨午夜单调、epoch 快照不受传入实例就地修改影响、`duration` 差异判不相等），共 11 项；typecheck / 全量测试 / 门禁通过。需求与设计见 `.monkeycode/specs/2026-10-16-dynamic-material-time-crossday/`。
+
+## 2026-10-16（动态热力图网格复用与插值播放）
+
+- 问题：`packages/analysis/src/dynamic-heatmap.ts` 的 `DynamicHeatmapOverlay.setFrames()` 为每帧预计算并缓存网格、并导出了 `interpolateHeatmapGrid()`，但 `showFrame()` 仍把原始点集交给 `HeatmapOverlay.setData()` 重算网格，`play()` 也只是定时调用 `showFrame(current + 1)` 逐帧硬切；预计算与插值能力双双闲置，同一帧被重复计算、动态过渡不连续。
+- 渲染/计算解耦：`HeatmapOverlay` 新增 `setGrid(grid, options)` 直接从网格渲染（仅 `gridToRgba` + canvas + 实体，不做网格计算）；`setData(points, options)` 保留生命周期断言，内部改为 `setGrid(computeHeatmapGrid(points, options), options)`，可观察结果与既有实现一致。
+- 帧渲染：`showFrame(index)` 改为 `overlay.setGrid(this.grids[current], frame.options)`，命中 `setFrames` 预计算网格，不再对点集重算。
+- 插值播放：`play(intervalMs, steps)` 把每个帧间隔拆为 `steps`（默认 `DEFAULT_TRANSITION_STEPS = 12`）个子步，子步时长 `max(16, round(duration / max(2, floor(steps))))`；过渡期内渲染 `interpolateHeatmapGrid(grids[from], grids[to], ratio)` 并沿用起始帧渲染选项，`ratio >= 1` 时渲染目标帧、`current` 前进、`elapsed` 归零；相邻网格维度不一致时 `interpolateHeatmapGrid` 既有回退返回起始网格，间隔结束仍以目标帧切换；`pause()` / `clear()` 停止定时器，帧数不足 2 时不启动。
+- 公共 API：`HeatmapOverlay.setGrid` 为新增方法，`interpolateHeatmapGrid` / `DynamicHeatmapFrame` / `DynamicHeatmapOverlay` 导出保持不变，`scripts/public-api-manifest.json` 随刷新。
+- 验证：扩展 `tests/unit/analysis-heatmap.test.ts`，以原型 spy 隔离 DOM，断言 `showFrame` 命中缓存网格且不调用 `setData`（不重算），并断言 `play` 在相邻网格间按比例插值、间隔末切换到目标帧、`pause()` 后不再推进；typecheck 通过，`interpolateHeatmapGrid` 数学正确性沿用既有纯函数用例。需求与设计见 `.monkeycode/specs/2026-10-16-dynamic-heatmap-grid-playback/`。
+
+## 2026-10-16（分块分析让出、采样预算与真实 Worker）
+
+- 问题：`packages/analysis/src/scheduler.ts` 的 `mapInChunks()` 块间仅 `await Promise.resolve()` 微任务让出，不进入下一轮事件循环，长分析（可视域、地形剖面、规模采样）阻塞渲染帧与输入；`maxSamples` 只在单次调用内生效，可视域这类多子操作任务按子操作各自限额，累计采样可远超预期；`worker-host.ts` 的 `AnalysisJobHost` 名为 Worker 宿主却用 `queueMicrotask` 进程内同步执行，`jobs.ts` 的纯数值作业仍占用主线程。
+- 让出合同：新增 `yieldToEventLoop(strategy)`，缺省真实宏任务让出（`MessageChannel`，不可用时 `setTimeout(0)`），`"microtask"` 保留微任务让出；`AnalysisTaskOptions` 新增 `yieldStrategy`，`mapInChunks()` 与 `sampleCartographics()` 的分块循环统一经该函数让出（后者由单次映射改为按 `DEFAULT_CHUNK_SIZE` 分块）。
+- 预算合同：新增 `AnalysisSampleBudget`，以任务级累计采样数为口径，`reserve(count)` 超限抛 `Arc3DError("INVALID_ARGUMENT")` 且不改变已消耗量；`AnalysisTaskOptions` 新增 `sampleBudget`；`viewshed` 创建单一预算实例并由观察点与全部射线共享（`lineOfSight` 拆出内部 `computeLineOfSight(options, budget?)`，公共签名不变）；未提供共享预算的单次调用以本次坐标数为上限，保持既有单次截断行为且不抛超限错误。
+- Worker 合同：新增 `worker-protocol.ts`（错误与消息编解码、最小 `AnalysisWorkerLike` 接口、`AnalysisWorkerFactory`）与 `analysis-worker-entry.ts`；`AnalysisJobHost` 改为 `AnalysisJobHostOptions` 构造（`execute` / `createWorker`），在提供 `Worker` 的环境把纯数值作业投递到独立线程并以 `id` 路由回复，不可克隆输入在投递前抛 `INVALID_FORMAT`，跨线程错误经 `restoreAnalysisError` 还原错误码，取消经 `terminate()` 抛 `CANCELLED` 并允许下次重建 Worker，无 `Worker` 或创建失败时降级进程内执行；`vite.config.ts` 增加 `worker: { format: "es" }`。
+- 公共 API：`@arc3dlab/analysis` 新增导出 `yieldToEventLoop` / `AnalysisSampleBudget` / `YieldStrategy` / `AnalysisJobHostOptions` / `AnalysisWorkerLike` / `AnalysisWorkerFactory`；`serializeAnalysisError` / `restoreAnalysisError` 迁入 `worker-protocol` 后仍经 `worker-host` 转出，导入路径不变；`scripts/public-api-manifest.json` 随刷新。
+- 验证：新增 `tests/unit/analysis-scheduler.test.ts`（预算累加/超限/不改变已消耗量、宏任务与微任务让出顺序），扩展 `tests/unit/analysis-worker.test.ts`（注入假 Worker 验证投递/错误还原/`INVALID_FORMAT`/取消 `terminate`/取消后重建/销毁）与 `tests/unit/analysis-visibility.test.ts`（共享预算超限、跨块采样顺序与数量）；全量 84 文件 / 548 通过 | 1 跳过；门禁 typecheck / 全量测试 / deps / exports / license / api / format:check 通过，`lint:size` 与 `lint:docs` 随构建验证。需求与设计见 `.monkeycode/specs/2026-10-16-scheduler-yield-budget/`。
+
+## 2026-10-16（空间参考等价性分层与长度单位校验）
+
+- 问题：`packages/core/src/spatial.ts` 的 `sameSpatialReference()` 比较 `crs` / `axisOrder` / `angularUnit`，未比较 `linearUnit`。相同 CRS 但高程单位不同（米/英尺）时仍判为等价，导致 `tryCreateCoordinateTransform()` 返回恒等转换，单位换算被静默遗漏；水平与垂直方向的等价性也未分层，且缺少「真实变换不支持时明确报错」的入口。
+- 合同：把空间参考等价性分为水平（`crs` / `axisOrder` / `angularUnit`）与垂直（`datum` / `geoidModel` / `linearUnit`）两层；完整等价 = 水平等价 且高程长度单位等价（缺省 `meters`）；仅完整等价才返回恒等转换。
+- 新增 `sameHorizontalReference()` / `sameVerticalReference()` 分层判断；`sameSpatialReference()` 纳入 `linearUnit`；`tryCreateCoordinateTransform()` 对单位差异返回 `undefined`；新增 `createCoordinateTransform()`，不完全等价时抛 `Arc3DError("UNSUPPORTED_CAPABILITY")`，错误信息经 `describeSpatialMismatch()` 点明差异层次（CRS / 轴序 / 角度单位 / 长度单位）。
+- 恒等转换改为携带调用传入的真实 `source` / `target`（新增内部 `makeIdentityTransform()`），`identityTransform(reference)` 行为不变。
+- 验证：`tests/unit/spatial-reference.test.ts` 扩充至 10 项，覆盖长度单位差异、分层等价、缺省 `meters`、恒等转换携带真实参考、显式报错含源/目标 CRS；typecheck / 全量测试 / deps / exports / license / api / format:check 全通过。需求与设计见 `.monkeycode/specs/2026-10-16-spatial-unit-equivalence/`。
+
+## 2026-10-16（标绘创建 ID 校验与原子化）
+
+- 问题：`PlottingManager.draw()`（`packages/plotting/src/plotting-manager.ts`）先用 `shapes.map((shape) => this.materialize(...))` 创建底层实体，再构造 `PlotResult` 并 `items.set(id, result)`。一个符号可产出多个图元（如 `circle` / `flag` / `formation` 等面状符号同时生成面与轮廓），若第 N 个 `materialize` 抛错，前 N-1 个实体既无记录也不会被清理，成为不可追踪的孤儿实体；同时 `items.set` 会覆盖同 ID 的既有记录，而旧记录的实体仍在场景中，`remove()` / `removeAll()` 无法再完整清理。
+- 合同：ID 在创建任何实体之前校验；创建过程使用本地暂存集合，全部成功后再原子提交记录；任一步失败回滚本次已创建实体、不写入记录并原样重抛。
+- ID 校验顺序固定为「几何合法性 → ID → 实体创建」：`resolveId()` 对显式空字符串抛 `INVALID_ARGUMENT`、未提供时 `createId("plot")`；`claimId()` 对重复 ID 抛 `DUPLICATE_RESOURCE`，语义与 `GraphicManager.claimId` 一致。
+- 回滚与移除路径统一：新增 `disposeEntities()`，`remove()` 与创建失败回滚共用同一实现，释放时经 `viewerOrUndefined()` 容错视图不可用。
+- 验证：`tests/unit/plotting.test.ts` 扩充至 15 项，覆盖重复 ID 拒绝（既有记录与实体不受影响）、空 ID 拒绝、多图元符号中途失败回滚（`failOnAdd` 注入）、成功提交后 `removeAll()` 完整清理；typecheck / 全量测试 / deps / exports / license / api / format:check 全通过。需求与设计见 `.monkeycode/specs/2026-10-16-plot-draw-atomicity/`。
+
+## 2026-10-16（资源生命周期与状态管理统一合同）
+
+- 问题：多子系统创建原生 Cesium 资源但所有权与释放路径不统一——`GraphicManager.addVoxel` / `addFlatten` 返回的 `MultiTileVoxel` / `ModelFlatten` 未登记进 `context.registry` 也不在 `GraphicManager.clear()` 中（`clear()` 只遍历 `this.items`）；`EffectsManager.destroy()` 不释放粒子且 `ParticleManager` 无托管与 `destroy()`；`createBaseSystem` 无条件把 `viewer.clock.shouldAnimate` 置为 `true` 且不恢复；`SceneController.sync()` 返回的 `SyncViewer` 不被跟踪，场景销毁不解除相机监听；`DataManager.add()` 句柄注销图层但不注销 `registerAsset` 的资产；`ManagedGraphic.positions` 直接返回内部数组引用。
+- 三类所有权合同：**SDK 完全拥有**（图形、粒子、体素/压平，Manager 统一登记，单对象或应用级销毁，重复销毁安全）；**SDK 暂时管理的外部对象**（外部瓦片集/裁剪目标，`ModelFlatten` 仅在目标槽位仍指向自有集合时解除关联）；**应用级共享状态**（`viewer.clock.shouldAnimate` 覆盖前保存原值、引用计数归零恢复）。
+- 体素/压平：`MultiTileVoxel` / `ModelFlatten` 实现 `ResourceHandle`（新增 `id` / `type` / `owned` / `native` / `visible`），`GraphicManager.addVoxel` / `addFlatten` 经 `registerAtomically` 登记进共享注册表并记入内部 `extras`；`clear()` 经 `registry.remove` 释放 `extras`；创建前 `lifecycle.assertUsable` 失败抛 `APP_DESTROYED`。
+- 粒子与时钟：`ParticleManager` 新增托管集合、`size` 与 `destroy()`（单句柄失败经 `logger.error` 上报不中断其余释放），`EffectsManager.destroy()` 追加 `particles.destroy()`；`particles.ts` 新增模块级 `WeakMap<Viewer, { original, count }>`，`acquireClockAnimation(viewer)` 首次覆盖 `shouldAnimate` 并保存原值、计数归零时恢复并清理，释放函数幂等并并入 `ParticleHandle` 的 `detach`。
+- 场景与数据：`SceneController` 新增 `syncViewers` 集合并随 `destroy()` 释放全部 `SyncViewer`（幂等，兼容 disposers 与应用级两步销毁）；`DataManager.add()` 句柄 `onDestroy` 与注册表登记失败回滚分支均追加 `catalog.unregisterAsset(id)`；加载失败时保留一致的失败记录（图层 `failed` + 资产），避免图层悬挂引用不存在的资产。
+- 图形坐标：`ManagedGraphic` 构造与 `positions` getter 均返回/保存独立副本，外部原地修改不再绕过变更通知。
+- 验证：新增 `tests/unit/graphics-resource-ownership.test.ts`（7 项）与 `tests/unit/data-manager-ownership.test.ts`（2 项），扩展 `tests/unit/effects-particles-manager.test.ts`（托管释放、引用计数时钟、手动销毁不重复释放）与 `tests/unit/scene-sync-shotgrid.test.ts`（场景销毁解除联动监听）；全量 83 文件 / 525 通过 | 1 跳过；门禁 typecheck / deps / exports / license / api / format:check / lint:size / lint:docs 全通过；需求与设计见 `.monkeycode/specs/2026-10-16-resource-ownership/`。
+
+## 2026-10-16（裁剪分析所有权与状态一致性）
+
+- 问题：`ClipAnalysis`（`packages/analysis/src/clip.ts`）`setExcavation()` 在顶点少于三个时只清空内部 `active` 并记录空结果，不撤销已应用的裁剪，导致 `list()` 为空而场景仍存在旧裁剪；`clearPolygons()` 替换 `globe.clippingPolygons` 不释放被替换集合，`setPolygon()` / `setExcavation()` 直接改写共享槽位；`clear()` / `destroy()` 无条件清理 Globe 裁剪，可能破坏调用者或其它子系统设置的状态。
+- 所有权模型：首次写入前 `captureBaseline()` 记录 `globe.clippingPlanes` / `globe.clippingPolygons`；`applyClip()` 与 `resetToBaseline()` 统一挂载与释放，只释放自有集合，未使用的槽位恢复基线；`resetToBaseline()` 在从未写入时不触碰 Globe。平面集合以 `destroy()` 释放，多边形集合（Cesium 1.145+ 不再持有 GPU 资源）仅解除引用；平面槽位恢复前用 `isDestroyed()` 过滤已被 Cesium 槽位替换语义销毁的基线，多边形槽位恢复失败时回退清空以避免所有权校验异常。
+- 输入校验：新增 `assertPolygon()`，`setPolygon()` / `setExcavation()` 在少于三个顶点时于任何场景变更前抛 `Arc3DError("INVALID_ARGUMENT")`，旧裁剪与 `list()` 保持有效。
+- 验证：重写 `tests/unit/analysis-clip.test.ts`（12 项），覆盖记录/启用、无效输入不改状态与写入计数、自有平面集合替换/释放、平面与多边形基线捕获与恢复、基线不被释放、模式切换、从未使用不触碰 Globe；需求与设计见 `.monkeycode/specs/2026-10-16-clip-ownership/`。
+
+## 2026-10-15（Cesium Ion 令牌实例级合同）
+
+- 问题：Ion 影像（`packages/data/src/providers.ts`）直接调用 `IonImageryProvider.fromAssetId(spec.assetId)`，未进入令牌作用域；`EngineViewerOptions.ionToken` 虽由 `Arc3D.buildApp` 从 `engine.cesium.ionToken ?? tokens.cesiumIon` 解析并传入 `createCesiumEngineContext`，却未被任何路径应用，导致配置的实例令牌对 Ion 影像无效。地形与 Tileset 各自 `readIonToken` + `withIonAccessToken`，路径分散。
+- 合同：`EngineContext`（core）新增可选 `runWithIonToken(work, token?)`（类型 `RunWithIonToken`），语义为应用实例令牌（被 `token` 覆盖）、保证并发按串行顺序设置与恢复、在工作结束（含异常）后恢复全局令牌；core 新增容错封装 `runWithIonToken(context, work, token?)`，无能力时直接执行。
+- 引擎绑定：`packages/engine-cesium/src/ion.ts` 新增 `createIonTokenRunner(instanceToken?)`，返回在共享串行作用域内执行 `withIonAccessToken(token ?? instanceToken, work)` 的入口；`createCesiumEngineContext` 以 `createIonTokenRunner(options.ionToken)` 绑定。
+- 数据层：`createImageryProvider` / `createProviderHandle` 第二参数由 `fallbackToken: string` 改为 `ProviderOptions { tdtToken?, runWithIonToken? }`；Ion 分支在 `options.runWithIonToken(create, spec.token)` 内创建，缺入口时直接创建，`spec.token` 作为覆盖令牌；`ProviderSpec` 缺失 `assetId` 仍抛 `INVALID_ARGUMENT`。
+- 调用方收敛：`ImageryOverlayManager.add`、`BasemapManager.set`、`DataManager.createProvider` 传入 `runWithIonToken: (work, token) => runWithIonToken(context, work, token)`；`TerrainManager.set`（ion）保留 `readIonToken` 用于 `AUTH_FAILED` 校验并经同一入口执行；`TilesetManager.add`（assetId）直接经同一入口执行。业务模块不再直接组合 `readIonToken` 与 `withIonAccessToken`。
+- 公共 API 基线 `scripts/public-api-manifest.json` 随 `./engine-cesium` 新增 `createIonTokenRunner` 刷新；新增 `tests/unit/ion-imagery-token.test.ts` 覆盖 runner 令牌应用/覆盖/恢复、Ion 影像经入口创建与 `spec.token` 覆盖、无入口与缺 `assetId` 分支、core 封装的有无能力行为；需求与设计见 `.monkeycode/specs/2026-10-15-ion-token-contract/`。
+
+## 2026-10-15（网格出图的渲染同步与状态恢复）
+
+- 问题：`captureGrid()`（`packages/scene/src/shot-grid.ts`）逐块 `setView` → 可选 `delayMs` → `canvas.toDataURL()`，默认 `delayMs` 为 0 时不请求也不等待渲染帧，按需渲染下可能导出上一视图；且未保存/恢复相机，正常完成停留最后一幅、异常路径不恢复。
+- 渲染同步：新增 `awaitFrame(viewer, timeoutMs)`，先 `viewer.render()` 强制渲染一帧，再在 `scene.postRender` 可监听时注册一次性监听并 `scene.requestRender()` 等待信号，超过 `renderTimeoutMs`（默认 `1000`）兜底；缺少能力时立即采集。`delayMs` 保留为渲染完成后的追加等待。
+- 状态恢复：出图前经 `captureCameraState()` 保存 `positionWC` 与 heading/pitch/roll，`finally` 中 `restoreCameraState()` 恢复并 `scene.requestRender()` 刷新；通过既有 `EngineViewer.acquireContinuousRender("shot-grid")` 持有持续渲染需求并在 `finally` 释放。
+- 参数约束：`assertGridShape()` 要求 `rows` / `columns` 为 `≥ 1` 的整数，`rows × columns` 不得超过 `maxShots`（默认 `64`），失败抛 `Arc3DError("INVALID_ARGUMENT")` 且在任何相机变更之前。
+- 验证：扩展 `tests/unit/scene-sync-shotgrid.test.ts`，覆盖每幅渲染请求、正常/异常相机恢复、非法行列数、分幅上限与覆盖、超时兜底；需求与设计见 `.monkeycode/specs/2026-10-15-shot-grid-capture/`。
+
+## 2026-10-15（体素数据合同与空间插值）
+
+- 问题：`MultiTileVoxel`（`packages/graphics/src/voxel.ts`）的 `sampleGrid()` 返回 `(cx + cy + cz) / (dimensions * 3)`，采样值只由网格索引决定，与 `pointData` 无关；`interpolate()` 把经纬度“度”与高程“米”直接做欧氏距离；`buildPrimitive()` 的垂直跨度误用数值范围 `maxValue - minValue`。核心输出未表达输入数据空间分布。
+- `VoxelOptions` 扩展：`method`（`idw` 默认 / `nearest`）、`power`（默认 `2`）、`padding`（默认 `0`）；新增 `VoxelInterpolationMethod` 类型导出。
+- 采样：新增 `sampleAt()`，IDW 权重为距离倒数的 `power` 次幂，重合距离直接返回点值；距离在盒中心 ENU 米制坐标系计算，经度按 `cos(centerLat)` 折算（`METERS_PER_DEGREE_LATITUDE = 110540` / `METERS_PER_DEGREE_LONGITUDE = 111320`）。
+- 几何：`computeBounds()` 计算有效点 WGS84 边界与盒中心；垂直跨度取高程跨度；节点索引 `[0, dimensions - 1]` 线性映射到边界并由端点节点覆盖；零跨度维度使用 `MIN_AXIS_SPAN = 1` 米。
+- 缺失值：`value = NaN` 视为缺失，排除出边界、定义域与插值；节点无有效输入输出透明颜色 `(0, 0, 0, 0)`，`interpolate` 返回 `NaN`。
+- 颜色：定义域取自有效采样值 `[min, max]`，高值映射 `colorsList` 首项、低值映射末项；`colorForValue` 改为接收显式定义域。
+- 验证：新增 `tests/unit/graphics-voxel-interpolation.test.ts`（常量保持、IDW 权重解析解、重合命中、nearest、NaN 排除、数据依赖、颜色端点、透明、垂直跨度、padding、空集、`dimensions: 1`）；更新 `tests/unit/graphics-voxel-flatten.test.ts` 增加数据依赖断言；需求与设计见 `.monkeycode/specs/2026-10-15-voxel-data-contract/`。
+
+## 2026-10-15（默认占位底图与业务底图协调）
+
+- 问题：默认占位底图（外置 `globe.jpg`）与业务自定义底图共用 Cesium 影像集合最底层槽位。`BasemapManager.set()` 先 `addImageryProvider(provider, 0)` 再 `lowerToBottom()`，而引擎侧占位图也插入索引 0；两者异步插入时机不同会互相覆盖，出现“业务底图被默认占位图盖住”。
+- `EngineViewer` 合同新增可选 `setDefaultBaseLayerVisible(visible)`。
+- 新增 `packages/engine-cesium/src/default-base-layer.ts` 的 `DefaultBaseLayerController`：以“期望可见性”状态驱动占位图，`attach()` 时按最新期望生效，天然覆盖“占位图先完成”与“业务底图先完成”两种时序；`CesiumEngineViewer` 委托其管理，`destroy()` 时 `clear()`。
+- `BasemapManager` 在 `set()` 成功后隐藏占位图、失败或销毁当前底图时恢复；替换底图时先置空 `current` 再销毁旧图层，避免占位图被短暂恢复。
+- 公共 API 基线 `scripts/public-api-manifest.json` 随 `CesiumEngineViewer` 签名刷新；新增 `tests/unit/engine-default-base-layer.test.ts` 与 `tests/unit/layers-basemap.test.ts`。
+
+## 2026-10-15（按需渲染与动态效果协调）
+
+- 引擎默认按需渲染（`requestRenderMode = true` + `maximumRenderTimeChange = Infinity`）会抑制纯模拟时间驱动的刷新，导致雨雪/闪电、粒子、依赖 `czm_frameNumber` 的自定义材质在静态场景下停滞。
+- `EngineViewer` 合同新增可选 `setRequestRenderMode(enabled)` 与 `acquireContinuousRender(reason)`；`@arc3dlab/core` 提供容错封装 `acquireContinuousRender(context, reason)`，无引擎环境返回空释放。
+- 新增 `packages/engine-cesium/src/render-mode.ts` 的 `RenderModeCoordinator`：以基准按需模式 + 持续渲染需求计数计算实际模式，存在需求时强制持续渲染，全部释放后自动回到按需渲染；`CesiumEngineViewer` 委托其管理，`destroy()` 时 `dispose()`。`RenderController` 增加 `acquireContinuousRender(reason)` 并新增 `requestRenderMode` 只读 getter。
+- 自动接入：`WeatherEffects`（rain/snow/lightning）、粒子系统、`graphics/dynamic` 动画句柄（扩散点/雷达/水系/圆形扩散/动态折线）、`FloodAnalysis` 水面；静态图元与 fog 不占用需求。
+- 公共 API 基线 `scripts/public-api-manifest.json` 随 `CesiumEngineViewer` 签名刷新；新增 `tests/unit/engine-render-mode.test.ts` 并在 weather/particles/graphics/analysis-flood 测试中补充需求计数断言。
+
 ## 2026-10-12（旧版内容收敛：移除 legacy 兼容资产）
 
 - 移除根入口 `Viewer` / `Map` 与 `LegacyViewerOptions` / `LegacyMapOptions` 导出，删除 `@arc3dlab/legacy` 包，并同步清理 `tsconfig.json` / `typedoc.json` / `scripts/api-docs/config.mjs` / `packages/README.md` 与 `demo-vue3`、`e2e` 构建别名。

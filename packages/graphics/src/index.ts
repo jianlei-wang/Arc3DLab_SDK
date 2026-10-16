@@ -51,6 +51,7 @@ export {
   type VoxelPoint,
   type VoxelOptions,
   type VoxelTileRequest,
+  type VoxelInterpolationMethod,
 } from "./voxel"
 export {
   ModelFlatten,

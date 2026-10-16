@@ -21,14 +21,14 @@ Arc3DLab 是面向三维 WebGIS 的模块化场景运行时。CesiumJS 是首个
 
 当前策略：内部用 `packages/*` 分模块，对外仍发布单一 npm 包 `arc3dlab`。
 
-当前版本：`1.0.0`。Cesium peer 固定为 `1.146.0`。兼容矩阵见 `COMPATIBILITY.md`。
+当前版本：`2.0.0`。Cesium peer 固定为 `1.146.0`。兼容矩阵见 `COMPATIBILITY.md`。
 
 ### 仓库结构
 
 ```text
 packages/
   core/            Runtime：Context / EventBus / Lifecycle / Registry
-  engine-cesium/   Cesium 适配器，唯一允许直接依赖 cesium 的包
+  engine-cesium/   Cesium 适配器与引擎接缝
   scene/           相机、渲染、视口、时钟、环境
   layers/          底图、地形、图层、3D Tiles
   graphics/        点线面等 Graphic
@@ -36,9 +36,9 @@ packages/
   interaction/     拾取、选择、指针
   analysis/        测量与空间分析
   effects/         特效
+  plotting/        标绘符号与纯几何算法
   ui/              Tooltip 等 UI
   sdk/             Arc3D.create / Arc3DApp
-  legacy/          Viewer 兼容适配器
 src/index.ts       对外再导出
 tests/unit/        Vitest 单元测试
 demo-vue3/         即时预览（alias 指向源码）
@@ -58,12 +58,12 @@ engine-cesium
   ^
 scene / layers / data / graphics
   ^
-interaction / analysis / effects / ui
+interaction / analysis / effects / plotting / ui
   ^
-sdk -> legacy
+sdk
 ```
 
-`core` 只依赖 TypeScript 标准库。Cesium 只出现在 `engine-cesium` 及其渲染后端。
+`core` 只依赖 TypeScript 标准库，不依赖 Cesium。其余业务包采用 **Cesium-first**，可直接依赖 `cesium`；允许直接依赖 `cesium` 的包为 `engine-cesium`、`data`、`scene`、`layers`、`graphics`、`interaction`、`analysis`、`effects`、`plotting`。该边界由 `scripts/release-gate.mjs` 的 `CESIUM_PACKAGES` 门禁固化，详见 `docs/architecture/03-engine.md`。
 
 ### 入口
 
@@ -167,7 +167,7 @@ Cesium 作为 external，不会打进 SDK bundle。
 
 ### 1. 单元测试
 
-测试跑在 Node 环境，当前覆盖 `packages/core` 的 ID、Lifecycle、EventBus、ResourceRegistry。
+测试跑在 Node 环境（`vitest.config.ts` 的 `environment: "node"`），用例位于 `tests/unit/`，覆盖 `packages/*` 各包（`core`、`engine-cesium`、`analysis`、`effects`、`plotting` 等）与门禁脚本。
 
 ```bash
 # 仓库根目录
@@ -336,12 +336,12 @@ npm run guide:dev
 
 ### 版本与日志
 
-当前版本在根 `package.json`：`1.0.0`。
+当前版本在根 `package.json`：`2.0.0`。
 
 - 面向用户的版本说明：`CHANGES.md`
 - 开发过程日志模板：`LOG.md`
 
-alpha / beta 使用 SemVer 预发布号，例如 `1.0.0-alpha.2`。
+alpha / beta 使用 SemVer 预发布号，例如 `2.1.0-alpha.1`。
 
 ### 发布命令
 
@@ -369,7 +369,7 @@ npm publish --tag alpha --access public
 
 ### 发布后
 
-1. 给 Git 打与 `package.json` 相同的 tag，例如 `v1.0.0`。
+1. 给 Git 打与 `package.json` 相同的 tag，例如 `v2.0.0`。
 2. 推送分支与 tag。
 3. 在消费项目中安装新版本，核对 Cesium 静态资源与主入口 `Arc3D.create()`。
 

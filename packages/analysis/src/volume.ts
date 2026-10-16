@@ -17,6 +17,9 @@ import type { AnalysisTaskOptions } from "./scheduler"
 import type { AnalysisResult } from "./task"
 import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
 
+/** 土方计算状态，用于区分正常结果与非法/退化输入。 */
+export type CutFillStatus = "computed" | "invalid-polygon" | "empty-grid"
+
 /** 土方平衡计算结果。 */
 export interface CutFillResult {
   /** 挖方体积，单位为立方米。 */
@@ -29,8 +32,13 @@ export interface CutFillResult {
   sampleCount: number
   /** 网格分辨率，单位为米。 */
   resolutionMeters: number
-  /** 估算误差体积，单位为立方米。 */
+  /**
+   * 估算误差体积，单位为立方米。
+   * 该值为边界单元被部分覆盖时按经验量级累计的指标，并非数学误差上界。
+   */
   estimatedErrorCubicMeters: number
+  /** 计算状态，非 `computed` 时各体积字段为 0。 */
+  status: CutFillStatus
 }
 
 /** 体积分析服务，提供土方平衡计算与开挖能力。 */
@@ -72,6 +80,7 @@ export class VolumeAnalysis {
         sampleCount: 0,
         resolutionMeters: 0,
         estimatedErrorCubicMeters: 0,
+        status: "invalid-polygon",
       }
     }
 
@@ -89,6 +98,7 @@ export class VolumeAnalysis {
         sampleCount: 0,
         resolutionMeters: grid.resolutionMeters,
         estimatedErrorCubicMeters: 0,
+        status: "empty-grid",
       }
     }
 
@@ -121,6 +131,7 @@ export class VolumeAnalysis {
       sampleCount: heights.length,
       resolutionMeters: grid.resolutionMeters,
       estimatedErrorCubicMeters: estimateCutFillError(grid.cells, deltas),
+      status: "computed",
     }
   }
 

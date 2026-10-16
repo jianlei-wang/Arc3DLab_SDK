@@ -6,6 +6,7 @@ import {
   DEFAULT_HEATMAP_GRADIENT,
   gridToRgba,
   type GradientStop,
+  type HeatmapGrid,
   type HeatmapGridOptions,
   type HeatmapPoint,
 } from "./heatmap"
@@ -45,7 +46,16 @@ export class HeatmapOverlay {
    */
   setData(points: HeatmapPoint[], options: HeatmapRenderOptions = {}): void {
     this.context.lifecycle.assertUsable("render heatmap")
-    const grid = computeHeatmapGrid(points, options)
+    this.setGrid(computeHeatmapGrid(points, options), options)
+  }
+
+  /**
+   * 使用预计算网格更新热力图，跳过网格计算。
+   * @param grid - 预计算的热力图网格。
+   * @param options - 渲染选项。
+   */
+  setGrid(grid: HeatmapGrid, options: HeatmapRenderOptions = {}): void {
+    this.context.lifecycle.assertUsable("render heatmap")
     const pixels = gridToRgba(
       grid,
       options.gradient ?? DEFAULT_HEATMAP_GRADIENT,

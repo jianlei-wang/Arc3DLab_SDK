@@ -41,6 +41,9 @@ export function interpolateHeatmapGrid(
   }
 }
 
+/** 播放时每个帧间隔默认拆分的插值步数。 */
+const DEFAULT_TRANSITION_STEPS = 12
+
 /**
  * 动态热力图，支持在多个数据帧之间切换与定时播放。
  */
@@ -83,22 +86,39 @@ export class DynamicHeatmapOverlay {
     this.current =
       ((index % this.frames.length) + this.frames.length) % this.frames.length
     const frame = this.frames[this.current]
-    this.overlay.setData(frame.points, frame.options)
+    this.overlay.setGrid(this.grids[this.current], frame.options)
   }
 
   /**
-   * 播放动态热力图。
+   * 播放动态热力图，在相邻帧的缓存网格之间插值过渡。
    * @param intervalMs - 帧间隔，单位为毫秒，默认 500。
+   * @param steps - 每个帧间隔拆分的插值步数，默认 12。
    */
-  play(intervalMs = 500): void {
+  play(intervalMs = 500, steps = DEFAULT_TRANSITION_STEPS): void {
     this.pause()
     if (this.frames.length < 2) return
-    this.timer = setInterval(
-      () => {
-        this.showFrame(this.current + 1)
-      },
-      Math.max(16, intervalMs),
+    const duration = Math.max(16, intervalMs)
+    const stepMs = Math.max(
+      16,
+      Math.round(duration / Math.max(2, Math.floor(steps))),
     )
+    let elapsed = 0
+    this.timer = setInterval(() => {
+      elapsed += stepMs
+      const from = this.current
+      const to = (from + 1) % this.frames.length
+      const ratio = Math.min(1, elapsed / duration)
+      if (ratio >= 1) {
+        this.overlay.setGrid(this.grids[to], this.frames[to].options)
+        this.current = to
+        elapsed = 0
+        return
+      }
+      this.overlay.setGrid(
+        interpolateHeatmapGrid(this.grids[from], this.grids[to], ratio),
+        this.frames[from].options,
+      )
+    }, stepMs)
   }
 
   /** 暂停播放。 */

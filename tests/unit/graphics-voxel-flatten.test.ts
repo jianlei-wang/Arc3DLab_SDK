@@ -74,6 +74,24 @@ describe("MultiTileVoxel", () => {
     expect(data![0].length).toBe(4 ** 3 * 4)
   })
 
+  it("drives the voxel values from the input data", async () => {
+    const { context } = makeContext()
+    const tile = { tileLevel: 0, tileX: 0, tileY: 0, tileZ: 0 }
+    const ascending = new MultiTileVoxel(
+      context,
+      points.map((point, index) => ({ ...point, value: index * 100 })),
+      { dimensions: 4 },
+    )
+    const descending = new MultiTileVoxel(
+      context,
+      points.map((point, index) => ({ ...point, value: (2 - index) * 100 })),
+      { dimensions: 4 },
+    )
+    const a = await ascending.requestData(tile)
+    const b = await descending.requestData(tile)
+    expect(Array.from(a![0])).not.toEqual(Array.from(b![0]))
+  })
+
   it("rejects unsupported tile levels", () => {
     const { context } = makeContext()
     const voxel = new MultiTileVoxel(context, points)

@@ -146,7 +146,46 @@ export function isGeographic(reference: SpatialReference): boolean {
 }
 
 /**
- * 判断两个空间参考是否等价（比较 CRS、轴序与角度单位）。
+ * 判断两个空间参考的水平方向是否等价（比较 CRS、轴序与角度单位）。
+ *
+ * 该判断仅覆盖坐标系识别与角度/轴单位，不受高程长度单位影响。
+ *
+ * @param a - 空间参考 A。
+ * @param b - 空间参考 B。
+ */
+export function sameHorizontalReference(
+  a: SpatialReference,
+  b: SpatialReference,
+): boolean {
+  return (
+    a.crs === b.crs &&
+    (a.axisOrder ?? "lng-lat") === (b.axisOrder ?? "lng-lat") &&
+    (a.angularUnit ?? "degrees") === (b.angularUnit ?? "degrees")
+  )
+}
+
+/**
+ * 判断两个垂直参考是否等价（比较基准、大地水准面模型与长度单位）。
+ *
+ * @param a - 垂直参考 A。
+ * @param b - 垂直参考 B。
+ */
+export function sameVerticalReference(
+  a: VerticalReference,
+  b: VerticalReference,
+): boolean {
+  return (
+    a.datum === b.datum &&
+    a.geoidModel === b.geoidModel &&
+    (a.linearUnit ?? "meters") === (b.linearUnit ?? "meters")
+  )
+}
+
+/**
+ * 判断两个空间参考是否完全等价（水平方向等价，且高程长度单位等价）。
+ *
+ * 长度单位缺省为 `meters`。仅当该函数返回 `true` 时，两个参考的坐标才可
+ * 视为可直接互用；单位不同即视为不等价，需要真实换算。
  *
  * @param a - 空间参考 A。
  * @param b - 空间参考 B。
@@ -156,9 +195,8 @@ export function sameSpatialReference(
   b: SpatialReference,
 ): boolean {
   return (
-    a.crs === b.crs &&
-    (a.axisOrder ?? "lng-lat") === (b.axisOrder ?? "lng-lat") &&
-    (a.angularUnit ?? "degrees") === (b.angularUnit ?? "degrees")
+    sameHorizontalReference(a, b) &&
+    (a.linearUnit ?? "meters") === (b.linearUnit ?? "meters")
   )
 }
 
@@ -182,6 +220,24 @@ export function assertGeographicPosition(
 }
 
 /**
+ * 创建承载源与目标参考的恒等转换。
+ *
+ * @param source - 源空间参考。
+ * @param target - 目标空间参考。
+ */
+function makeIdentityTransform(
+  source: SpatialReference,
+  target: SpatialReference,
+): CoordinateTransform {
+  return {
+    source,
+    target,
+    forward: (position) => position,
+    inverse: (position) => position,
+  }
+}
+
+/**
  * 创建单位（恒等）坐标转换。
  *
  * @param reference - 空间参考，缺省为 {@link WGS84}。
@@ -189,18 +245,14 @@ export function assertGeographicPosition(
 export function identityTransform(
   reference: SpatialReference = WGS84,
 ): CoordinateTransform {
-  return {
-    source: reference,
-    target: reference,
-    forward: (position) => position,
-    inverse: (position) => position,
-  }
+  return makeIdentityTransform(reference, reference)
 }
 
 /**
- * 当源与目标一致时返回恒等转换；需要真实重投影时返回 `undefined`。
+ * 当源与目标完全等价时返回恒等转换；需要真实重投影或单位换算时返回 `undefined`。
  *
- * 调用方必须显式处理 `undefined`，而不要假定坐标兼容。
+ * 等价性包含水平方向与高程长度单位（见 {@link sameSpatialReference}）。调用方
+ * 必须显式处理 `undefined`，而不要假定坐标兼容。
  *
  * @param source - 源空间参考。
  * @param target - 目标空间参考。
@@ -209,8 +261,58 @@ export function tryCreateCoordinateTransform(
   source: SpatialReference,
   target: SpatialReference,
 ): CoordinateTransform | undefined {
-  if (sameSpatialReference(source, target)) return identityTransform(source)
+  if (sameSpatialReference(source, target)) {
+    return makeIdentityTransform(source, target)
+  }
   return undefined
+}
+
+/**
+ * 创建坐标转换；仅当源与目标完全等价时返回恒等转换。
+ *
+ * SDK 当前不支持真实重投影与单位换算，因此在源与目标不完全等价时抛出
+ * `UNSUPPORTED_CAPABILITY`，而不是静默返回恒等转换。
+ *
+ * @param source - 源空间参考。
+ * @param target - 目标空间参考。
+ * @throws {Arc3DError} 当源与目标不完全等价时抛出，错误码为 `UNSUPPORTED_CAPABILITY`。
+ */
+export function createCoordinateTransform(
+  source: SpatialReference,
+  target: SpatialReference,
+): CoordinateTransform {
+  if (sameSpatialReference(source, target)) {
+    return makeIdentityTransform(source, target)
+  }
+  throw new Arc3DError(
+    "UNSUPPORTED_CAPABILITY",
+    `coordinate transform ${source.crs} -> ${target.crs} is not supported: ${describeSpatialMismatch(source, target)}`,
+  )
+}
+
+/**
+ * 描述两个空间参考的差异层次，用于错误信息。
+ *
+ * @param a - 空间参考 A。
+ * @param b - 空间参考 B。
+ * @returns 以逗号连接的差异项；完全等价时返回 `unknown difference`。
+ */
+function describeSpatialMismatch(
+  a: SpatialReference,
+  b: SpatialReference,
+): string {
+  const reasons: string[] = []
+  if (a.crs !== b.crs) reasons.push(`crs ${a.crs} -> ${b.crs}`)
+  if ((a.axisOrder ?? "lng-lat") !== (b.axisOrder ?? "lng-lat")) {
+    reasons.push("axis order")
+  }
+  if ((a.angularUnit ?? "degrees") !== (b.angularUnit ?? "degrees")) {
+    reasons.push("angular unit")
+  }
+  if ((a.linearUnit ?? "meters") !== (b.linearUnit ?? "meters")) {
+    reasons.push("linear unit")
+  }
+  return reasons.length > 0 ? reasons.join(", ") : "unknown difference"
 }
 
 /**

@@ -3,6 +3,7 @@ import {
   assertNewResourceId,
   createHandle,
   createId,
+  runWithIonToken,
   type Arc3DContext,
 } from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
@@ -31,10 +32,11 @@ export class ImageryOverlayManager {
     const id = spec.id ?? createId("imagery")
     assertNewResourceId(this.context.registry, id)
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    const provider = await createImageryProvider(
-      spec,
-      this.context.config.tokens?.tdt,
-    )
+    const provider = await createImageryProvider(spec, {
+      tdtToken: this.context.config.tokens?.tdt,
+      runWithIonToken: (work, token) =>
+        runWithIonToken(this.context, work, token),
+    })
     assertAlive(this.context.lifecycle, "add imagery")
     const imagery = viewer.imageryLayers.addImageryProvider(provider)
     const handle = createHandle({

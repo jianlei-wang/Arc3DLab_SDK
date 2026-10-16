@@ -1,4 +1,9 @@
-import type { Arc3DContext, PositionInput } from "@arc3dlab/core"
+import {
+  createId,
+  type Arc3DContext,
+  type PositionInput,
+  type ResourceHandle,
+} from "@arc3dlab/core"
 import { toCartesian3 } from "@arc3dlab/engine-cesium"
 import { ClippingPolygon, ClippingPolygonCollection } from "cesium"
 
@@ -22,8 +27,17 @@ export interface ModelFlattenOptions {
 
 /**
  * 模型压平对象，将多个多边形合并后应用到目标模型或瓦片集的裁剪集合。
+ *
+ * 该对象实现 {@link ResourceHandle} 合同：由 `GraphicManager.addFlatten` 创建时登记进
+ * 共享资源注册表，`destroy()` 幂等，并仅在目标槽位仍指向自身集合时解除关联。
  */
-export class ModelFlatten {
+export class ModelFlatten implements ResourceHandle<ClippingPolygonCollection> {
+  /** 资源唯一标识。 */
+  readonly id: string = createId("flatten")
+  /** 资源类型。 */
+  readonly type = "flatten"
+  /** 资源是否由本 SDK 持有并负责销毁。 */
+  readonly owned = true
   private readonly collection: ClippingPolygonCollection
   private readonly polygons: ClippingPolygon[] = []
   private readonly target: FlattenTarget | undefined
@@ -51,6 +65,24 @@ export class ModelFlatten {
   /** 当前压平多边形数量。 */
   get count(): number {
     return this.polygons.length
+  }
+
+  /**
+   * 底层原生裁剪多边形集合。
+   */
+  get native(): ClippingPolygonCollection {
+    return this.collection
+  }
+
+  /**
+   * 压平是否启用，与 {@link enabled} 一致。
+   */
+  get visible(): boolean {
+    return this.collection.enabled
+  }
+
+  set visible(value: boolean) {
+    this.collection.enabled = value
   }
 
   /** 压平是否启用。 */

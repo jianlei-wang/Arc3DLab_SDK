@@ -24,7 +24,9 @@ import {
 } from "./math"
 import { sampleCartographics, toCartographic } from "./sampler"
 import {
+  AnalysisSampleBudget,
   clampSampleCount,
+  DEFAULT_MAX_SAMPLES,
   mapInChunks,
   type AnalysisTaskOptions,
 } from "./scheduler"
@@ -111,6 +113,27 @@ export class VisibilityAnalysis {
     signal?: AbortSignal
     maxSamples?: number
   }): Promise<LineOfSightResult> {
+    return this.computeLineOfSight(options)
+  }
+
+  /**
+   * 在给定采样预算下计算两点之间的通视情况。
+   * @param options - 分析选项，包含起点、终点、采样数及取消配置。
+   * @param budget - 任务级共享采样预算，省略时按单次上限自行构造。
+   * @returns 通视分析结果。
+   */
+  private async computeLineOfSight(
+    options: {
+      from: PositionInput
+      to: PositionInput
+      samples?: number
+      signal?: AbortSignal
+      maxSamples?: number
+      onProgress?: AnalysisTaskOptions["onProgress"]
+      yieldStrategy?: AnalysisTaskOptions["yieldStrategy"]
+    },
+    budget?: AnalysisSampleBudget,
+  ): Promise<LineOfSightResult> {
     this.context.lifecycle.assertUsable("analyze line of sight")
     const count = Math.max(
       2,
@@ -132,10 +155,17 @@ export class VisibilityAnalysis {
       carto.height = 0
       cartos.push(carto)
     }
+    const sampleOptions: AnalysisTaskOptions = {
+      signal: options.signal,
+      maxSamples: options.maxSamples,
+      onProgress: options.onProgress,
+      yieldStrategy: options.yieldStrategy,
+      sampleBudget: budget,
+    }
     const terrain = await sampleCartographics(
       this.context,
       cartos,
-      options,
+      sampleOptions,
       "analyze line of sight",
     )
     const pairs = terrain.map((item, index) => ({
@@ -179,11 +209,18 @@ export class VisibilityAnalysis {
     )
     const observerHeight = options.observerHeight ?? 2
     const sampleCount = Math.max(2, options.samples ?? 16)
+    const budget = new AnalysisSampleBudget(
+      options.maxSamples ?? DEFAULT_MAX_SAMPLES,
+    )
     const origin = toCartographic(options.observer)
     const [sampled] = await sampleCartographics(
       this.context,
       [origin.clone()],
-      options,
+      {
+        signal: options.signal,
+        maxSamples: options.maxSamples,
+        sampleBudget: budget,
+      },
       "analyze viewshed",
     )
     const from: [number, number, number] = [
@@ -205,12 +242,15 @@ export class VisibilityAnalysis {
           heading,
           options.radius,
         )
-        const sight = await this.lineOfSight({
-          from,
-          to: [dest.longitude, dest.latitude, sampled.height],
-          samples: sampleCount,
-          signal: options.signal,
-        })
+        const sight = await this.computeLineOfSight(
+          {
+            from,
+            to: [dest.longitude, dest.latitude, sampled.height],
+            samples: sampleCount,
+            signal: options.signal,
+          },
+          budget,
+        )
         return {
           heading,
           visible: sight.visible,

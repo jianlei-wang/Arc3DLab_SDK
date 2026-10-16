@@ -51,6 +51,35 @@ describe("bufferPolyline", () => {
     expect(() => bufferPolyline([line[0]], 100)).toThrow(Arc3DError)
     expect(() => bufferPolyline(line, 0)).toThrow(Arc3DError)
   })
+
+  it("skips zero-length segments without producing NaN", () => {
+    const ring = bufferPolyline(
+      [
+        { longitude: 116.39, latitude: 39.9 },
+        { longitude: 116.39, latitude: 39.9 },
+        { longitude: 116.4, latitude: 39.9 },
+      ],
+      100,
+    )
+    expect(
+      ring.every(
+        (point) =>
+          Number.isFinite(point.longitude) && Number.isFinite(point.latitude),
+      ),
+    ).toBe(true)
+  })
+
+  it("rejects a polyline of fully duplicate positions", () => {
+    expect(() =>
+      bufferPolyline(
+        [
+          { longitude: 116.39, latitude: 39.9 },
+          { longitude: 116.39, latitude: 39.9 },
+        ],
+        100,
+      ),
+    ).toThrow(Arc3DError)
+  })
 })
 
 describe("bufferPolygon", () => {

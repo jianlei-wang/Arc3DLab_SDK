@@ -1,5 +1,6 @@
 import {
   Arc3DError,
+  acquireContinuousRender,
   type Arc3DContext,
   type PositionInput,
 } from "@arc3dlab/core"
@@ -139,6 +140,7 @@ export class FloodAnalysis {
   private primitive: Primitive | undefined
   private region: PositionInput[] | undefined
   private extent: [number, number, number, number] | undefined
+  private releaseRender: (() => void) | undefined
 
   /**
    * 创建洪水淹没分析。
@@ -242,10 +244,16 @@ export class FloodAnalysis {
       primitive,
     )
     this.primitive = primitive
+    this.releaseRender = acquireContinuousRender(
+      this.context,
+      "analysis:floodWater",
+    )
   }
 
   /** 清除已渲染的水面。 */
   clear(): void {
+    this.releaseRender?.()
+    this.releaseRender = undefined
     if (this.primitive === undefined) return
     getCesiumViewer(this.context.engine.native.viewer).scene.primitives.remove(
       this.primitive,

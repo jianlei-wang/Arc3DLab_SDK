@@ -1,4 +1,4 @@
-import { Color, Event, type JulianDate, Material } from "cesium"
+import { Color, Event, JulianDate, Material } from "cesium"
 
 /** 动态扩散材质的类型名。 */
 export const DYNAMIC_SPREAD_MATERIAL = "Arc3DDynamicSpread"
@@ -97,7 +97,7 @@ export interface MaterialValueResult {
  */
 export class DynamicSpreadMaterialProperty {
   private readonly definitionChangedEvent = new Event()
-  private epoch: number | undefined
+  private epoch: JulianDate | undefined
   private readonly colorValue: Color
   private gradientValue: number
   private durationValue: number
@@ -167,8 +167,10 @@ export class DynamicSpreadMaterialProperty {
   ): MaterialValueResult {
     const value: MaterialValueResult = result ?? {}
     value.color = this.colorValue
-    if (this.epoch === undefined) this.epoch = time.secondsOfDay
-    value.time = ((time.secondsOfDay - this.epoch) * 1000) / this.durationValue
+    if (this.epoch === undefined) this.epoch = JulianDate.clone(time)
+    value.time =
+      (JulianDate.secondsDifference(time, this.epoch) * 1000) /
+      this.durationValue
     value.gradient = this.gradientValue
     return value
   }
@@ -183,7 +185,8 @@ export class DynamicSpreadMaterialProperty {
       this === other ||
       (other instanceof DynamicSpreadMaterialProperty &&
         Color.equals(this.colorValue, other.colorValue) &&
-        this.gradientValue === other.gradientValue)
+        this.gradientValue === other.gradientValue &&
+        this.durationValue === other.durationValue)
     )
   }
 }
@@ -203,7 +206,7 @@ export interface PolylineTrailMaterialOptions {
  */
 export class PolylineTrailMaterialProperty {
   private readonly definitionChangedEvent = new Event()
-  private epoch: number | undefined
+  private epoch: JulianDate | undefined
   private readonly colorValue: Color
   private imageValue: string
   private durationValue: number
@@ -273,8 +276,10 @@ export class PolylineTrailMaterialProperty {
   ): MaterialValueResult {
     const value: MaterialValueResult = result ?? {}
     value.color = this.colorValue
-    if (this.epoch === undefined) this.epoch = time.secondsOfDay
-    value.time = ((time.secondsOfDay - this.epoch) * 1000) / this.durationValue
+    if (this.epoch === undefined) this.epoch = JulianDate.clone(time)
+    value.time =
+      (JulianDate.secondsDifference(time, this.epoch) * 1000) /
+      this.durationValue
     value.image = this.imageValue
     return value
   }
@@ -289,7 +294,8 @@ export class PolylineTrailMaterialProperty {
       this === other ||
       (other instanceof PolylineTrailMaterialProperty &&
         Color.equals(this.colorValue, other.colorValue) &&
-        this.imageValue === other.imageValue)
+        this.imageValue === other.imageValue &&
+        this.durationValue === other.durationValue)
     )
   }
 }

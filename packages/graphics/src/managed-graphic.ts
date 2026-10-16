@@ -53,16 +53,19 @@ export class ManagedGraphic implements Graphic {
     private readonly onChange?: (reason: string) => void,
   ) {
     this.native = native
-    this.currentPositions = positions
+    this.currentPositions = positions.map((position) => ({ ...position }))
   }
 
   private _visible = true
 
   /**
    * 图形的经纬高坐标序列。
+   *
+   * 返回防御性副本：调用方修改返回值不会影响内部状态，变更必须经由
+   * {@link setPositions}。
    */
   get positions(): LngLatHeight[] {
-    return this.currentPositions
+    return this.currentPositions.map((position) => ({ ...position }))
   }
 
   /**

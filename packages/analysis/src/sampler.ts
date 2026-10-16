@@ -3,8 +3,11 @@ import { getCesiumViewer, toCartesian3 } from "@arc3dlab/engine-cesium"
 import { Cartographic, Math as CesiumMath } from "cesium"
 import {
   afterAnalysisAwait,
+  AnalysisSampleBudget,
   clampSampleCount,
+  DEFAULT_CHUNK_SIZE,
   throwIfCancelled,
+  yieldToEventLoop,
   type AnalysisTaskOptions,
 } from "./scheduler"
 
@@ -81,10 +84,14 @@ export async function sampleCartographics(
   throwIfCancelled(context, options?.signal, action)
   const viewer = getCesiumViewer(context.engine.native.viewer)
   if (cartos.length === 0) return []
+  const budget =
+    options?.sampleBudget ??
+    new AnalysisSampleBudget(options?.maxSamples ?? cartos.length)
   const limited = cartos.slice(
     0,
     clampSampleCount(cartos.length, options?.maxSamples ?? cartos.length),
   )
+  budget.reserve(limited.length)
   const clones = limited.map((item) => item.clone())
   const supported = Boolean(viewer.scene.sampleHeightSupported)
   let detailed: Array<Cartographic | undefined> | undefined
@@ -96,20 +103,27 @@ export async function sampleCartographics(
       await viewer.scene.sampleHeightMostDetailed(clones),
     )
   }
-  return limited.map((item, index) => {
-    const clone = clones[index]
-    const globeHeight = viewer.scene.globe.getHeight(clone)
-    const resolved = resolveTerrainSample({
-      sampleHeightSupported: supported,
-      detailedHeight: detailed?.[index]?.height,
-      globeHeight,
-    })
-    return {
-      longitude: CesiumMath.toDegrees(item.longitude),
-      latitude: CesiumMath.toDegrees(item.latitude),
-      ...resolved,
+  const out: SampledHeight[] = []
+  for (let offset = 0; offset < limited.length; offset += DEFAULT_CHUNK_SIZE) {
+    const end = Math.min(limited.length, offset + DEFAULT_CHUNK_SIZE)
+    for (let index = offset; index < end; index += 1) {
+      const item = limited[index]
+      const clone = clones[index]
+      const globeHeight = viewer.scene.globe.getHeight(clone)
+      const resolved = resolveTerrainSample({
+        sampleHeightSupported: supported,
+        detailedHeight: detailed?.[index]?.height,
+        globeHeight,
+      })
+      out.push({
+        longitude: CesiumMath.toDegrees(item.longitude),
+        latitude: CesiumMath.toDegrees(item.latitude),
+        ...resolved,
+      })
     }
-  })
+    await yieldToEventLoop(options?.yieldStrategy)
+  }
+  return out
 }
 
 /**

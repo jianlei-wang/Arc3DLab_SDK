@@ -22,6 +22,8 @@ import {
   type AngleResult,
   type AreaMode,
   type AreaResult,
+  type ComputationModel,
+  type DistanceMode,
   type HeightResult,
   type LengthResult,
 } from "./units"
@@ -44,6 +46,24 @@ import {
   surfaceDistanceMeters,
   triangleAreaSquareMeters,
 } from "./measure-tools"
+
+/**
+ * 由距离计算模式推导数值计算模型。
+ * @param mode - 距离计算模式。
+ * @returns 对应的数值计算模型。
+ */
+function modelForDistance(mode: DistanceMode): ComputationModel {
+  return mode === "cartesian" ? "ecef-chord" : "spherical"
+}
+
+/**
+ * 由面积计算模式推导数值计算模型。
+ * @param mode - 面积计算模式。
+ * @returns 对应的数值计算模型。
+ */
+function modelForArea(mode: AreaMode): ComputationModel {
+  return mode === "planar" ? "local-planar" : "spherical"
+}
 
 /** 测量服务，提供距离、面积、高度、方位角与空间角等测量能力。 */
 export class MeasurementService {
@@ -73,6 +93,7 @@ export class MeasurementService {
       meters: pathLengthMeters(points, "cartesian"),
       units: ANALYSIS_UNITS.length,
       mode: "cartesian",
+      model: modelForDistance("cartesian"),
       heightDatum: "ellipsoid",
     }
   }
@@ -95,6 +116,7 @@ export class MeasurementService {
       squareMeters: polygonAreaSquareMeters(outer, holes, mode),
       units: ANALYSIS_UNITS.area,
       mode,
+      model: modelForArea(mode),
     }
   }
 
@@ -114,6 +136,7 @@ export class MeasurementService {
         toMeasurePoint(options.to),
       ),
       units: ANALYSIS_UNITS.length,
+      model: "ellipsoid-delta",
       heightDatum: "ellipsoid",
     }
   }
@@ -152,6 +175,7 @@ export class MeasurementService {
       ),
       units: ANALYSIS_UNITS.length,
       mode: "geodesic",
+      model: modelForDistance("geodesic"),
       heightDatum: "ellipsoid",
     }
   }
@@ -233,6 +257,7 @@ export class MeasurementService {
       ),
       units: ANALYSIS_UNITS.length,
       mode: "geodesic",
+      model: modelForDistance("geodesic"),
       heightDatum: "ellipsoid",
     }
   }
@@ -250,6 +275,7 @@ export class MeasurementService {
       meters: surfaceDistanceMeters(options.positions.map(toMeasurePoint)),
       units: ANALYSIS_UNITS.length,
       mode: "geodesic",
+      model: modelForDistance("geodesic"),
       heightDatum: "ellipsoid",
     }
   }
@@ -268,6 +294,7 @@ export class MeasurementService {
       squareMeters: triangleAreaSquareMeters(a, b, c),
       units: ANALYSIS_UNITS.area,
       mode: "geodesic",
+      model: modelForArea("geodesic"),
     }
   }
 
@@ -561,7 +588,11 @@ export { TerrainAnalysis } from "./terrain"
 export { VisibilityAnalysis } from "./visibility"
 export { SpatialQueryService } from "./query"
 export { ClipAnalysis, type ExcavationResult } from "./clip"
-export { VolumeAnalysis, type CutFillResult } from "./volume"
+export {
+  VolumeAnalysis,
+  type CutFillResult,
+  type CutFillStatus,
+} from "./volume"
 export {
   slopeFromHeights,
   lineOfSightFromSamples,
@@ -583,6 +614,7 @@ export {
   type DistanceMode,
   type AreaMode,
   type HeightDatum,
+  type ComputationModel,
 } from "./units"
 export {
   cartesianDistanceMeters,
@@ -606,9 +638,12 @@ export {
 } from "./sampler"
 export {
   DEFAULT_MAX_SAMPLES,
+  AnalysisSampleBudget,
   clampSampleCount,
+  yieldToEventLoop,
   type AnalysisTaskOptions,
   type AnalysisProgress,
+  type YieldStrategy,
 } from "./scheduler"
 export { buildCutFillGrid, accumulateCutFillWeighted } from "./cutfill"
 export {
@@ -620,6 +655,9 @@ export {
   AnalysisJobHost,
   serializeAnalysisError,
   restoreAnalysisError,
+  type AnalysisJobHostOptions,
+  type AnalysisWorkerLike,
+  type AnalysisWorkerFactory,
 } from "./worker-host"
 export {
   AnalysisTaskRegistry,

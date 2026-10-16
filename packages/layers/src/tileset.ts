@@ -4,13 +4,10 @@ import {
   assertNewResourceId,
   createHandle,
   createId,
+  runWithIonToken,
   type Arc3DContext,
 } from "@arc3dlab/core"
-import {
-  getCesiumViewer,
-  readIonToken,
-  withIonAccessToken,
-} from "@arc3dlab/engine-cesium"
+import { getCesiumViewer } from "@arc3dlab/engine-cesium"
 import type { Layer } from "./types"
 
 /**
@@ -40,9 +37,8 @@ export class TilesetManager {
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
     let tileset
     if (options.assetId !== undefined) {
-      tileset = await withIonAccessToken(
-        readIonToken(this.context.config),
-        () => Cesium3DTileset.fromIonAssetId(options.assetId as number),
+      tileset = await runWithIonToken(this.context, () =>
+        Cesium3DTileset.fromIonAssetId(options.assetId as number),
       )
     } else if (options.url) {
       tileset = await Cesium3DTileset.fromUrl(options.url)

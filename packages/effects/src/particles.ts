@@ -1,5 +1,6 @@
 import {
   Arc3DError,
+  acquireContinuousRender,
   type Arc3DContext,
   type PositionInput,
 } from "@arc3dlab/core"
@@ -282,6 +283,45 @@ function assertUsable(context: Arc3DContext, action: string): void {
   context.lifecycle.assertUsable(action)
 }
 
+/** 各 Viewer 上被原子覆盖的时钟播放状态，含原始值与当前引用计数。 */
+const clockOverrides = new WeakMap<
+  Viewer,
+  { original: boolean; count: number }
+>()
+
+/**
+ * 以确保播放的方式覆盖 `viewer.clock.shouldAnimate`，返回释放函数。
+ *
+ * 覆盖前保存原值，多个粒子共享同一覆盖：仅首次改写时钟，之后的调用只增加计数；
+ * 释放函数幂等，计数归零时把时钟恢复为捕获的原值。未调用时不会触碰时钟状态。
+ * @param viewer - Cesium 视图对象。
+ * @returns 释放覆盖的幂等函数。
+ */
+function acquireClockAnimation(viewer: Viewer): () => void {
+  const entry = clockOverrides.get(viewer)
+  if (entry) {
+    entry.count += 1
+  } else {
+    clockOverrides.set(viewer, {
+      original: viewer.clock.shouldAnimate,
+      count: 1,
+    })
+    viewer.clock.shouldAnimate = true
+  }
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    const current = clockOverrides.get(viewer)
+    if (!current) return
+    current.count -= 1
+    if (current.count <= 0) {
+      viewer.clock.shouldAnimate = current.original
+      clockOverrides.delete(viewer)
+    }
+  }
+}
+
 function createBaseSystem(
   context: Arc3DContext,
   position: Cartesian3,
@@ -295,7 +335,7 @@ function createBaseSystem(
   ) => void,
 ): ParticleHandle {
   const viewer = getCesiumViewer(context.engine.native.viewer)
-  viewer.clock.shouldAnimate = true
+  const releaseClock = acquireClockAnimation(viewer)
   const entity = viewer.entities.add({ position: position as never })
   const system = viewer.scene.primitives.add(
     new ParticleSystem({
@@ -325,9 +365,12 @@ function createBaseSystem(
     system.emitterModelMatrix = emitterModelMatrix
   }
   viewer.scene.preUpdate.addEventListener(listener)
-  return new ParticleHandle(viewer, entity.id, system, () =>
-    viewer.scene.preUpdate.removeEventListener(listener),
-  )
+  const releaseRender = acquireContinuousRender(context, "effects:particle")
+  return new ParticleHandle(viewer, entity.id, system, () => {
+    viewer.scene.preUpdate.removeEventListener(listener)
+    releaseRender()
+    releaseClock()
+  })
 }
 
 /**

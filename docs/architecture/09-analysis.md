@@ -79,7 +79,7 @@ app.analysis.terrain.setExaggeration(2)
 `sampleHeight` 优先 `scene.sampleHeightMostDetailed`，回退 `globe.getHeight`。`slope` 用东/北偏移点有限差分，返回坡度（度）与坡向（正北起算、顺时针）。
 `setExaggeration` 写入 `scene.verticalExaggeration`。
 
-采样结果带 `source` 与 `status`：`sampleHeight` 为真实采样，`globe` 为 Globe 高程，`ellipsoid` 为无地形时的椭球高 0。`status` 为 `sampled` / `fallback` / `unavailable` / `cancelled`。分析任务支持 `signal` 取消、`onProgress` 进度、`maxSamples` 上限；地形采样依赖 Cesium scene，在主线程分块让出，不使用 Worker。
+采样结果带 `source` 与 `status`：`sampleHeight` 为真实采样，`globe` 为 Globe 高程，`ellipsoid` 为无地形时的椭球高 0。`status` 为 `sampled` / `fallback` / `unavailable` / `cancelled`。`profile` 返回的每个剖面点同样携带 `source` / `status`，地形不可用时以 `unavailable` 标识，而不是仅表现为高程 0 米。分析任务支持 `signal` 取消、`onProgress` 进度、`maxSamples` 上限；地形采样依赖 Cesium scene，在主线程分块让出，不使用 Worker。
 
 ## 通视
 
@@ -102,7 +102,26 @@ app.analysis.volume.clear()
 
 `cutFill` 在多边形内网格采样，相对设计高程累计挖方 / 填方（立方米）。`excavate` 用 Globe 多边形剖切加底部水平面表示开挖。
 
-`cutFill` 使用局部东-北投影网格，边界单元按覆盖率加权，并返回 `resolutionMeters` 与 `estimatedErrorCubicMeters`。`excavate` 在 `depth > 0` 时启用多边形剖切加 ENU 底面，形成有深度的 Globe 开挖体；`depth = 0` 仅为表面多边形裁切，`volumetric` 为 false。
+`cutFill` 使用局部东-北投影网格，边界单元按覆盖率加权，并返回 `resolutionMeters` 与 `estimatedErrorCubicMeters`。`cutFill` 结果带 `status`：`computed` 为正常结果，`invalid-polygon` 为顶点少于 3，`empty-grid` 为网格为空；非 `computed` 时各体积字段为 0，调用者可据此区分「体积确实为 0」与「输入非法」。`excavate` 在 `depth > 0` 时启用多边形剖切加 ENU 底面，形成有深度的 Globe 开挖体；`depth = 0` 仅为表面多边形裁切，`volumetric` 为 false。
+
+## 计算模型与适用边界
+
+数值分析结果通过只读字段 `model`（`ComputationModel`）显式标注其计算模型，用于区分精确量与近似量，避免把仅在小范围有效的算法当作无条件通用。
+
+| `model` | 含义 | 适用边界与误差 |
+| --- | --- | --- |
+| `ecef-chord` | 地心直角坐标三维弦长 | 两点直线距离，含地球曲率效应，非地表最短路径 |
+| `spherical` | 半径取 WGS84 长半轴的球面近似 | 相对 WGS84 椭球量存在随纬度增大的误差（通常在小数百分点量级），且不含大地线方向修正 |
+| `local-planar` | 以原点固定 `cos(lat)` 的局部东-北平面近似 | 仅在原点附近、非极区的小范围内有效；高纬、大范围经向失真，近极点经度退化 |
+| `ellipsoid-delta` | 椭球高差 | 垂直方向，与高程基准一致 |
+
+映射：`distance` 为 `ecef-chord`；`horizontalDistance` / `projectedDistance` / `surfaceDistance` 与 `mode: "geodesic"` 的面积（`area` 默认、`triangleArea`）为 `spherical`；`area` 的 `mode: "planar"` 为 `local-planar`；`height` / `verticalDistance` 为 `ellipsoid-delta`。`mode` 仍表示调用者选择的算法模式，`model` 表示实际数值模型，两者互补。
+
+缓冲（`buffer.point` / `polyline` / `polygon`）与土方网格 `buildCutFillGrid` 均基于 `local-planar`，以首个顶点/圆心为原点固定经度缩放，仅在目标附近、非极区的小范围内可靠。
+
+高程基准目前仅椭球高（`heightDatum: "ellipsoid"`），缺失高度按 `MISSING_HEIGHT = 0` 处理；地形采样与剖面点以 `source` / `status` 标识真实高程、回退值与不可用，不以 0 米混淆语义。
+
+`estimatedErrorCubicMeters` 为边界单元被部分覆盖时按 `0.5 × 单元面积 × |高差|` 累计的经验量级指标，用于提示误差来源与相对大小，**不是**数学误差上界。
 
 ## 空间查询
 
@@ -125,3 +144,25 @@ app.analysis.clip.clear()
 ```
 
 Plane / Box 使用 Globe `ClippingPlaneCollection`。Polygon 使用 `ClippingPolygonCollection`。`app.destroy()` 回收剖切。
+
+### 所有权与状态一致性
+
+首次写入 Globe 裁剪槽位前，`ClipAnalysis` 记录 `globe.clippingPlanes` / `globe.clippingPolygons` 作为基线，之后只释放自身创建的集合（平面集合经 `destroy()` 释放 GPU 资源，多边形集合自 Cesium 1.145 起仅解除引用），`clear()` / `destroy()` 时把槽位恢复到基线。从未写入时 `clear()` / `destroy()` 不触碰 Globe，因此不会清理调用者或其它子系统设置的裁剪。
+
+`setPolygon` / `setExcavation` 在顶点少于三个时，于任何场景变更之前抛 `Arc3DError("INVALID_ARGUMENT")`，旧裁剪与 `list()` 保持有效；成功路径下 `list()` 始终与实际挂载的裁剪一致。
+
+## 分块让出、采样预算与作业 Worker
+
+长耗时分析在块间通过 `yieldToEventLoop()` 让出控制权，默认采用真实宏任务让出：优先 `MessageChannel`，不可用时回退 `setTimeout(0)`，使渲染帧、输入与超时回调得以执行；可通过分析选项 `yieldStrategy: "microtask"` 切回微任务让出。`mapInChunks()` 与地形/通视/可视域/规模采样共享该让出路径。
+
+采样规模按「任务级累计」计量：`AnalysisSampleBudget(maxSamples)` 以 `reserve(count)` 累加消耗，累计超过上限时抛 `Arc3DError("INVALID_ARGUMENT")` 且不改变已消耗量。`viewshed` 会创建单一预算实例并由观察点与全部射线共享，`maxSamples` 因此是整次可视域的累计上限；未显式传入共享预算的单次调用保持既有的单次截断行为。
+
+纯数值作业（矩形/多边形查询、面积、土方网格，见 `executeAnalysisJob`）可由 `AnalysisJobHost` 投递到独立 Web Worker 执行：
+
+```ts
+const host = new AnalysisJobHost()
+const result = await host.run({ type: "area", positions }, { signal })
+host.destroy()
+```
+
+宿主与 Worker 通过 `postMessage` 以作业标识匹配回复；作业与结果必须可结构化克隆，不可克隆的输入在投递前以 `Arc3DError("INVALID_FORMAT")` 拒绝；跨线程错误经 `serializeAnalysisError` / `restoreAnalysisError` 还原并保留错误码；取消通过 `Worker.terminate()` 实现并抛 `Arc3DError("CANCELLED")`。运行环境不提供 `Worker` 或 Worker 创建失败时，宿主自动降级为进程内执行，调度、取消与错误契约不变。

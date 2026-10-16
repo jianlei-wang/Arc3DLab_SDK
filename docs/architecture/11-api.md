@@ -1,6 +1,6 @@
 # 公共 API
 
-Updated: 2026-10-10
+Updated: 2026-10-16
 
 ## 稳定入口
 
@@ -28,7 +28,8 @@ const app = await Arc3D.create({
 
 - `SpatialReference` / `VerticalReference` / `VerticalDatum` / `TimeRange` / `CoordinateTransform`
 - `WGS84` / `WGS84_3D` / `WEB_MERCATOR` / `ELLIPSOID_VERTICAL`
-- `resolveSpatialReference` / `resolveVerticalReference` / `assertGeographicPosition` / `tryCreateCoordinateTransform` / `assertTimeRange`
+- `resolveSpatialReference` / `resolveVerticalReference` / `assertGeographicPosition` / `tryCreateCoordinateTransform` / `createCoordinateTransform` / `assertTimeRange`
+- `sameHorizontalReference` / `sameVerticalReference` / `sameSpatialReference`：等价性分层判断，`sameSpatialReference` 纳入高程长度单位；`createCoordinateTransform` 仅在同参考下返回恒等转换，其余抛 `UNSUPPORTED_CAPABILITY`
 - `DataCatalog` / `DataAsset` / `FeatureSchema` / `AttributeField` / `FeatureRef` / `LayerMetadata` / `LoadState`
 
 `DataCatalog` schema 生命周期：`registerSchema()` / `hasSchema()` / `unregisterSchema()`；资产携带的 schema 随 `unregisterAsset()` 一并移除，被存活资产拥有的 schema 拒绝独立注销。

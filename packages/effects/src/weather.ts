@@ -1,9 +1,17 @@
 import type { Arc3DContext } from "@arc3dlab/core"
+import { acquireContinuousRender } from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
 import { Cartesian4, Color, PostProcessStage } from "cesium"
 
 /** 支持的天气特效类型。 */
 export type WeatherKind = "rain" | "snow" | "fog" | "lightning"
+
+/** 依赖帧编号逐帧推进的天气特效类型。 */
+const ANIMATED_WEATHER_KINDS: readonly WeatherKind[] = [
+  "rain",
+  "snow",
+  "lightning",
+]
 
 /** 雨特效选项。 */
 export interface RainOptions {
@@ -330,6 +338,7 @@ const WEATHER_SHADERS: Record<WeatherKind, string> = {
 export class WeatherEffects {
   private readonly stages = new Map<WeatherKind, PostProcessStage>()
   private readonly configs = new Map<WeatherKind, Record<string, unknown>>()
+  private readonly renderDemands = new Map<WeatherKind, () => void>()
 
   /**
    * 创建天气特效管理器。
@@ -354,6 +363,12 @@ export class WeatherEffects {
       this.context.engine.native.viewer,
     ).scene.postProcessStages.add(stage)
     this.stages.set(kind, stage)
+    if (ANIMATED_WEATHER_KINDS.includes(kind)) {
+      this.renderDemands.set(
+        kind,
+        acquireContinuousRender(this.context, `weather:${kind}`),
+      )
+    }
   }
 
   /**
@@ -361,6 +376,8 @@ export class WeatherEffects {
    * @param kind - 天气类型。
    */
   disable(kind: WeatherKind): void {
+    this.renderDemands.get(kind)?.()
+    this.renderDemands.delete(kind)
     const stage = this.stages.get(kind)
     if (!stage) return
     getCesiumViewer(

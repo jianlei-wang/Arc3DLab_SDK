@@ -48,6 +48,12 @@ app.analysis.clip.list() // 当前生效的裁剪类型
 app.analysis.clip.clear() // 清除全部裁剪
 ```
 
+## 所有权与无效输入
+
+`clear()` 与 `destroy()` 只清除本服务创建的裁剪，并恢复创建应用前 Globe 上已有的裁剪状态，因此可以与调用方或其它子系统的裁剪共存。
+
+`setPolygon()` / `setExcavation()` 在顶点少于三个时抛出 `INVALID_ARGUMENT`，且不改变当前裁剪与 `list()` 的结果。
+
 ## 与土方计算的配合
 
 开挖体可以配合土方计算得到挖填量，见[土方计算](/analysis/volume)。

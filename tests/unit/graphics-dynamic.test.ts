@@ -65,7 +65,11 @@ function makeCollection(): {
   }
 }
 
-function makeContext(): { context: Arc3DContext; viewer: FakeViewer } {
+function makeContext(): {
+  context: Arc3DContext
+  viewer: FakeViewer
+  demandCount: () => number
+} {
   const scene = {
     primitives: makeCollection(),
     postProcessStages: makeCollection(),
@@ -76,12 +80,21 @@ function makeContext(): { context: Arc3DContext; viewer: FakeViewer } {
     scene,
     camera: { viewMatrix: {}, setView: () => {} },
   }
+  let demands = 0
+  const engineViewer = {
+    acquireContinuousRender: () => {
+      demands += 1
+      return () => {
+        demands -= 1
+      }
+    },
+  }
   const context = {
     lifecycle: new LifecycleManager(),
-    engine: { native: { viewer } },
+    engine: { native: { viewer }, viewer: engineViewer },
     disposers: new DisposerStack(),
   } as unknown as Arc3DContext
-  return { context, viewer }
+  return { context, viewer, demandCount: () => demands }
 }
 
 const center: [number, number] = [116.39, 39.9]
@@ -150,5 +163,33 @@ describe("dynamic graphics", () => {
     expect(viewer.scene.postProcessStages.added).toHaveLength(1)
     handle.destroy()
     expect(viewer.scene.postProcessStages.added).toHaveLength(0)
+  })
+
+  it("holds continuous rendering for animated graphics only", () => {
+    const { context, demandCount } = makeContext()
+    const billboard = addBillboard(context, {
+      position: center,
+      image: "icon.png",
+    })
+    const panel = addPanel(context, { position: center, text: "热点" })
+    expect(demandCount()).toBe(0)
+    const spread = addSpreadPoint(context, { position: center, radius: 500 })
+    const radar = addRadarNormal(context, { position: center, radius: 800 })
+    const diffusion = addCircleDiffusion(context, {
+      position: center,
+      radius: 800,
+    })
+    const polyline = addDynamicPolyline(context, {
+      positions: [center, [116.4, 39.9]],
+    })
+    expect(demandCount()).toBe(4)
+    spread.destroy()
+    radar.destroy()
+    expect(demandCount()).toBe(2)
+    diffusion.destroy()
+    polyline.destroy()
+    billboard.destroy()
+    panel.destroy()
+    expect(demandCount()).toBe(0)
   })
 })

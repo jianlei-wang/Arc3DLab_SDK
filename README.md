@@ -71,12 +71,7 @@ app.graphics.addPolygon({
 })
 ```
 
-兼容旧入口：
-
-```ts
-import { Viewer } from "arc3dlab"
-const viewer = new Viewer("map")
-```
+旧版 `Viewer` / `Map` 兼容入口已在 2.0.0 随 `@arc3dlab/legacy` 包移除。旧代码请迁移到 `Arc3D.create()`，映射见 `docs/architecture/13-migration.md`。
 
 ### 3. 注意：若出现Cesium静态文件访问出错
 

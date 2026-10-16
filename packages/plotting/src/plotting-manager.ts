@@ -49,10 +49,13 @@ export class PlottingManager {
   /**
    * 依据符号类型与锚点绘制一个标绘对象。
    *
+   * 创建是原子的：结果 ID 在创建任何实体之前校验，实体先写入暂存集合，
+   * 全部成功后再提交记录；任一步失败都会回滚本次已创建的实体并保持记录不变。
+   *
    * @param symbol - 标绘符号类型。
    * @param options - 锚点与样式配置。
    * @returns 标绘结果。
-   * @throws {Arc3DError} 当符号未知、锚点不足或视图不支持实体时抛出。
+   * @throws {Arc3DError} 当符号未知、锚点不足、ID 无效或重复、视图不支持实体时抛出。
    */
   draw(symbol: PlotSymbol, options: PlotDrawOptions): PlotResult {
     this.context.lifecycle.assertUsable("draw plot")
@@ -72,11 +75,18 @@ export class PlottingManager {
         `Symbol ${symbol} requires more anchor positions`,
       )
     }
+    const id = this.resolveId(options.id)
+    this.claimId(id)
     const style: PlotStyle = options.style ?? {}
-    const entities = shapes.map((shape) =>
-      this.materialize(shape, style, options),
-    )
-    const id = options.id ?? createId("plot")
+    const entities: unknown[] = []
+    try {
+      for (const shape of shapes) {
+        entities.push(this.materialize(shape, style, options))
+      }
+    } catch (error) {
+      this.disposeEntities(entities)
+      throw error
+    }
     const result: PlotResult = { id, symbol, positions, shapes, entities }
     this.items.set(id, result)
     this.ensureTool()
@@ -111,11 +121,7 @@ export class PlottingManager {
   remove(id: string): boolean {
     const result = this.items.get(id)
     if (!result) return false
-    const viewer = this.viewerOrUndefined()
-    if (viewer?.entities) {
-      for (const entity of result.entities)
-        viewer.entities.remove(entity as Entity)
-    }
+    this.disposeEntities(result.entities)
     this.items.delete(id)
     return true
   }
@@ -136,6 +142,50 @@ export class PlottingManager {
       void this.context.tools.unregister(PLOTTING_TOOL_NAME)
     }
     this.toolRegistered = false
+  }
+
+  /**
+   * 解析标绘结果标识。
+   *
+   * @param provided - 调用方显式提供的标识。
+   * @returns 可用于记录的结果标识。
+   * @throws {Arc3DError} 当显式标识为空字符串时抛出，错误码为 `INVALID_ARGUMENT`。
+   */
+  private resolveId(provided: string | undefined): string {
+    if (provided === undefined) return createId("plot")
+    if (provided.length === 0) {
+      throw new Arc3DError(
+        "INVALID_ARGUMENT",
+        "Plot result id must be a non-empty string",
+      )
+    }
+    return provided
+  }
+
+  /**
+   * 校验结果标识未被占用。
+   *
+   * @param id - 结果标识。
+   * @throws {Arc3DError} 当标识已存在时抛出，错误码为 `DUPLICATE_RESOURCE`。
+   */
+  private claimId(id: string): void {
+    if (this.items.has(id)) {
+      throw new Arc3DError(
+        "DUPLICATE_RESOURCE",
+        `Plot result already exists: ${id}`,
+      )
+    }
+  }
+
+  /**
+   * 移除一组底层实体，容错视图不可用的情况。
+   *
+   * @param entities - 待移除的实体集合。
+   */
+  private disposeEntities(entities: unknown[]): void {
+    const viewer = this.viewerOrUndefined()
+    if (!viewer?.entities) return
+    for (const entity of entities) viewer.entities.remove(entity as Entity)
   }
 
   /**

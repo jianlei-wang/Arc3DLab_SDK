@@ -2,6 +2,7 @@ import {
   assertAlive,
   createHandle,
   createId,
+  runWithIonToken,
   type Arc3DContext,
 } from "@arc3dlab/core"
 import { getCesiumViewer } from "@arc3dlab/engine-cesium"
@@ -29,17 +30,20 @@ export class BasemapManager {
   async set(spec: BasemapSpec): Promise<Layer> {
     this.context.lifecycle.assertUsable("set basemap")
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
-    const provider = await createImageryProvider(
-      spec,
-      this.context.config.tokens?.tdt,
-    )
+    const provider = await createImageryProvider(spec, {
+      tdtToken: this.context.config.tokens?.tdt,
+      runWithIonToken: (work, token) =>
+        runWithIonToken(this.context, work, token),
+    })
     assertAlive(this.context.lifecycle, "set basemap")
     if (this.current) {
-      this.current.destroy()
+      const previous = this.current
       this.current = undefined
+      previous.destroy()
     }
     const imagery = viewer.imageryLayers.addImageryProvider(provider, 0)
     viewer.imageryLayers.lowerToBottom(imagery)
+    this.context.engine.viewer?.setDefaultBaseLayerVisible?.(false)
     try {
       const layer = this.wrap("basemap", imagery)
       this.current = layer
@@ -47,6 +51,7 @@ export class BasemapManager {
       return layer
     } catch (error) {
       viewer.imageryLayers.remove(imagery, true)
+      this.context.engine.viewer?.setDefaultBaseLayerVisible?.(true)
       throw error
     }
   }
@@ -71,6 +76,10 @@ export class BasemapManager {
       },
       onDestroy: () => {
         viewer.imageryLayers.remove(imagery, true)
+        if (this.current?.id === id) {
+          this.current = undefined
+          this.context.engine.viewer?.setDefaultBaseLayerVisible?.(true)
+        }
         this.context.registry.unregister(id)
         this.context.catalog.unregisterLayer(id)
         this.context.events.emit("layerRemoved", { id, type })

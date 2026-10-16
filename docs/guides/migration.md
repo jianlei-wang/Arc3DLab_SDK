@@ -1,5 +1,7 @@
 # 从 Viewer 迁移到 Arc3DApp
 
+旧版 `Viewer` / `Map` 及 `@arc3dlab/legacy` 包已在 2.0.0 移除。下文「旧」代码仅用于展示到当前合同的映射，请勿在新项目中引用；完整映射见 `docs/architecture/13-migration.md`。
+
 ```ts
 // 旧
 import { Viewer } from "arc3dlab"

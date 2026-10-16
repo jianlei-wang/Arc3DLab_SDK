@@ -137,4 +137,31 @@ describe("VisibilityAnalysis", () => {
     })
     expect(result.samples[2].lineHeight).toBeLessThan(0)
   })
+
+  it("rejects a viewshed that exhausts its shared sample budget", async () => {
+    await expect(
+      visibility(() => 0).viewshed({
+        observer: [120, 30],
+        radius: 500,
+        rays: 8,
+        samples: 6,
+        maxSamples: 10,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+  })
+
+  it("keeps sample count and order across chunk boundaries", async () => {
+    const result = await visibility(() => 0).lineOfSight({
+      from: [120, 30, 0],
+      to: [120.3, 30, 0],
+      samples: 300,
+      maxSamples: 1000,
+    })
+    expect(result.samples).toHaveLength(300)
+    for (let i = 1; i < result.samples.length; i += 1) {
+      expect(result.samples[i].longitude).toBeGreaterThanOrEqual(
+        result.samples[i - 1].longitude,
+      )
+    }
+  })
 })

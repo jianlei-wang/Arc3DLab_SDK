@@ -9,6 +9,7 @@ import {
   type GraphicStyle,
   type LngLatHeight,
   type PositionInput,
+  type ResourceHandle,
 } from "@arc3dlab/core"
 import {
   fromCartesian3,
@@ -66,6 +67,7 @@ import type { Graphic, GraphicCreateOptions, ModelCreateOptions } from "./types"
  */
 export class GraphicManager {
   private items = new Map<string, Graphic>()
+  private extras = new Set<string>()
 
   /**
    * 创建图形管理器。
@@ -120,7 +122,7 @@ export class GraphicManager {
    */
   addVoxel(pointData: VoxelPoint[], options?: VoxelOptions): MultiTileVoxel {
     this.context.lifecycle.assertUsable("add voxel")
-    return new MultiTileVoxel(this.context, pointData, options)
+    return this.trackExtra(new MultiTileVoxel(this.context, pointData, options))
   }
 
   /**
@@ -134,7 +136,20 @@ export class GraphicManager {
     options?: ModelFlattenOptions,
   ): ModelFlatten {
     this.context.lifecycle.assertUsable("add flatten")
-    return new ModelFlatten(this.context, target, options)
+    return this.trackExtra(new ModelFlatten(this.context, target, options))
+  }
+
+  /**
+   * 将体素、压平等额外资源登记进共享注册表并纳入管理器生命周期。
+   *
+   * 登记是原子的：注册表冲突时销毁新建对象并重抛，不留下未登记资源。
+   * @param extra - 待登记的资源句柄。
+   * @returns 传入的资源本身。
+   */
+  private trackExtra<T extends ResourceHandle>(extra: T): T {
+    registerAtomically(this.context.registry, extra, () => extra.destroy())
+    this.extras.add(extra.id)
+    return extra
   }
 
   /**
@@ -497,6 +512,8 @@ export class GraphicManager {
    */
   clear(): void {
     for (const graphic of Array.from(this.items.values())) graphic.destroy()
+    for (const id of Array.from(this.extras)) this.context.registry.remove(id)
+    this.extras.clear()
   }
 
   private createPoints(

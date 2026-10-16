@@ -80,6 +80,7 @@ describe("MeasurementService", () => {
     expect(result.meters).toBeCloseTo(1000, 0)
     expect(result.units).toBe("meters")
     expect(result.mode).toBe("cartesian")
+    expect(result.model).toBe("ecef-chord")
     expect(result.heightDatum).toBe("ellipsoid")
   })
 
@@ -100,6 +101,7 @@ describe("MeasurementService", () => {
     })
     expect(result.meters).toBeCloseTo(111319.5, 0)
     expect(result.mode).toBe("geodesic")
+    expect(result.model).toBe("spherical")
   })
 
   it("wraps westward heading to 270 degrees", async () => {
@@ -153,5 +155,65 @@ describe("MeasurementService", () => {
     })
     expect(withHole.squareMeters).toBeLessThan(outer.squareMeters)
     expect(withHole.squareMeters).toBeGreaterThan(outer.squareMeters * 0.6)
+  })
+
+  it("labels the computation model for each measurement entry", async () => {
+    const service = measure()
+    expect((await service.distance({ positions: [[120, 30]] })).model).toBe(
+      "ecef-chord",
+    )
+    expect(
+      (await service.horizontalDistance({ from: [0, 0], to: [1, 0] })).model,
+    ).toBe("spherical")
+    expect(
+      (await service.projectedDistance({ from: [0, 0], to: [1, 0] })).model,
+    ).toBe("spherical")
+    expect(
+      (
+        await service.surfaceDistance({
+          positions: [
+            [0, 0],
+            [1, 0],
+          ],
+        })
+      ).model,
+    ).toBe("spherical")
+    expect(
+      (await service.height({ from: [0, 0, 0], to: [0, 0, 1] })).model,
+    ).toBe("ellipsoid-delta")
+    expect(
+      (
+        await service.area({
+          positions: [
+            [0, 0],
+            [1, 0],
+            [0, 1],
+          ],
+        })
+      ).model,
+    ).toBe("spherical")
+    expect(
+      (
+        await service.area({
+          positions: [
+            [0, 0],
+            [1, 0],
+            [0, 1],
+          ],
+          mode: "planar",
+        })
+      ).model,
+    ).toBe("local-planar")
+    expect(
+      (
+        await service.triangleArea({
+          positions: [
+            [0, 0],
+            [1, 0],
+            [0, 1],
+          ],
+        })
+      ).model,
+    ).toBe("spherical")
   })
 })

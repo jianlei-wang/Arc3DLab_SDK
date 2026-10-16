@@ -1,4 +1,5 @@
 import * as Cesium from "cesium"
+import type { RunWithIonToken } from "@arc3dlab/core"
 
 /**
  * 描述以作用域方式临时设置 Cesium Ion 令牌的能力。
@@ -80,4 +81,18 @@ export function readIonToken(config: {
   tokens?: { cesiumIon?: string }
 }): string | undefined {
   return config.engine?.cesium?.ionToken ?? config.tokens?.cesiumIon
+}
+
+/**
+ * 构造实例级 Ion 令牌执行入口。
+ *
+ * 返回的函数在共享串行作用域内执行工作：优先使用调用时传入的覆盖令牌，否则
+ * 使用实例令牌；两者都为空时直接执行。多个实例共用同一作用域，因此不同实例
+ * 的令牌不会在同一临界区内互相串扰。
+ *
+ * @param instanceToken - 实例令牌，来自 `EngineViewerOptions.ionToken`。
+ * @returns 实例级 `RunWithIonToken`。
+ */
+export function createIonTokenRunner(instanceToken?: string): RunWithIonToken {
+  return (work, token) => withIonAccessToken(token ?? instanceToken, work)
 }

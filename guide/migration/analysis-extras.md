@@ -45,19 +45,27 @@ app.analysis.heatmap.setData(points, {
 app.analysis.heatmap.clear()
 ```
 
-动态热力图用 `app.analysis.dynamicHeatmap` 在多个数据帧间切换与播放：
+已有网格时可直接渲染，跳过重复计算：
+
+```ts
+const grid = computeHeatmapGrid(points, { radius: 20 })
+app.analysis.heatmap.setGrid(grid, { mode: "2d" })
+```
+
+动态热力图用 `app.analysis.dynamicHeatmap` 在多个数据帧间切换与播放。`setFrames` 会预计算并缓存每帧网格，`play` 在相邻帧网格之间插值过渡：
 
 ```ts
 app.analysis.dynamicHeatmap.setFrames([{ points: frameA }, { points: frameB }])
-app.analysis.dynamicHeatmap.play(500) // 帧间隔（毫秒）
+app.analysis.dynamicHeatmap.play(500, 12) // 帧间隔（毫秒）、每段过渡的插值步数
 app.analysis.dynamicHeatmap.pause()
+app.analysis.dynamicHeatmap.showFrame(1)
 ```
 
 ## 洪水分析
 
 ```ts
 app.analysis.flood.setRegion(positions)
-app.analysis.flood.setWaterLevel(25, { /* FloodWaterOptions */ })
+app.analysis.flood.setWaterLevel(25, {/* FloodWaterOptions */})
 app.analysis.flood.clear()
 ```
 

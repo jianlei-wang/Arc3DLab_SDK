@@ -5,14 +5,14 @@
 
 ## 关键字说明 :mega:
 
-``` 说明
+```说明
 ## v 版本号 - 时间
 ### Breaking Changes：:mega: 重大变更（移除or替换）
 ### feat: :tada: 新功能、新特性
 ### fix: :wrench: 修复bug
 ```
 
-## Unreleased - 2026-10-12
+## v2.0.0 - 2026-10-12
 
 ### Breaking Changes：:mega:
 
@@ -27,17 +27,40 @@
 - `ResourceRegistry.clear()` 与 `DisposerStack.disposeAll()` 的错误上报回调抛错不再中断剩余资源释放
 - `ToolRegistry.activate()` 在旧工具 `deactivate()` 抛错时回滚状态，工具切换失败后状态机收敛
 - `DataCatalog` 明确 schema 生命周期：资产拥有的 schema 随资产注销移除，新增 `unregisterSchema()` / `hasSchema()` / `registerSchema()`
+- 渲染与动态效果协调：新增持续渲染需求机制，雨雪/闪电、粒子、动态材质图元、洪水水面等依赖帧编号推进的效果在活动期间自动保持持续渲染，全部结束后自动回到按需渲染，静态场景不再因 `requestRenderMode` 与 `maximumRenderTimeChange = Infinity` 导致动画停滞；业务方无需处理底层渲染细节
+- 默认占位底图与业务底图协调：占位底图可见性改为由“期望状态”驱动（`EngineViewer.setDefaultBaseLayerVisible`），业务设置自定义底图时隐藏占位图、移除底图或销毁栈再恢复，占位图先完成或业务底图先完成两种时序都不会被默认占位图覆盖
+- 体素采样合同：`MultiTileVoxel` 网格节点采样改为基于输入点数据的空间插值（默认 `idw`、可选 `nearest`，新增 `power` / `padding` 选项），距离在 ENU 米制坐标系按 `cos(lat)` 折算经度；垂直跨度改用高程跨度 `maxZ - minZ`；`value = NaN` 视为缺失并输出透明；颜色定义域来自有效采样值，修复了颜色仅由网格索引构造规则梯度的缺陷
+- 网格出图：`captureGrid` 每幅在设置相机后请求并等待一帧渲染完成再采集，修复按需渲染下图片仍为上一视图的问题；出图前保存相机状态并在 `finally` 中恢复（含异常路径），不再改变用户视图；新增 `maxShots`（默认 `64`）限制分幅数量并对非法 `rows` / `columns` 抛 `INVALID_ARGUMENT`
+- Cesium Ion 令牌统一路径：Ion 影像、地形与 Tileset 的创建统一经实例级 `EngineContext.runWithIonToken(work, token?)` 在共享串行作用域内应用令牌并恢复，修复 Ion 影像绕过令牌作用域、配置的实例 `ionToken` 未生效的缺陷；Ion 影像在无令牌时仍按无令牌分支创建，Ion 地形无令牌仍抛 `AUTH_FAILED`
+- 裁剪分析所有权与状态一致性：`app.analysis.clip` 首次写入前捕获 Globe 既有裁剪作为基线，`clear()` / `destroy()` 只释放自身创建的集合并恢复基线，未写入前不触碰 Globe；`setPolygon` / `setExcavation` 顶点少于三个时在变更前抛 `INVALID_ARGUMENT`，不再出现 `list()` 为空但场景仍存在旧裁剪的状态不同步
+- 资源生命周期与状态管理统一：`app.graphics.addVoxel` / `addFlatten` 返回的 `MultiTileVoxel` / `ModelFlatten` 现实现资源句柄合同并登记进共享注册表，随 `graphics.clear()` 或应用销毁释放；`ParticleManager` 托管全部粒子句柄，`app.effects.destroy()` 统一释放；粒子对 `viewer.clock.shouldAnimate` 的覆盖改为引用计数，全部释放后恢复原值；`app.scene.sync` 返回的 `SyncViewer` 由场景控制器跟踪并随场景销毁解除相机监听；数据源句柄销毁时同步注销资产元数据，不再残留 `DataAsset`；`ManagedGraphic.positions` 返回防御性副本，外部修改不再绕过变更通知
+- 标绘创建原子性：`app.plotting.draw` 的结果 `id` 在创建任何实体之前校验，重复 `id` 抛 `DUPLICATE_RESOURCE`、空字符串 `id` 抛 `INVALID_ARGUMENT`，不再覆盖既有记录而遗留无法清理的实体；多图元符号的创建改为暂存集合加成功提交，任一步失败回滚本次已创建的全部实体且不写入记录
+- 空间参考等价性分层与单位校验：`sameSpatialReference` 现比较高程长度单位 `linearUnit`，相同 CRS 但单位不同（米/英尺）不再视为等价；新增 `sameHorizontalReference` / `sameVerticalReference` 分层判断与 `createCoordinateTransform`，后者仅在完全等价时返回恒等转换，否则抛 `UNSUPPORTED_CAPABILITY` 并指明差异层次，`tryCreateCoordinateTransform` 对单位差异返回 `undefined` 而不再静默视为可直接互用
+- 分块分析让出与采样预算：地形、通视、可视域与规模采样的块间让出由微任务改为默认真实宏任务（`MessageChannel`，不可用时回退 `setTimeout(0)`），长分析期间渲染帧、输入与超时回调不再被阻塞；采样规模由「单次上限」升级为可选的「任务级累计预算」`AnalysisSampleBudget`，`viewshed` 由观察点与全部射线共享同一预算，累计超限明确抛 `INVALID_ARGUMENT` 而不再逐个子操作各自限额
+- 动态热力图网格复用与插值播放：`showFrame()` 改用 `setFrames()` 预计算的缓存网格渲染，不再对同一帧重复计算网格；`play()` 在相邻缓存网格之间按插值比例平滑过渡（新增可选步数参数），每个帧间隔结束时前进到下一帧，相邻网格维度不一致时回退为该帧网格，帧数不足时不启动定时器
+- 数值分析定位与地形状态：`terrain.profile()` 的剖面点补齐 `source` / `status`，地形不可用时以 `unavailable` 标识而非仅表现为高程 0 米；`estimatedErrorCubicMeters` 明确为边界单元经验量级指标而非数学误差上界
+- 动态材质时间与相等性：动态扩散材质（`DynamicSpreadMaterialProperty`）与线尾迹材质（`PolylineTrailMaterialProperty`）的动画时间改用 `JulianDate.secondsDifference` 计算并以 `JulianDate.clone` 保存动画起点，跨过午夜的持续动画不再因 `secondsOfDay` 回绕而重置或倒退；两者 `equals()` 补齐 `duration` 比较，配置不同不再被判为相等
+- Credits 展示模式可逆且不隐藏归属：`compact` 不再把 Cesium 版权容器 `display: none`（会连同第三方数据源署名一起隐藏），改为保持可见并压缩占位；切换模式前先把版权容器移回原始父节点、恢复基线 `display` 并清除压缩样式，修复 `custom → default` 后原容器位置未恢复的问题；自定义容器判定改依据节点挂载能力，兼容非 `HTMLElement` 的 `Element`
 
 ### feat
 
+- 数值分析结果显式计算模型：`LengthResult` / `AreaResult` / `HeightResult` 新增只读字段 `model`（`ComputationModel`：`"ecef-chord"` / `"spherical"` / `"local-planar"` / `"ellipsoid-delta"`），与既有 `mode` 一起说明结果的近似性质与适用边界；`distance` 为 `ecef-chord`，球面公式（`geodesic` 距离与面积）为 `spherical`，`mode: "planar"` 面积为 `local-planar`，高差为 `ellipsoid-delta`
+- `CutFillResult` 新增只读字段 `status`（`CutFillStatus`：`"computed"` / `"invalid-polygon"` / `"empty-grid"`），土方计算不再对非法多边形或空网格静默返回未标注的全 0 结果
 - `CapabilityRegistry.updateAvailability(name, available, provider?)`：显式修改能力可用性
 - `PluginScope.unmanage(resource)`：提前解除插件资源托管，配合 `manage()` 的幂等销毁契约
+- `EngineContext.runWithIonToken(work, token?)` 实例级令牌合同：`@arc3dlab/engine-cesium` 新增 `createIonTokenRunner(instanceToken?)` 构造执行入口，`@arc3dlab/core` 新增容错封装 `runWithIonToken(context, work, token?)`（无引擎能力时直接执行）
+- `AnalysisJobHost` 落地真实 Web Worker：`@arc3dlab/analysis` 的纯数值作业（矩形/多边形查询、面积、土方网格）在支持的环境投递到独立线程执行，跨线程错误经序列化还原并保留错误码，取消经 `Worker.terminate()` 抛 `CANCELLED`，无 `Worker` 环境自动降级进程内
+- 新增 `AnalysisSampleBudget`、`yieldToEventLoop` 与 `YieldStrategy` 公共导出，供自定义任务复用任务级采样预算与块间让出
 - 新增真实浏览器性能趋势场景 `e2e/perf.spec.ts` 与 `.github/workflows/perf.yml`（每日定时 + 手动），时间数值仅归档、资源回收做结构性断言
+- `HeatmapOverlay.setGrid(grid, options)`：从已有 `HeatmapGrid` 直接渲染热力图，跳过网格计算，便于复用预计算结果；`setData` 保持不变并在内部委托 `setGrid`
 - 新增 `.github/PULL_REQUEST_TEMPLATE.md`，将公共 API/SemVer 影响、生命周期与资源契约纳入合并前置检查
 
 ### chore
 
 - `npm run build:watch` 现在会在每次 watch 重建后自动重跑 declaration rollup，保持开发期 `.d.ts` 与 JS 产物一致
+- 登记自定义材质注册对 Cesium 内部入口 `Material._materialCache` 的依赖为升级高风险点（见 `COMPATIBILITY.md`），新增针对锁定版本的版本契约集成测试；升级 `cesium` 时须核查该内部结构
+- 文档与发布合同同步：修正 `README.md`、`docs/guides/sdk-development.md`、`docs/guides/migration.md`、`docs/architecture/12-engineering.md` 中与 2.0.0 合同不一致的旧版兼容入口、版本号与 Cesium 依赖边界描述，并将本日志版本头由 `Unreleased` 归入 `v2.0.0`
+- 最终产物同步：重生成 API 文档站并修正 `RadarNormalMaterialProperty.getValue` 的 JSDoc 告警；Sandcastle（`demo-vue3`）对齐身份为 `arc3dlab-sandcastle`、改为直接消费工作区 SDK 源码并移除过期的 `arc3dlab@^0.0.3` 依赖，重写其 README
 
 ## v1.0.0 - 2026-10-11
 

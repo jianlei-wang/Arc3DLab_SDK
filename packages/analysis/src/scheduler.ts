@@ -15,6 +15,9 @@ export interface AnalysisProgress {
   stage: string
 }
 
+/** 分块计算之间的让出策略。 */
+export type YieldStrategy = "macrotask" | "microtask"
+
 /** 分析任务的通用可选配置。 */
 export interface AnalysisTaskOptions {
   /** 用于取消任务的信号。 */
@@ -23,6 +26,93 @@ export interface AnalysisTaskOptions {
   onProgress?: (progress: AnalysisProgress) => void
   /** 最大采样数量。 */
   maxSamples?: number
+  /** 任务级共享采样预算；省略时由调用方按单次 maxSamples 自行构造。 */
+  sampleBudget?: AnalysisSampleBudget
+  /** 块间让出策略，缺省为宏任务让出。 */
+  yieldStrategy?: YieldStrategy
+}
+
+/**
+ * 任务级累计采样预算，由一次分析任务内所有子操作共同分摊。
+ *
+ * 以「累计已消耗采样点数量」为口径：每次 {@link reserve} 请求的采样会先与
+ * 剩余额度比较，超限时抛错且不改变已消耗量。
+ */
+export class AnalysisSampleBudget {
+  /** 允许消耗的累计采样点上限。 */
+  readonly maxSamples: number
+  private consumed = 0
+
+  /**
+   * 创建采样预算。
+   * @param maxSamples - 允许消耗的累计采样点上限，缺省取默认上限。
+   */
+  constructor(maxSamples = DEFAULT_MAX_SAMPLES) {
+    const finite = Number.isFinite(maxSamples)
+      ? maxSamples
+      : DEFAULT_MAX_SAMPLES
+    this.maxSamples = Math.max(0, Math.floor(finite))
+  }
+
+  /** 已消耗的采样点数量。 */
+  get used(): number {
+    return this.consumed
+  }
+
+  /** 剩余可消耗的采样点数量。 */
+  get remaining(): number {
+    return Math.max(0, this.maxSamples - this.consumed)
+  }
+
+  /**
+   * 请求消耗指定数量的采样点。
+   * @param count - 请求消耗的采样点数量。
+   * @returns 被接受的采样点数量。
+   * @throws {Arc3DError} 请求超出剩余额度时抛出。
+   */
+  reserve(count: number): number {
+    const requested = Number.isFinite(count) ? Math.floor(count) : 0
+    if (requested <= 0) return 0
+    if (requested > this.remaining) {
+      throw new Arc3DError(
+        "INVALID_ARGUMENT",
+        `Analysis sample budget exceeded: requested ${requested}, remaining ${this.remaining} of ${this.maxSamples}`,
+      )
+    }
+    this.consumed += requested
+    return requested
+  }
+}
+
+/**
+ * 在分块计算之间让出控制权，使待处理的其它任务得以运行。
+ *
+ * 缺省采用宏任务让出：优先使用 `MessageChannel`，不可用时回退
+ * `setTimeout(0)`，两者都会进入下一轮事件循环，从而允许渲染帧、输入与
+ * 超时回调执行。传入 `"microtask"` 时仅让出到微任务队列。
+ *
+ * @param strategy - 让出策略，缺省为宏任务。
+ * @returns 让出完成后的 Promise。
+ */
+export function yieldToEventLoop(
+  strategy: YieldStrategy = "macrotask",
+): Promise<void> {
+  if (strategy === "microtask") {
+    return Promise.resolve()
+  }
+  if (typeof MessageChannel !== "undefined") {
+    return new Promise<void>((resolve) => {
+      const channel = new MessageChannel()
+      channel.port1.onmessage = () => {
+        channel.port1.close()
+        resolve()
+      }
+      channel.port2.postMessage(undefined)
+    })
+  }
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, 0)
+  })
 }
 
 /**
@@ -120,7 +210,7 @@ export async function mapInChunks<T, R>(
       out.push(await mapper(items[i], i))
     }
     reportProgress(options?.onProgress, end, items.length, action)
-    await Promise.resolve()
+    await yieldToEventLoop(options?.yieldStrategy)
   }
   return out
 }

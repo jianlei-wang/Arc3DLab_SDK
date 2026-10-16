@@ -139,6 +139,9 @@ export function cartesianDistanceMeters(
 
 /**
  * 计算两点之间的测地线距离。
+ *
+ * 采用半径取 WGS84 长半轴的球面近似（计算模型 `"spherical"`），
+ * 相对 WGS84 椭球精确测地线存在随纬度增大的误差，且不含大地线方向修正。
  * @param from - 起点坐标。
  * @param to - 终点坐标。
  * @returns 测地线距离，单位为米。
@@ -249,6 +252,9 @@ function toEastNorth(
 
 /**
  * 以指定原点将经纬度投影为局部东向与北向米制坐标。
+ *
+ * 局部平面近似：经度缩放系数 `cos(lat)` 固定于 `origin` 的纬度，
+ * 仅在原点附近、非极区的小范围内有效；高纬、大范围与近极点会产生经向失真。
  * @param origin - 投影原点坐标。
  * @param point - 待投影坐标。
  * @returns 局部东向与北向偏移，单位为米。
@@ -262,6 +268,8 @@ export function toLocalMeters(
 
 /**
  * 将局部东向与北向米制偏移还原为经纬度坐标。
+ *
+ * 与 {@link toLocalMeters} 共用局部平面近似；`origin` 位于极点时经度分量退化。
  * @param origin - 投影原点坐标。
  * @param east - 东向偏移，单位为米。
  * @param north - 北向偏移，单位为米。
@@ -293,6 +301,9 @@ function shoelace(points: Array<{ east: number; north: number }>): number {
 
 /**
  * 使用平面近似计算环形边界的面积。
+ *
+ * 计算模型 `"local-planar"`：以环首点为原点做局部东-北投影后使用鞋带公式，
+ * 仅在原点附近、非极区的小范围内有效，高纬与大范围会低估/高估面积。
  * @param ring - 环形边界点列表。
  * @returns 面积，单位为平方米。
  */
@@ -305,6 +316,9 @@ export function planarRingArea(ring: LngLatLike[]): number {
 
 /**
  * 使用测地线公式计算环形边界的面积。
+ *
+ * 计算模型 `"spherical"`：半径为 WGS84 长半轴的球面多边形面积公式，
+ * 相对 WGS84 椭球精确面积存在随纬度增大的误差。
  * @param ring - 环形边界点列表。
  * @returns 面积，单位为平方米。
  */

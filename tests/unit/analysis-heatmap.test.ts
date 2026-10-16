@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import type { Arc3DContext } from "../../packages/core/src/index"
 import { Arc3DError } from "../../packages/core/src/errors"
 import {
   computeHeatmapGrid,
@@ -6,7 +7,11 @@ import {
   gridToRgba,
   sampleGradient,
 } from "../../packages/analysis/src/heatmap"
-import { interpolateHeatmapGrid } from "../../packages/analysis/src/dynamic-heatmap"
+import { HeatmapOverlay } from "../../packages/analysis/src/heatmap-overlay"
+import {
+  DynamicHeatmapOverlay,
+  interpolateHeatmapGrid,
+} from "../../packages/analysis/src/dynamic-heatmap"
 
 const points = [
   { longitude: 116.39, latitude: 39.9, value: 1 },
@@ -72,5 +77,68 @@ describe("heatmap", () => {
         0.5,
       ),
     ).toBe(first)
+  })
+})
+
+const context = {} as unknown as Arc3DContext
+
+describe("DynamicHeatmapOverlay grid playback", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it("renders frames from cached grids without recomputing points", () => {
+    const setGrid = vi
+      .spyOn(HeatmapOverlay.prototype, "setGrid")
+      .mockImplementation(() => {})
+    const setData = vi
+      .spyOn(HeatmapOverlay.prototype, "setData")
+      .mockImplementation(() => {})
+    const overlay = new DynamicHeatmapOverlay(context)
+    overlay.setFrames([{ points }, { points: points.slice(0, 1) }])
+
+    expect(setData).not.toHaveBeenCalled()
+    expect(setGrid).toHaveBeenCalledTimes(1)
+    const firstCall = setGrid.mock.calls[0][0]
+    const expected = computeHeatmapGrid(points)
+    expect(firstCall.width).toBe(expected.width)
+    expect(firstCall.values).toEqual(expected.values)
+
+    overlay.showFrame(1)
+    expect(setData).not.toHaveBeenCalled()
+    expect(setGrid).toHaveBeenCalledTimes(2)
+    expect(setGrid.mock.calls[1][0].extent).toEqual(
+      computeHeatmapGrid(points.slice(0, 1)).extent,
+    )
+  })
+
+  it("interpolates between cached grids while playing", () => {
+    vi.useFakeTimers()
+    const setGrid = vi
+      .spyOn(HeatmapOverlay.prototype, "setGrid")
+      .mockImplementation(() => {})
+    const overlay = new DynamicHeatmapOverlay(context)
+    const widened = points.map((point) => ({
+      ...point,
+      value: point.value * 2,
+    }))
+    overlay.setFrames([{ points }, { points: widened }])
+
+    const gridA = computeHeatmapGrid(points)
+    const gridB = computeHeatmapGrid(widened)
+    overlay.play(300, 3)
+
+    vi.advanceTimersByTime(100)
+    const mid = interpolateHeatmapGrid(gridA, gridB, 100 / 300)
+    expect(setGrid.mock.calls.at(-1)?.[0].values).toEqual(mid.values)
+
+    vi.advanceTimersByTime(200)
+    expect(setGrid.mock.calls.at(-1)?.[0].values).toEqual(gridB.values)
+
+    overlay.pause()
+    const count = setGrid.mock.calls.length
+    vi.advanceTimersByTime(1000)
+    expect(setGrid).toHaveBeenCalledTimes(count)
   })
 })

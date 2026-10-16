@@ -49,6 +49,8 @@ export {
 export { ConsoleLogger, type Logger, type LogLevel } from "./logger"
 export { LifecycleManager, type LifecycleState } from "./lifecycle"
 export { EventBus, type Unsubscribe } from "./event-bus"
+export { acquireContinuousRender } from "./render-demand"
+export { runWithIonToken } from "./ion"
 export { DisposerStack, type Disposer } from "./disposer"
 export {
   ResourceRegistry,
@@ -107,10 +109,13 @@ export {
   resolveSpatialReference,
   resolveVerticalReference,
   isGeographic,
+  sameHorizontalReference,
+  sameVerticalReference,
   sameSpatialReference,
   assertGeographicPosition,
   identityTransform,
   tryCreateCoordinateTransform,
+  createCoordinateTransform,
   assertTimeRange,
   describeDefaultShorthand,
   type SpatialReference,
@@ -155,6 +160,7 @@ export type {
   EngineViewer,
   EngineViewerOptions,
   EngineContext,
+  RunWithIonToken,
   DefaultBaseLayerState,
   SceneReadyOptions,
   SceneReadyResult,

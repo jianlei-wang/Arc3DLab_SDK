@@ -28,6 +28,23 @@ describe("polygonAreaSquareMeters", () => {
     ).toBeCloseTo(0, 3)
   })
 
+  it("returns finite zero for repeated and too-few vertices", () => {
+    const repeated = [
+      { longitude: 0, latitude: 0 },
+      { longitude: 0, latitude: 0 },
+      { longitude: 0, latitude: 0 },
+    ]
+    const repeatedArea = polygonAreaSquareMeters(repeated)
+    expect(Number.isFinite(repeatedArea)).toBe(true)
+    expect(repeatedArea).toBe(0)
+    expect(
+      polygonAreaSquareMeters([
+        { longitude: 0, latitude: 0 },
+        { longitude: 1, latitude: 0 },
+      ]),
+    ).toBe(0)
+  })
+
   it("keeps a concave L-shape smaller than its bounding rectangle", () => {
     const concave = [
       { longitude: 0, latitude: 0 },
