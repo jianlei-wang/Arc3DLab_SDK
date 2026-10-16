@@ -46,4 +46,24 @@ describe("PostRenderController", () => {
     controller.destroy()
     expect(event.listeners.size).toBe(0)
   })
+
+  it("deduplicates a listener that is registered twice", () => {
+    const event = new FakeEvent()
+    const controller = new PostRenderController(event)
+    const listener = () => {}
+    const first = controller.on(listener)
+    const second = controller.on(listener)
+    expect(event.listeners.size).toBe(1)
+    first()
+    expect(event.listeners.size).toBe(0)
+    second()
+    expect(event.listeners.size).toBe(0)
+  })
+
+  it("ignores removal of a listener that was never registered", () => {
+    const event = new FakeEvent()
+    const controller = new PostRenderController(event)
+    expect(() => controller.off(() => {})).not.toThrow()
+    expect(event.listeners.size).toBe(0)
+  })
 })

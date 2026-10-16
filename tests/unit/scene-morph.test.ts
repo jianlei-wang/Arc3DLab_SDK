@@ -49,4 +49,27 @@ describe("scheduleSceneRestore", () => {
     expect(restored).toBe(0)
     expect(removed).toBe(true)
   })
+
+  it("keeps the listener registered when cancel runs after the restore fired", () => {
+    let restored = 0
+    let removed = false
+    let fire: () => void = () => undefined
+    const cancel = scheduleSceneRestore(
+      () => {
+        restored += 1
+      },
+      {
+        addEventListener(callback) {
+          fire = callback
+          return () => {
+            removed = true
+          }
+        },
+      },
+    )
+    fire()
+    expect(restored).toBe(1)
+    cancel()
+    expect(removed).toBe(false)
+  })
 })

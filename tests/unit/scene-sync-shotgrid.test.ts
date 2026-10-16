@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import {
   LifecycleManager,
   type Arc3DContext,
@@ -291,6 +291,108 @@ describe("captureGrid rendering and state", () => {
     expect(shots).toHaveLength(1)
     expect(frame.captures()).toBe(1)
   })
+
+  it("rejects an invalid render timeout", async () => {
+    const camera = new FrameCamera()
+    const frame = makeFrameScene(true)
+    const context = runtime({ camera, scene: frame.scene })
+    await expect(
+      captureGrid(context, {
+        rows: 1,
+        columns: 1,
+        extent: [0, 0, 1, 1],
+        renderTimeoutMs: -1,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+    await expect(
+      captureGrid(context, {
+        rows: 1,
+        columns: 1,
+        extent: [0, 0, 1, 1],
+        renderTimeoutMs: "soon" as unknown as number,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+  })
+
+  it("acquires and releases continuous render when the engine supports it", async () => {
+    const camera = new FrameCamera()
+    const frame = makeFrameScene(true)
+    const reasons: string[] = []
+    let releases = 0
+    const context = {
+      engine: {
+        native: { viewer: { camera, scene: frame.scene } },
+        viewer: {
+          acquireContinuousRender(reason: string) {
+            reasons.push(reason)
+            return () => {
+              releases += 1
+            }
+          },
+        },
+      },
+    } as unknown as Arc3DContext
+    const shots = await captureGrid(context, {
+      rows: 1,
+      columns: 1,
+      extent: [0, 0, 1, 1],
+    })
+    expect(shots).toHaveLength(1)
+    expect(reasons).toEqual(["shot-grid"])
+    expect(releases).toBe(1)
+  })
+
+  it("waits the configured delay between captures", async () => {
+    vi.useFakeTimers()
+    try {
+      const camera = new FrameCamera()
+      const frame = makeFrameScene(true)
+      const pending = captureGrid(runtime({ camera, scene: frame.scene }), {
+        rows: 2,
+        columns: 1,
+        extent: [0, 0, 1, 1],
+        delayMs: 10,
+        renderTimeoutMs: 1000,
+      })
+      await vi.runAllTimersAsync()
+      const shots = await pending
+      expect(shots).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("falls back to viewer.render when the scene cannot request a render", async () => {
+    const camera = new FrameCamera()
+    const listeners = new Set<() => void>()
+    let renders = 0
+    const scene = {
+      canvas: { toDataURL: () => "data:image/png;base64,frame" },
+      postRender: {
+        addEventListener(listener: () => void): void {
+          listeners.add(listener)
+        },
+        removeEventListener(listener: () => void): void {
+          listeners.delete(listener)
+        },
+      },
+    }
+    const viewer = {
+      camera,
+      scene,
+      render(): void {
+        renders += 1
+        for (const listener of [...listeners]) listener()
+      },
+    }
+    const shots = await captureGrid(runtime(viewer), {
+      rows: 1,
+      columns: 1,
+      extent: [0, 0, 1, 1],
+    })
+    expect(shots).toHaveLength(1)
+    expect(renders).toBeGreaterThanOrEqual(1)
+  })
 })
 
 function sceneRuntime(viewer: unknown): Arc3DContext {
@@ -344,5 +446,43 @@ describe("SceneController facade", () => {
     })
     expect(shots).toHaveLength(2)
     expect(shots[0]!.image).toContain("data:image/png")
+  })
+
+  it("estimates the metres per pixel from the camera frustum", () => {
+    const viewer = {
+      camera: {
+        frustum: { fovy: Math.PI / 3 },
+        positionCartographic: { height: 1000 },
+      },
+      canvas: { clientHeight: 600, height: 900 },
+    }
+    const scene = new SceneController(sceneRuntime(viewer))
+    expect(scene.scaleMetersPerPixel()).toBeGreaterThan(0)
+  })
+
+  it("falls back to the default fov and canvas height when unavailable", () => {
+    const viewer = {
+      camera: {
+        frustum: {},
+        positionCartographic: { height: 500 },
+      },
+      canvas: { clientHeight: 0, height: 480 },
+    }
+    const scene = new SceneController(sceneRuntime(viewer))
+    expect(scene.scaleMetersPerPixel()).toBeGreaterThan(0)
+  })
+
+  it("derives the view extent from the camera position", () => {
+    const viewer = {
+      camera: {
+        frustum: { fovy: Math.PI / 3 },
+        positionCartographic: { height: 1000, longitude: 2.1, latitude: 0.5 },
+      },
+      canvas: { clientWidth: 0, width: 800, clientHeight: 0, height: 600 },
+    }
+    const scene = new SceneController(sceneRuntime(viewer))
+    const extent = scene.viewExtent()
+    expect(extent[2]).toBeGreaterThan(extent[0]!)
+    expect(extent[3]).toBeGreaterThan(extent[1]!)
   })
 })
