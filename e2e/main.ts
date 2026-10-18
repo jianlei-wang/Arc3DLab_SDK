@@ -100,6 +100,23 @@ async function scenarioRuntime(): Promise<Record<string, unknown>> {
   report.plotId = plot.id
   report.plotShapeCount = plot.shapes.length
 
+  const radar = app.graphics.dynamic.radarNormal({
+    position: POINT,
+    radius: 1200,
+    speed: 12,
+  })
+  const spread = app.graphics.dynamic.spreadPoint({
+    position: FAR_POINT,
+    radius: 800,
+    duration: 800,
+  })
+  report.dynamicRadarId = radar.id
+  report.dynamicSpreadId = spread.id
+  await nextFrames(4)
+  radar.destroy()
+  spread.destroy()
+  report.dynamicMaterialsRendered = true
+
   app.effects.weather.enable("rain")
   report.weatherEnabled = true
   app.effects.weather.disable("rain")

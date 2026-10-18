@@ -8,6 +8,9 @@ import {
   AnalysisManager,
   SpatialQueryService,
   TerrainAnalysis,
+  executeAnalysisJob,
+  type AnalysisJob,
+  type AnalysisWorkerLike,
 } from "@arc3dlab/analysis"
 import { Cartographic } from "cesium"
 
@@ -42,6 +45,51 @@ function terrainContext(
       },
     },
   })
+}
+
+class FakeWorker implements AnalysisWorkerLike {
+  onmessage: ((event: { data: unknown }) => void) | null = null
+  onerror: ((event: unknown) => void) | null = null
+  terminated = false
+  readonly requests: Array<{ id: number; job: AnalysisJob }> = []
+
+  postMessage(message: unknown): void {
+    const request = message as { id: number; job: AnalysisJob }
+    this.requests.push(request)
+    queueMicrotask(() => {
+      if (this.terminated) return
+      this.onmessage?.({
+        data: { id: request.id, result: executeAnalysisJob(request.job) },
+      })
+    })
+  }
+
+  terminate(): void {
+    this.terminated = true
+  }
+}
+
+class DeferredWorker implements AnalysisWorkerLike {
+  onmessage: ((event: { data: unknown }) => void) | null = null
+  onerror: ((event: unknown) => void) | null = null
+  terminated = false
+  readonly requests: Array<{ id: number; job: AnalysisJob }> = []
+
+  postMessage(message: unknown): void {
+    this.requests.push(message as { id: number; job: AnalysisJob })
+  }
+
+  respond(): void {
+    const request = this.requests.at(-1)
+    if (!request) throw new Error("DeferredWorker has no request")
+    this.onmessage?.({
+      data: { id: request.id, result: executeAnalysisJob(request.job) },
+    })
+  }
+
+  terminate(): void {
+    this.terminated = true
+  }
 }
 
 describe("analysis task variants", () => {
@@ -119,5 +167,165 @@ describe("analysis task variants", () => {
     })
     expect(result.status).toBe("succeeded")
     expect(result.value?.graphics).toEqual([])
+  })
+
+  it("routes pure numeric tasks through the manager-owned worker host", async () => {
+    const workers: FakeWorker[] = []
+    const manager = new AnalysisManager(baseContext(), {
+      createWorker: () => {
+        const worker = new FakeWorker()
+        workers.push(worker)
+        return worker
+      },
+    })
+
+    const area = await manager.measure.areaTask({
+      positions: [
+        [120, 30],
+        [120.01, 30],
+        [120.01, 30.01],
+      ],
+    })
+    const query = await manager.query.rectangleTask({
+      west: 120,
+      south: 30,
+      east: 121,
+      north: 31,
+    })
+
+    expect(area.status).toBe("succeeded")
+    expect(query.status).toBe("succeeded")
+    expect(workers).toHaveLength(1)
+    expect(workers[0].requests.map((request) => request.job.type)).toEqual([
+      "area",
+      "rect-query",
+    ])
+
+    manager.destroy()
+    expect(workers[0].terminated).toBe(true)
+
+    const afterDestroy = await manager.measure.distanceTask({
+      positions: [
+        [120, 30],
+        [120.01, 30],
+      ],
+    })
+    expect(afterDestroy.status).toBe("cancelled")
+  })
+
+  it("terminates the worker when a numeric task is cancelled", async () => {
+    const workers: FakeWorker[] = []
+    const manager = new AnalysisManager(baseContext(), {
+      createWorker: () => {
+        const worker = new FakeWorker()
+        workers.push(worker)
+        return worker
+      },
+    })
+    const controller = new AbortController()
+    const pending = manager.measure.distanceTask({
+      positions: [
+        [120, 30],
+        [120.01, 30],
+      ],
+      signal: controller.signal,
+    })
+    controller.abort()
+
+    const result = await pending
+    expect(result.status).toBe("cancelled")
+    expect(result.error?.code).toBe("CANCELLED")
+    expect(workers[0].terminated).toBe(true)
+    manager.destroy()
+  })
+
+  it("cancels only the worker owned by the aborted job", async () => {
+    const workers: DeferredWorker[] = []
+    const manager = new AnalysisManager(baseContext(), {
+      createWorker: () => {
+        const worker = new DeferredWorker()
+        workers.push(worker)
+        return worker
+      },
+    })
+    const controller = new AbortController()
+    const cancelled = manager.measure.distanceTask({
+      positions: [
+        [120, 30],
+        [120.01, 30],
+      ],
+      signal: controller.signal,
+    })
+    const concurrent = manager.measure.distanceTask({
+      positions: [
+        [121, 31],
+        [121.02, 31],
+      ],
+    })
+
+    expect(workers).toHaveLength(2)
+    controller.abort()
+    const cancelledResult = await cancelled
+    expect(cancelledResult.status).toBe("cancelled")
+    expect(cancelledResult.error?.code).toBe("CANCELLED")
+    expect(workers[0].terminated).toBe(true)
+    expect(workers[1].terminated).toBe(false)
+
+    workers[1].respond()
+    const concurrentResult = await concurrent
+    expect(concurrentResult.status).toBe("succeeded")
+    expect(concurrentResult.value?.meters ?? 0).toBeGreaterThan(0)
+
+    manager.destroy()
+    expect(workers[1].terminated).toBe(true)
+  })
+
+  it("keeps scene-dependent terrain tasks on the main thread", async () => {
+    const workers: FakeWorker[] = []
+    const manager = new AnalysisManager(
+      terrainContext(() => 42),
+      {
+        createWorker: () => {
+          const worker = new FakeWorker()
+          workers.push(worker)
+          return worker
+        },
+      },
+    )
+
+    const result = await manager.terrain.sampleHeightTask({
+      position: [120, 30],
+    })
+    expect(result.status).toBe("succeeded")
+    expect(workers).toHaveLength(0)
+    manager.destroy()
+  })
+
+  it("offloads only the pure grid step of cut fill", async () => {
+    const workers: FakeWorker[] = []
+    const manager = new AnalysisManager(
+      terrainContext(() => 42),
+      {
+        createWorker: () => {
+          const worker = new FakeWorker()
+          workers.push(worker)
+          return worker
+        },
+      },
+    )
+
+    const result = await manager.volume.cutFillTask({
+      positions: [
+        [120, 30],
+        [120.01, 30],
+        [120.01, 30.01],
+        [120, 30.01],
+      ],
+      samples: 4,
+    })
+    expect(result.status).toBe("succeeded")
+    expect(result.value?.status).toBe("computed")
+    expect(workers[0]?.requests[0]?.job.type).toBe("cutfill-grid")
+    manager.destroy()
   })
 })

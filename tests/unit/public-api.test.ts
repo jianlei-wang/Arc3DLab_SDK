@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  AnalysisJobHost,
   AnalysisTaskRegistry,
   Arc3D,
   Arc3DApp,
@@ -8,6 +9,7 @@ import {
   createId,
   createTaskExecutor,
   DataCatalog,
+  executeAnalysisJob,
   runAnalysisTask,
 } from "../../src/index"
 import type {
@@ -41,6 +43,7 @@ const runtimeWhitelist = [
   CesiumEngine,
   DataCatalog,
   AnalysisTaskRegistry,
+  AnalysisJobHost,
 ]
 
 describe("public api surface", () => {
@@ -54,6 +57,7 @@ describe("public api surface", () => {
     expect(typeof createId).toBe("function")
     expect(typeof createTaskExecutor).toBe("function")
     expect(typeof runAnalysisTask).toBe("function")
+    expect(typeof executeAnalysisJob).toBe("function")
   })
 
   it("compiles consumer type usage against the whitelist", () => {

@@ -6,6 +6,7 @@
  */
 
 export {
+  AnalysisJobHost,
   AnalysisTaskRegistry,
   Arc3D,
   Arc3DApp,
@@ -14,6 +15,7 @@ export {
   createId,
   createTaskExecutor,
   DataCatalog,
+  executeAnalysisJob,
   runAnalysisTask,
   WGS84_SEMI_MAJOR_AXIS,
   angleBetweenHeadings,
@@ -59,10 +61,15 @@ export type {
 } from "@arc3dlab/sdk"
 export type {
   AnalysisExecution,
+  AnalysisJob,
+  AnalysisJobHostOptions,
+  AnalysisJobResult,
   AnalysisResult,
   AnalysisTask,
   AnalysisTaskExecutor,
   AnalysisTaskStatus,
+  AnalysisWorkerFactory,
+  AnalysisWorkerLike,
   ActiveFrameValue,
   ActiveGeometry,
   ActiveStyleOptions,

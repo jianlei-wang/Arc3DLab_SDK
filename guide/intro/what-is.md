@@ -17,20 +17,20 @@ Arc3DLab SDK 是一个基于 [CesiumJS](https://cesium.com/platform/cesiumjs/) �
 
 应用通过 `Arc3D.create()` 获得一个 `Arc3DApp`。它是一个聚合门面，各能力域挂在只读属性上：
 
-| 属性 | 能力域 |
-| --- | --- |
-| `app.scene` | 场景、相机、时钟、环境 |
-| `app.camera` | 相机快捷方式（等价于 `app.scene.camera`） |
-| `app.basemap` / `app.terrain` | 底图与地形 |
-| `app.layers` | 影像叠加、3D Tiles 与数据图层 |
-| `app.graphics` | 图形 |
-| `app.data` | 数据源与影像提供者 |
-| `app.interaction` | 拾取、选择与交互事件 |
-| `app.analysis` | 测量、地形、可见性、查询、裁剪与体积分析 |
-| `app.effects` | 材质与后处理 |
-| `app.ui` | 工具提示等界面服务 |
-| `app.plugins` | 插件 |
-| `app.native` | 原生 Cesium 逃生舱（advanced / unstable） |
+| 属性                          | 能力域                                    |
+| ----------------------------- | ----------------------------------------- |
+| `app.scene`                   | 场景、相机、时钟、环境                    |
+| `app.camera`                  | 相机快捷方式（等价于 `app.scene.camera`） |
+| `app.basemap` / `app.terrain` | 底图与地形                                |
+| `app.layers`                  | 影像叠加、3D Tiles 与数据图层             |
+| `app.graphics`                | 图形                                      |
+| `app.data`                    | 数据源与影像提供者                        |
+| `app.interaction`             | 拾取、选择与交互事件                      |
+| `app.analysis`                | 测量、地形、可见性、查询、裁剪与体积分析  |
+| `app.effects`                 | 材质与后处理                              |
+| `app.ui`                      | 工具提示等界面服务                        |
+| `app.plugins`                 | 插件                                      |
+| `app.native`                  | 原生 Cesium 逃生舱（advanced / unstable） |
 
 ### 统一的位置与错误模型
 
@@ -40,6 +40,8 @@ Arc3DLab SDK 是一个基于 [CesiumJS](https://cesium.com/platform/cesiumjs/) �
 ### Cesium 优先，原生可及
 
 默认引擎为 Cesium。需要访问未封装的能力时，可通过 `app.native.viewer` 取得原生句柄，但它属于 advanced / unstable，不纳入版本兼容承诺。
+
+`engine.type` 当前仅接受 `"cesium"`。`RenderPolicy` 的 Entity / Primitive / Buffer 选择发生在 Cesium 内部；替换渲染引擎需要新增适配层与端口抽象，不在当前公共 API 合同内。
 
 ## 与其他文档的关系
 

@@ -1,6 +1,6 @@
 # 公共 API
 
-Updated: 2026-10-16
+Updated: 2026-10-18
 
 ## 稳定入口
 
@@ -9,7 +9,7 @@ import { Arc3D } from "arc3dlab"
 
 const app = await Arc3D.create({
   container: "map",
-  engine: { type: "cesium", cesium: { ionToken: runtimeToken } }
+  engine: { type: "cesium", cesium: { ionToken: runtimeToken } },
 })
 ```
 
@@ -39,8 +39,11 @@ const app = await Arc3D.create({
 统一分析任务合同从 `@arc3dlab/analysis` 导出：
 
 - `runAnalysisTask` / `AnalysisTaskRegistry` / `createTaskExecutor`
+- `AnalysisJobHost` / `executeAnalysisJob`，以及 `AnalysisJob` / `AnalysisJobResult` / `AnalysisJobHostOptions` / `AnalysisWorkerFactory` / `AnalysisWorkerLike`
 - `AnalysisTask` / `AnalysisResult` / `AnalysisExecution` / `ResultArtifact`
 - 内置分析任务化方法：`measure.*Task` / `terrain.*Task` / `visibility.*Task` / `query.*Task` / `volume.cutFillTask`，返回 `AnalysisResult` 并登记到 `app.analysis.tasks`
+
+`app.analysis` 的纯数值方法与任务变体共享由 `AnalysisManager` 持有的作业宿主：支持 `Worker` 时在独立线程执行，否则进程内降级；每个在途作业独占一个 Worker 槽位，单项 `signal` 取消只影响该作业；`app.destroy()` 终止全部 Worker 并取消未完成作业。`terrain.*`、`visibility.*` 与 `volume.cutFill` 的地形采样仍在主线程执行。
 
 ## 就绪语义
 
@@ -55,7 +58,24 @@ result.destroyed        // 等待期间是否被销毁
 result.defaultBaseLayer // disabled | loading | ready | failed
 ```
 
-`whenSceneReady` 等待初始渲染帧与 Globe 瓦片加载完成，就绪后派发 `sceneReady` 事件。
+`whenSceneReady` 等待初始渲染帧与 Globe 瓦片加载完成，就绪后派发 `sceneReady` 事件。`ready: true` 表示等待条件已完成，默认底图仍可能处于 `failed`；需要底图成功显示时应同时检查 `defaultBaseLayer === "ready"`。设置业务底图或地形后可再次调用 `whenSceneReady()`，等待新的首屏资源。
+
+## 生命周期与所有权合同
+
+公开对象的所有权、幂等与失败重试语义如下：
+
+| 对象                                   | 所有权               | 释放                                             | 重复调用与失败                                                                                                                                    |
+| -------------------------------------- | -------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Arc3DApp`                             | 调用方               | `await app.destroy()`                            | 幂等，重复调用返回同一 Promise；销毁后调用 API 抛 `APP_DESTROYED`                                                                                 |
+| `ResourceHandle`（`Layer` / 数据源等） | 创建它的管理器       | `handle.destroy()`、管理器移除或 `app.destroy()` | `destroy()` 幂等；从注册表移除后再次移除返回 `false`                                                                                              |
+| 事件订阅                               | 调用方               | `app.on()` 返回的取消函数                        | 取消幂等；省略 handler 的 `EventBus.off()` 清除该事件全部监听                                                                                     |
+| 插件                                   | `PluginManager`      | `app.plugins.uninstall()` 或 `app.destroy()`     | `use()` 串行执行，同名已安装抛 `DUPLICATE_RESOURCE`；安装失败回滚并标记 `failed`，修复原因后可重新安装；重复卸载已移除插件抛 `RESOURCE_NOT_FOUND` |
+| `PluginScope`                          | 安装中的插件         | 作用域关闭时执行 `track` / `manage` 登记的回调   | 关闭后 `track` / `register*` 抛 `INVALID_ARGUMENT`；作用域随重新安装重新打开                                                                      |
+| 分析任务                               | `app.analysis.tasks` | `tasks.clear()` 或 `app.destroy()`               | 同一 `taskId` 重复登记抛 `DUPLICATE_RESOURCE`；记录保留到显式清理                                                                                 |
+| 取消信号                               | 调用方               | 调用方 `AbortController.abort()`                 | 一次 `signal` 对应一次在途操作；取消是终态，重试使用新调用与新控制器                                                                              |
+| 数据源失败记录                         | `DataManager`        | 同 ID 重试自动重置，或 `app.destroy()`           | 失败保留 `failed` 图层与资产用于诊断；成功或加载中的同 ID 记录仍抛 `DUPLICATE_RESOURCE`                                                           |
+
+资源释放回调可能抛错：`ResourceRegistry.clear()` 会继续释放其余资源并收集错误；`PluginScopeManager.close()` 返回清理错误数组，由调用方决定记录方式。调用方在释放后应停止使用对应原生对象。
 
 ## 公共类型白名单
 

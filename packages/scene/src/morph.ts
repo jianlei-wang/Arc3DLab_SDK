@@ -22,15 +22,26 @@ export function scheduleSceneRestore(
   let timer: ReturnType<typeof setTimeout> | undefined
   let remove: (() => void) | undefined
 
+  const removeListener = (): void => {
+    if (!remove) return
+    const unsubscribe = remove
+    remove = undefined
+    unsubscribe()
+  }
+
   const run = (): void => {
     if (cancelled) return
     cancelled = true
+    removeListener()
     restore()
   }
 
   if (typeof morphComplete?.addEventListener === "function") {
     const unsubscribe = morphComplete.addEventListener(run)
-    if (typeof unsubscribe === "function") remove = unsubscribe
+    if (typeof unsubscribe === "function") {
+      remove = unsubscribe
+      if (cancelled) removeListener()
+    }
   } else {
     timer = setTimeout(run, timeoutMs)
   }
@@ -38,7 +49,10 @@ export function scheduleSceneRestore(
   return () => {
     if (cancelled) return
     cancelled = true
-    if (timer !== undefined) clearTimeout(timer)
-    remove?.()
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      timer = undefined
+    }
+    removeListener()
   }
 }

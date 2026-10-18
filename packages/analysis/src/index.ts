@@ -10,14 +10,6 @@ import { SpatialQueryService } from "./query"
 import { ClipAnalysis } from "./clip"
 import { VolumeAnalysis } from "./volume"
 import {
-  ellipsoidHeightDelta,
-  headingDegrees,
-  pathLengthMeters,
-  polygonAreaSquareMeters,
-  spaceAngleDegrees,
-  toMeasurePoint,
-} from "./geometry"
-import {
   ANALYSIS_UNITS,
   type AngleResult,
   type AreaMode,
@@ -29,23 +21,17 @@ import {
 } from "./units"
 import {
   AnalysisTaskRegistry,
-  runAnalysisTask,
   type AnalysisResult,
   type RunAnalysisTaskOptions,
 } from "./task"
 import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
+import { AnalysisJobHost, type AnalysisJobHostOptions } from "./worker-host"
 import { BufferService } from "./buffer"
 import { RouteOverlay } from "./path"
 import { HeatmapOverlay } from "./heatmap-overlay"
 import { DynamicHeatmapOverlay } from "./dynamic-heatmap"
 import { FloodAnalysis } from "./flood"
 import { SwipeComparison } from "./split"
-import {
-  projectedDistanceMeters,
-  slopeAngleDegrees,
-  surfaceDistanceMeters,
-  triangleAreaSquareMeters,
-} from "./measure-tools"
 
 /**
  * 由距离计算模式推导数值计算模型。
@@ -81,16 +67,23 @@ export class MeasurementService {
 
   /**
    * 计算折线路径长度。
-   * @param options - 测量选项，包含路径顶点列表。
+   * @param options - 测量选项，包含路径顶点列表与可选的取消信号。
    * @returns 长度测量结果。
    */
   async distance(options: {
     positions: PositionInput[]
+    signal?: AbortSignal
   }): Promise<LengthResult> {
     this.context.lifecycle.assertUsable("measure distance")
-    const points = options.positions.map(toMeasurePoint)
+    const { meters } = await this.runTask.runJob<{
+      type: "distance"
+      meters: number
+    }>(
+      { type: "distance", positions: options.positions },
+      { signal: options.signal },
+    )
     return {
-      meters: pathLengthMeters(points, "cartesian"),
+      meters,
       units: ANALYSIS_UNITS.length,
       mode: "cartesian",
       model: modelForDistance("cartesian"),
@@ -100,20 +93,31 @@ export class MeasurementService {
 
   /**
    * 计算多边形的面积。
-   * @param options - 测量选项，包含外环顶点、孔洞与面积模式。
+   * @param options - 测量选项，包含外环顶点、孔洞、面积模式与可选的取消信号。
    * @returns 面积测量结果。
    */
   async area(options: {
     positions: PositionInput[]
     holes?: PositionInput[][]
     mode?: AreaMode
+    signal?: AbortSignal
   }): Promise<AreaResult> {
     this.context.lifecycle.assertUsable("measure area")
     const mode = options.mode ?? "geodesic"
-    const outer = options.positions.map(toMeasurePoint)
-    const holes = (options.holes ?? []).map((ring) => ring.map(toMeasurePoint))
+    const { squareMeters } = await this.runTask.runJob<{
+      type: "area"
+      squareMeters: number
+    }>(
+      {
+        type: "area",
+        positions: options.positions,
+        holes: options.holes,
+        mode,
+      },
+      { signal: options.signal },
+    )
     return {
-      squareMeters: polygonAreaSquareMeters(outer, holes, mode),
+      squareMeters,
       units: ANALYSIS_UNITS.area,
       mode,
       model: modelForArea(mode),
@@ -122,19 +126,24 @@ export class MeasurementService {
 
   /**
    * 计算两点之间的椭球高差。
-   * @param options - 测量选项，包含起点与终点。
+   * @param options - 测量选项，包含起点、终点与可选的取消信号。
    * @returns 高度测量结果。
    */
   async height(options: {
     from: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<HeightResult> {
     this.context.lifecycle.assertUsable("measure height")
+    const { meters } = await this.runTask.runJob<{
+      type: "height"
+      meters: number
+    }>(
+      { type: "height", from: options.from, to: options.to },
+      { signal: options.signal },
+    )
     return {
-      meters: ellipsoidHeightDelta(
-        toMeasurePoint(options.from),
-        toMeasurePoint(options.to),
-      ),
+      meters,
       units: ANALYSIS_UNITS.length,
       model: "ellipsoid-delta",
       heightDatum: "ellipsoid",
@@ -143,36 +152,37 @@ export class MeasurementService {
 
   /**
    * 计算两点之间的垂直距离。
-   * @param options - 测量选项，包含起点与终点。
+   * @param options - 测量选项，包含起点、终点与可选的取消信号。
    * @returns 高度测量结果。
    */
   async verticalDistance(options: {
     from: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<HeightResult> {
     return this.height(options)
   }
 
   /**
    * 计算两点之间的水平距离。
-   * @param options - 测量选项，包含起点与终点。
+   * @param options - 测量选项，包含起点、终点与可选的取消信号。
    * @returns 长度测量结果。
    */
   async horizontalDistance(options: {
     from: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<LengthResult> {
     this.context.lifecycle.assertUsable("measure horizontal distance")
-    const from = toMeasurePoint(options.from)
-    const to = toMeasurePoint(options.to)
+    const { meters } = await this.runTask.runJob<{
+      type: "projected-distance"
+      meters: number
+    }>(
+      { type: "projected-distance", from: options.from, to: options.to },
+      { signal: options.signal },
+    )
     return {
-      meters: pathLengthMeters(
-        [
-          { ...from, height: 0 },
-          { ...to, height: 0 },
-        ],
-        "geodesic",
-      ),
+      meters,
       units: ANALYSIS_UNITS.length,
       mode: "geodesic",
       model: modelForDistance("geodesic"),
@@ -182,19 +192,24 @@ export class MeasurementService {
 
   /**
    * 计算从起点指向终点的方位角。
-   * @param options - 测量选项，包含起点与终点。
+   * @param options - 测量选项，包含起点、终点与可选的取消信号。
    * @returns 角度测量结果。
    */
   async heading(options: {
     from: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<AngleResult> {
     this.context.lifecycle.assertUsable("measure heading")
+    const { degrees } = await this.runTask.runJob<{
+      type: "heading"
+      degrees: number
+    }>(
+      { type: "heading", from: options.from, to: options.to },
+      { signal: options.signal },
+    )
     return {
-      degrees: headingDegrees(
-        toMeasurePoint(options.from),
-        toMeasurePoint(options.to),
-      ),
+      degrees,
       units: ANALYSIS_UNITS.angle,
       reference: "north-clockwise",
     }
@@ -202,59 +217,78 @@ export class MeasurementService {
 
   /**
    * 计算由起点、顶点、终点构成的空间角。
-   * @param options - 测量选项，包含起点、顶点与终点。
+   * @param options - 测量选项，包含起点、顶点、终点与可选的取消信号。
    * @returns 角度测量结果。
    */
   async spaceAngle(options: {
     from: PositionInput
     via: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<AngleResult> {
     this.context.lifecycle.assertUsable("measure space angle")
+    const { degrees } = await this.runTask.runJob<{
+      type: "space-angle"
+      degrees: number
+    }>(
+      {
+        type: "space-angle",
+        from: options.from,
+        via: options.via,
+        to: options.to,
+      },
+      { signal: options.signal },
+    )
     return {
-      degrees: spaceAngleDegrees(
-        toMeasurePoint(options.from),
-        toMeasurePoint(options.via),
-        toMeasurePoint(options.to),
-      ),
+      degrees,
       units: ANALYSIS_UNITS.angle,
     }
   }
 
   /**
    * 计算由起点指向终点的连线与水平面的夹角。
-   * @param options - 测量选项，包含起点与终点。
+   * @param options - 测量选项，包含起点、终点与可选的取消信号。
    * @returns 角度测量结果。
    */
   async slope(options: {
     from: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<AngleResult> {
     this.context.lifecycle.assertUsable("measure slope")
+    const { degrees } = await this.runTask.runJob<{
+      type: "slope"
+      degrees: number
+    }>(
+      { type: "slope", from: options.from, to: options.to },
+      { signal: options.signal },
+    )
     return {
-      degrees: slopeAngleDegrees(
-        toMeasurePoint(options.from),
-        toMeasurePoint(options.to),
-      ),
+      degrees,
       units: ANALYSIS_UNITS.angle,
     }
   }
 
   /**
    * 计算两点在椭球面上的投影距离，忽略高度差。
-   * @param options - 测量选项，包含起点与终点。
+   * @param options - 测量选项，包含起点、终点与可选的取消信号。
    * @returns 长度测量结果。
    */
   async projectedDistance(options: {
     from: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<LengthResult> {
     this.context.lifecycle.assertUsable("measure projected distance")
+    const { meters } = await this.runTask.runJob<{
+      type: "projected-distance"
+      meters: number
+    }>(
+      { type: "projected-distance", from: options.from, to: options.to },
+      { signal: options.signal },
+    )
     return {
-      meters: projectedDistanceMeters(
-        toMeasurePoint(options.from),
-        toMeasurePoint(options.to),
-      ),
+      meters,
       units: ANALYSIS_UNITS.length,
       mode: "geodesic",
       model: modelForDistance("geodesic"),
@@ -264,15 +298,23 @@ export class MeasurementService {
 
   /**
    * 计算折线沿椭球面的表面距离。
-   * @param options - 测量选项，包含路径顶点列表。
+   * @param options - 测量选项，包含路径顶点列表与可选的取消信号。
    * @returns 长度测量结果。
    */
   async surfaceDistance(options: {
     positions: PositionInput[]
+    signal?: AbortSignal
   }): Promise<LengthResult> {
     this.context.lifecycle.assertUsable("measure surface distance")
+    const { meters } = await this.runTask.runJob<{
+      type: "surface-distance"
+      meters: number
+    }>(
+      { type: "surface-distance", positions: options.positions },
+      { signal: options.signal },
+    )
     return {
-      meters: surfaceDistanceMeters(options.positions.map(toMeasurePoint)),
+      meters,
       units: ANALYSIS_UNITS.length,
       mode: "geodesic",
       model: modelForDistance("geodesic"),
@@ -282,16 +324,23 @@ export class MeasurementService {
 
   /**
    * 计算由三个顶点构成的三角形面积。
-   * @param options - 测量选项，包含三个顶点。
+   * @param options - 测量选项，包含三个顶点与可选的取消信号。
    * @returns 面积测量结果。
    */
   async triangleArea(options: {
     positions: [PositionInput, PositionInput, PositionInput]
+    signal?: AbortSignal
   }): Promise<AreaResult> {
     this.context.lifecycle.assertUsable("measure triangle area")
-    const [a, b, c] = options.positions.map(toMeasurePoint)
+    const { squareMeters } = await this.runTask.runJob<{
+      type: "triangle-area"
+      squareMeters: number
+    }>(
+      { type: "triangle-area", positions: options.positions },
+      { signal: options.signal },
+    )
     return {
-      squareMeters: triangleAreaSquareMeters(a, b, c),
+      squareMeters,
       units: ANALYSIS_UNITS.area,
       mode: "geodesic",
       model: modelForArea("geodesic"),
@@ -300,15 +349,17 @@ export class MeasurementService {
 
   /**
    * 以任务形式计算折线路径长度。
-   * @param options - 测量选项，包含路径顶点列表。
+   * @param options - 测量选项，包含路径顶点列表与可选的取消信号。
    * @returns 分析结果，结果值为长度测量结果。
    */
   distanceTask(options: {
     positions: PositionInput[]
+    signal?: AbortSignal
   }): Promise<AnalysisResult<LengthResult>> {
     return this.runTask<typeof options, LengthResult>({
       algorithm: "measure.distance",
       input: options,
+      signal: options.signal,
       spatialReference: WGS84_3D,
       verticalReference: ELLIPSOID_VERTICAL,
       execute: async (runner) => {
@@ -323,17 +374,19 @@ export class MeasurementService {
 
   /**
    * 以任务形式计算多边形面积。
-   * @param options - 测量选项，包含外环顶点、孔洞与面积模式。
+   * @param options - 测量选项，包含外环顶点、孔洞、面积模式与可选的取消信号。
    * @returns 分析结果，结果值为面积测量结果。
    */
   areaTask(options: {
     positions: PositionInput[]
     holes?: PositionInput[][]
     mode?: AreaMode
+    signal?: AbortSignal
   }): Promise<AnalysisResult<AreaResult>> {
     return this.runTask<typeof options, AreaResult>({
       algorithm: "measure.area",
       input: options,
+      signal: options.signal,
       spatialReference: WGS84_3D,
       execute: async (runner) => {
         runner.throwIfCancelled("measure area")
@@ -344,16 +397,18 @@ export class MeasurementService {
 
   /**
    * 以任务形式计算两点之间的椭球高差。
-   * @param options - 测量选项，包含起点与终点。
+   * @param options - 测量选项，包含起点、终点与可选的取消信号。
    * @returns 分析结果，结果值为高度测量结果。
    */
   heightTask(options: {
     from: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<AnalysisResult<HeightResult>> {
     return this.runTask<typeof options, HeightResult>({
       algorithm: "measure.height",
       input: options,
+      signal: options.signal,
       spatialReference: WGS84_3D,
       verticalReference: ELLIPSOID_VERTICAL,
       execute: async (runner) => {
@@ -368,16 +423,18 @@ export class MeasurementService {
 
   /**
    * 以任务形式计算方位角。
-   * @param options - 测量选项，包含起点与终点。
+   * @param options - 测量选项，包含起点、终点与可选的取消信号。
    * @returns 分析结果，结果值为角度测量结果。
    */
   headingTask(options: {
     from: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<AnalysisResult<AngleResult>> {
     return this.runTask<typeof options, AngleResult>({
       algorithm: "measure.heading",
       input: options,
+      signal: options.signal,
       spatialReference: WGS84_3D,
       execute: async (runner) => {
         runner.throwIfCancelled("measure heading")
@@ -391,17 +448,19 @@ export class MeasurementService {
 
   /**
    * 以任务形式计算空间角。
-   * @param options - 测量选项，包含起点、顶点与终点。
+   * @param options - 测量选项，包含起点、顶点、终点与可选的取消信号。
    * @returns 分析结果，结果值为角度测量结果。
    */
   spaceAngleTask(options: {
     from: PositionInput
     via: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<AnalysisResult<AngleResult>> {
     return this.runTask<typeof options, AngleResult>({
       algorithm: "measure.spaceAngle",
       input: options,
+      signal: options.signal,
       spatialReference: WGS84_3D,
       execute: async (runner) => {
         runner.throwIfCancelled("measure space angle")
@@ -415,16 +474,18 @@ export class MeasurementService {
 
   /**
    * 以任务形式计算坡角。
-   * @param options - 测量选项，包含起点与终点。
+   * @param options - 测量选项，包含起点、终点与可选的取消信号。
    * @returns 分析结果，结果值为角度测量结果。
    */
   slopeTask(options: {
     from: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<AnalysisResult<AngleResult>> {
     return this.runTask<typeof options, AngleResult>({
       algorithm: "measure.slope",
       input: options,
+      signal: options.signal,
       spatialReference: WGS84_3D,
       execute: async (runner) => {
         runner.throwIfCancelled("measure slope")
@@ -435,16 +496,18 @@ export class MeasurementService {
 
   /**
    * 以任务形式计算投影距离。
-   * @param options - 测量选项，包含起点与终点。
+   * @param options - 测量选项，包含起点、终点与可选的取消信号。
    * @returns 分析结果，结果值为长度测量结果。
    */
   projectedDistanceTask(options: {
     from: PositionInput
     to: PositionInput
+    signal?: AbortSignal
   }): Promise<AnalysisResult<LengthResult>> {
     return this.runTask<typeof options, LengthResult>({
       algorithm: "measure.projectedDistance",
       input: options,
+      signal: options.signal,
       spatialReference: WGS84_3D,
       execute: async (runner) => {
         runner.throwIfCancelled("measure projected distance")
@@ -458,15 +521,17 @@ export class MeasurementService {
 
   /**
    * 以任务形式计算表面距离。
-   * @param options - 测量选项，包含路径顶点列表。
+   * @param options - 测量选项，包含路径顶点列表与可选的取消信号。
    * @returns 分析结果，结果值为长度测量结果。
    */
   surfaceDistanceTask(options: {
     positions: PositionInput[]
+    signal?: AbortSignal
   }): Promise<AnalysisResult<LengthResult>> {
     return this.runTask<typeof options, LengthResult>({
       algorithm: "measure.surfaceDistance",
       input: options,
+      signal: options.signal,
       spatialReference: WGS84_3D,
       execute: async (runner) => {
         runner.throwIfCancelled("measure surface distance")
@@ -480,15 +545,17 @@ export class MeasurementService {
 
   /**
    * 以任务形式计算三角形面积。
-   * @param options - 测量选项，包含三个顶点。
+   * @param options - 测量选项，包含三个顶点与可选的取消信号。
    * @returns 分析结果，结果值为面积测量结果。
    */
   triangleAreaTask(options: {
     positions: [PositionInput, PositionInput, PositionInput]
+    signal?: AbortSignal
   }): Promise<AnalysisResult<AreaResult>> {
     return this.runTask<typeof options, AreaResult>({
       algorithm: "measure.triangleArea",
       input: options,
+      signal: options.signal,
       spatialReference: WGS84_3D,
       execute: async (runner) => {
         runner.throwIfCancelled("measure triangle area")
@@ -529,21 +596,27 @@ export class AnalysisManager {
   readonly swipe: SwipeComparison
   /** 分析任务注册表。 */
   readonly tasks: AnalysisTaskRegistry
+  private readonly jobHost: AnalysisJobHost
+  private readonly runTask: AnalysisTaskExecutor
 
   /**
    * 创建分析管理器并初始化各分析服务。
    * @param context - Arc3D 运行上下文。
+   * @param options - 作业宿主配置，用于注入 Worker 工厂或进程内执行器。
    */
-  constructor(private readonly context: Arc3DContext) {
+  constructor(context: Arc3DContext, options: AnalysisJobHostOptions = {}) {
     this.tasks = new AnalysisTaskRegistry()
-    const runTask: AnalysisTaskExecutor = (options) =>
-      runAnalysisTask({ ...options, context, registry: this.tasks })
+    this.jobHost = new AnalysisJobHost(options)
+    this.runTask = createTaskExecutor(context, {
+      registry: this.tasks,
+      host: this.jobHost,
+    })
     this.clip = new ClipAnalysis(context)
-    this.measure = new MeasurementService(context, runTask)
-    this.terrain = new TerrainAnalysis(context, runTask)
-    this.visibility = new VisibilityAnalysis(context, runTask)
-    this.query = new SpatialQueryService(context, runTask)
-    this.volume = new VolumeAnalysis(context, this.clip, runTask)
+    this.measure = new MeasurementService(context, this.runTask)
+    this.terrain = new TerrainAnalysis(context, this.runTask)
+    this.visibility = new VisibilityAnalysis(context, this.runTask)
+    this.query = new SpatialQueryService(context, this.runTask)
+    this.volume = new VolumeAnalysis(context, this.clip, this.runTask)
     this.buffer = new BufferService(context)
     this.path = new RouteOverlay(context)
     this.heatmap = new HeatmapOverlay(context)
@@ -563,14 +636,10 @@ export class AnalysisManager {
       "context" | "registry"
     >,
   ): Promise<AnalysisResult<TResult>> {
-    return runAnalysisTask({
-      ...options,
-      context: this.context,
-      registry: this.tasks,
-    })
+    return this.runTask(options)
   }
 
-  /** 销毁管理器并释放各分析服务占用的资源。 */
+  /** 销毁管理器、终止分析 Worker 并释放各分析服务占用的资源。 */
   destroy(): void {
     this.visibility.destroy()
     this.volume.destroy()
@@ -580,6 +649,7 @@ export class AnalysisManager {
     this.flood.destroy()
     this.swipe.destroy()
     this.clip.destroy()
+    this.jobHost.destroy()
     this.tasks.clear()
   }
 }

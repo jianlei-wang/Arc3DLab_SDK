@@ -5,10 +5,17 @@
 - **直接调用**（如 `measure.distance()`）：返回具体的测量结果，适合简单、即时的计算。
 - **任务调用**（如 `measure.distanceTask()`）：返回统一的 `AnalysisResult`，带状态、单位、产物、警告与取消/进度支持，适合长耗时或需要统一处理的场景。
 
+## 执行位置
+
+纯数值计算（测量、空间查询、面积、土方网格）由 `AnalysisManager` 持有的作业宿主调度：运行环境支持 `Worker` 时在独立线程执行，否则自动降级到主线程，两种路径遵循相同的输入克隆、取消与错误契约。每个在途作业独占一个 Worker 槽位，取消一个作业只终止它自己的 Worker，不会影响其他并发作业。空间查询会在投递前复制当前图形快照。
+
+地形采样、通视/可视域以及土方计算中的地形采样依赖 Cesium 场景，始终在主线程执行。`app.destroy()` 会终止分析 Worker 并拒绝未完成的数值作业。
+
 ## 任务状态
 
 ```ts
-type AnalysisTaskStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled"
+type AnalysisTaskStatus =
+  "pending" | "running" | "succeeded" | "failed" | "cancelled"
 ```
 
 - 执行过程中抛出错误会转为 `status: "failed"`。
@@ -34,16 +41,16 @@ switch (result.status) {
 
 `AnalysisResult` 关键字段：
 
-| 字段 | 说明 |
-| --- | --- |
+| 字段                                        | 说明                 |
+| ------------------------------------------- | -------------------- |
 | `taskId` / `algorithm` / `algorithmVersion` | 任务标识与算法版本。 |
-| `status` | 任务状态。 |
-| `value` | 结果值。 |
-| `units` | 结果单位。 |
-| `spatialReference` / `verticalReference` | 空间与垂直参考。 |
-| `warnings` | 警告列表。 |
-| `artifacts` | 附加产物列表。 |
-| `error` | 失败信息。 |
+| `status`                                    | 任务状态。           |
+| `value`                                     | 结果值。             |
+| `units`                                     | 结果单位。           |
+| `spatialReference` / `verticalReference`    | 空间与垂直参考。     |
+| `warnings`                                  | 警告列表。           |
+| `artifacts`                                 | 附加产物列表。       |
+| `error`                                     | 失败信息。           |
 
 ## 取消与进度
 
@@ -68,7 +75,7 @@ controller.abort()
 ```ts
 await app.analysis.run({
   algorithm: "custom.myAlgorithm",
-  input: { /* ... */ },
+  input: {/* ... */},
   execute: async (runner) => {
     runner.throwIfCancelled("my algorithm")
     return { value: 42, units: {} }

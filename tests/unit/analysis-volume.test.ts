@@ -53,6 +53,11 @@ describe("VolumeAnalysis", () => {
     expect(result.resolutionMeters).toBeGreaterThan(0)
     expect(result.estimatedErrorCubicMeters).toBeGreaterThanOrEqual(0)
     expect(result.status).toBe("computed")
+    expect(result.terrain).toEqual({
+      sampled: result.sampleCount,
+      fallback: 0,
+      unavailable: 0,
+    })
   })
 
   it("flags degenerate polygons instead of silently reporting zero", async () => {
@@ -95,6 +100,22 @@ describe("VolumeAnalysis", () => {
     })
     expect(result.fillCubicMeters).toBeGreaterThan(0)
     expect(result.cutCubicMeters).toBe(0)
+  })
+
+  it("reports unavailable terrain instead of presenting fallback zero as measured", async () => {
+    const { analysis } = volume(() => Number.NaN)
+    const result = await analysis.cutFill({
+      positions: pit,
+      samples: 8,
+    })
+    expect(result.status).toBe("computed")
+    expect(result.cutCubicMeters).toBe(0)
+    expect(result.fillCubicMeters).toBe(0)
+    expect(result.terrain).toEqual({
+      sampled: 0,
+      fallback: 0,
+      unavailable: result.sampleCount,
+    })
   })
 
   it("excavates through clip polygon and floor plane", async () => {

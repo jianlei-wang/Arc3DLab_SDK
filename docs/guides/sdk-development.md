@@ -82,6 +82,8 @@ const app = await Arc3D.create({
 
 根入口稳定导出：`Arc3D`、`Arc3DApp`、`Graphic`、`Layer`、`LngLat`、`LngLatHeight`、`CameraPose`、`PickResult`、`Arc3DPlugin`、`Arc3DError`。
 
+分析任务合同同时从根入口导出：`AnalysisJobHost`、`executeAnalysisJob`、`AnalysisTaskRegistry`、`createTaskExecutor`，以及 `AnalysisJob` / `AnalysisJobResult` / `AnalysisJobHostOptions` / `AnalysisWorkerFactory` / `AnalysisWorkerLike` 等类型。`app.analysis` 的纯数值方法经共享作业宿主调度，`terrain.*` / `visibility.*` 保持主线程执行。
+
 `Viewer` / `Map` 兼容入口已在 2.0.0 移除，请使用 `Arc3D.create()`（迁移映射见 `docs/architecture/13-migration.md`）。
 
 高级入口：
@@ -310,20 +312,24 @@ npm run guide:dev
 `api-docs/` 已在 `.gitignore` 中，生成结果用于本地查阅或站点发布。
 本地或在线预览使用 `npm run docs:preview`，端口 `5174`。
 
-公共 API 注释写在导出符号上。注释缺失会由 `lint:docs` 门禁拦截（summary 与 params 均为 100%）。
+公共 API 注释写在导出符号上。注释缺失会由 `lint:docs` 门禁拦截（summary 阈值 70%，params 阈值 50%）；当前覆盖率以 `npm run lint:docs` 输出为准（summary 100%，params 98.6%）。
 
 应用侧迁移对照见 `docs/guides/migration.md`。
 
 ## 发布
 
-对外发布的是根包 `arc3dlab`。`files` 字段只包含：
+对外发布的是根包 `arc3dlab`。`files` 以 `dist` 整树为发布来源，并排除声明中间目录：
 
-- `dist/*`
+- `dist`（含入口 JS、source map、Worker、静态资源与嵌套 chunk）
+- `!dist/src`
+- `!dist/packages`
 - `README.md`
 - `CHANGES.md`
 - `LOG.md`
 - `NOTICE.md`
 - `LICENSE`
+
+`scripts/publish-manifest.mjs` 生成期望产物清单，`npm run test:pack` 断言清单、`exports` / `module` / `types` 入口都进入 tarball 并在解压安装目录可被真实 Worker 执行。
 
 ### 发布前检查
 
@@ -332,7 +338,8 @@ npm run guide:dev
 3. `npm run build` 产出 ESM 与类型。
 4. `package.json` 的 `version`、`license`、`peerDependencies` 正确。
 5. `CHANGES.md` 写好本版本变更；`COMPATIBILITY.md` 覆盖 Cesium 范围。
-6. 用 `demo-vue3` 或本地 `npm pack` 做一次消费验证。
+6. `npm run test:pack` 验证发布产物、入口与 Worker 在解压安装目录可用。
+7. 用 `demo-vue3` 或本地 `npm pack` 做一次消费验证。
 
 ### 版本与日志
 

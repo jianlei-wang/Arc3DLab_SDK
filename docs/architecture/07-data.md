@@ -7,7 +7,7 @@ const provider = await app.data.createProvider({
   type: "xyz" | "wms" | "wmts" | "tdt" | "arcgis" | "ion" | "single" | "tms",
   urlTemplate,
   token,
-  credit
+  credit,
 })
 
 await app.layers.imagery.add({ type: "xyz", urlTemplate, credit })
@@ -29,7 +29,7 @@ await app.data.addCzml({ id, url })
 
 `FeatureSchema / AttributeField` 描述字段模式（`type / unit / enum / required / displayName / derived`）。`FeatureRef` 用 `assetId + featureId + version` 稳定引用业务对象；删除图层不清除资产。
 
-数据源句柄（`app.data.load` 的返回值）销毁时同时注销 `LayerMetadata` 与 `DataAsset`，不残留悬挂资产；注册表登记阶段失败时同样回滚两者。加载失败时图层进入 `failed` 并保留资产，作为一致的失败记录。
+数据源句柄（`app.data.load` 的返回值）销毁时同时注销 `LayerMetadata` 与 `DataAsset`，不残留悬挂资产；注册表登记阶段失败时同样回滚两者。加载失败时图层进入 `failed` 并保留资产，作为一致的失败记录；再次使用相同 `id` 调用 `add` 会先重置该失败记录，再按新资产重试。加载成功后的视图登记、生命周期校验或注册表登记失败会回滚图层与资产，不保留半成品。应用在加载期间销毁时，未完成的加载会回滚目录记录并以 `APP_DESTROYED` 结束。
 
 ```ts
 context.catalog.getAsset("roads")

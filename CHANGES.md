@@ -12,6 +12,28 @@
 ### fix: :wrench: 修复bug
 ```
 
+## Unreleased
+
+### feat
+
+- 分析作业统一路由：`app.analysis` 的测量、空间查询、面积与土方网格等纯数值步骤经 `AnalysisManager` 持有的 `AnalysisJobHost` 调度，支持 `Worker` 时在独立线程执行，无 `Worker` 环境自动降级进程内；`terrain.*` / `visibility.*` 等依赖 Cesium 场景的操作保持主线程
+- 公共分析合同新增 `AnalysisJobHost` / `executeAnalysisJob` 与 `AnalysisJob` / `AnalysisJobResult` / `AnalysisJobHostOptions` / `AnalysisWorkerFactory` / `AnalysisWorkerLike` 导出，`createTaskExecutor` 支持注入共享注册表与作业宿主
+- `app.destroy()` 终止分析 Worker、拒绝未完成作业并清理消息与取消监听；测量与空间查询方法新增可选 `signal` 取消信号
+
+### fix
+
+- 空间查询在投递 Worker 前将图形注册表投影为 `{ id, type, positions }` 快照，避免把场景对象或闭包送入工作线程
+- 分析作业改为每个在途作业独占一个 Worker 槽位（最多 4 个，完成后复用），取消单个作业只终止它自己的 Worker，不再连带拒绝同一宿主上的其他并发作业
+- 场景形变完成监听器在恢复回调执行后立即注销，并兼容事件源在注册阶段同步触发的场景，避免多次形变后累积失效监听器
+- 数据源加载失败保留 `failed` 图层与资产用于诊断，允许使用相同 ID 重置失败记录后重试；加载成功后登记失败或应用销毁会回滚目录记录，不再遗留 `loading` 状态
+- 土方 `cutFill` 新增 `terrain` 采样来源计数（`sampled` / `fallback` / `unavailable`），地形不可用时不再把回退的椭球高 0 无提示地计入体积
+- npm 发布包改为 `dist` 整树声明（排除 `dist/src` / `dist/packages` 声明中间文件），source map、Worker、静态资源与后续新增的嵌套 chunk 自动随构建发布；`scripts/publish-manifest.mjs` 生成期望清单，pack smoke 断言全部产物与入口进入 tarball 与解压安装目录，并从安装后的包内启动 Worker 执行真实作业
+- 发布合同新增 ESM-only 与 Cesium 精确 peer 门禁：`lint:exports` 校验 `type: module`、无 `main` / `require` 出口、`peer` / `dev` Cesium 均为 `1.146.0`、Node `>=22` 与完整 `files` 策略
+
+### chore
+
+- 最终产物同步：SDK 开发说明更新发布 `files` 整树策略、`test:pack` 与文档覆盖率现状；开发指南补充分析作业宿主公共导出与土方 `terrain` 字段；Sandcastle 土方示例输出地形采样来源计数；重新生成 API 文档站、开发指南与发布产物并跑通四类产物构建
+
 ## v2.0.0 - 2026-10-12
 
 ### Breaking Changes：:mega:

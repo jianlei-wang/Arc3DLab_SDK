@@ -82,22 +82,35 @@ export class DataManager {
 
   /**
    * 将数据源添加到 Cesium 视图并注册对应图层。
+   *
+   * 加载失败时保留 `loadState: "failed"` 的图层与资产作为诊断记录；再次使用
+   * 同一 `id` 调用会先重置该失败记录，再按全新资产重试。加载成功后的视图登记、
+   * 生命周期校验或注册表登记失败会回滚图层与资产，不保留半成品记录。
+   *
    * @param spec - 数据源规格。
    * @returns 资源句柄的 Promise。
+   * @throws {Arc3DError} 资源 ID 已被成功或正在加载的记录占用时抛出
+   * `DUPLICATE_RESOURCE`；加载失败时抛出分类后的错误。
    */
   async add(spec: DataSourceSpec): Promise<ResourceHandle> {
     this.context.lifecycle.assertUsable("add data source")
     const viewer = getCesiumViewer(this.context.engine.native.viewer)
     const id = spec.id ?? createId(spec.type)
     assertNewResourceId(this.context.registry, id)
+    this.resetFailedRecord(id)
     this.context.catalog.registerAsset({ id, format: spec.type, uri: spec.url })
-    this.context.catalog.registerLayer({
-      id,
-      kind: "data",
-      assetId: id,
-      visible: true,
-      loadState: "loading",
-    })
+    try {
+      this.context.catalog.registerLayer({
+        id,
+        kind: "data",
+        assetId: id,
+        visible: true,
+        loadState: "loading",
+      })
+    } catch (error) {
+      this.context.catalog.unregisterAsset(id)
+      throw error
+    }
 
     let source: DataSource
     try {
@@ -112,6 +125,13 @@ export class DataManager {
           `Unsupported data type: ${String(spec.type)}`,
         )
     } catch (error) {
+      if (this.context.lifecycle.isTerminating) {
+        this.rollbackRegistration(id)
+        throw new Arc3DError(
+          "APP_DESTROYED",
+          "Cannot add data source after Arc3DApp has been destroyed",
+        )
+      }
       const classified = classifyLoadError(error)
       this.context.catalog.updateLayer(id, {
         loadState: "failed",
@@ -120,37 +140,79 @@ export class DataManager {
       throw classified
     }
 
-    await afterAwait(this.context.lifecycle, "add data source", source)
-    await viewer.dataSources.add(source)
-    await afterAwait(this.context.lifecycle, "add data source", source, () => {
-      viewer.dataSources.remove(source, true)
-    })
-    const handle = createHandle({
-      id,
-      type: spec.type,
-      native: source,
-      onVisible: (visible) => {
-        source.show = visible
-      },
-      onDestroy: () => {
+    const removeSource = (): void => {
+      try {
         viewer.dataSources.remove(source, true)
-        this.context.registry.unregister(id)
-        this.context.catalog.unregisterLayer(id)
-        this.context.catalog.unregisterAsset(id)
-        this.context.events.emit("layerRemoved", { id, type: spec.type })
-      },
-    })
+      } catch {
+        // 应用销毁后底层 Viewer 可能已不可用。
+      }
+    }
+
+    let registered = false
     try {
+      await afterAwait(this.context.lifecycle, "add data source", source)
+      await viewer.dataSources.add(source)
+      await afterAwait(
+        this.context.lifecycle,
+        "add data source",
+        source,
+        removeSource,
+      )
+      const handle = createHandle({
+        id,
+        type: spec.type,
+        native: source,
+        onVisible: (visible) => {
+          source.show = visible
+        },
+        onDestroy: () => {
+          removeSource()
+          this.context.registry.unregister(id)
+          this.context.catalog.unregisterLayer(id)
+          this.context.catalog.unregisterAsset(id)
+          this.context.events.emit("layerRemoved", { id, type: spec.type })
+        },
+      })
       this.context.registry.add(handle)
+      registered = true
+      this.context.catalog.updateLayer(id, { loadState: "ready" })
+      this.context.events.emit("layerAdded", { id, type: spec.type })
+      return handle
     } catch (error) {
-      viewer.dataSources.remove(source, true)
-      this.context.catalog.unregisterLayer(id)
-      this.context.catalog.unregisterAsset(id)
+      if (registered) this.context.registry.unregister(id)
+      removeSource()
+      this.rollbackRegistration(id)
       throw error
     }
-    this.context.catalog.updateLayer(id, { loadState: "ready" })
-    this.context.events.emit("layerAdded", { id, type: spec.type })
-    return handle
+  }
+
+  /**
+   * 重置同一 ID 上保留的失败记录；成功或加载中的记录按重复资源处理。
+   * @param id - 数据源标识。
+   * @throws {Arc3DError} 存在非失败记录时抛出 `DUPLICATE_RESOURCE`。
+   */
+  private resetFailedRecord(id: string): void {
+    const layer = this.context.catalog.getLayer(id)
+    const asset = this.context.catalog.getAsset(id)
+    if (!layer && !asset) return
+    if (layer?.loadState === "failed") {
+      this.context.catalog.unregisterLayer(id)
+      this.context.catalog.unregisterAsset(id)
+      return
+    }
+    throw new Arc3DError(
+      "DUPLICATE_RESOURCE",
+      `Data source already registered: ${id}`,
+    )
+  }
+
+  /**
+   * 回滚未成功登记为资源句柄的目录记录。
+   * @param id - 数据源标识。
+   */
+  private rollbackRegistration(id: string): void {
+    this.context.catalog.unregisterLayer(id)
+    this.context.catalog.unregisterAsset(id)
   }
 
   /**

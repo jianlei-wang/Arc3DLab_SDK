@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { Material } from "cesium"
+import * as Cesium from "cesium"
 import {
   DYNAMIC_SPREAD_MATERIAL,
   POLYLINE_TRAIL_MATERIAL,
@@ -50,7 +52,22 @@ const REGISTERED_TYPES = [
   RADAR_NORMAL_MATERIAL,
 ]
 
+const pkg = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+) as {
+  peerDependencies: Record<string, string>
+  devDependencies: Record<string, string>
+}
+
 describe("Cesium Material._materialCache version contract (cesium@1.146.0)", () => {
+  it("pins the integration runtime to the declared Cesium peer", () => {
+    expect(pkg.peerDependencies.cesium).toBe("1.146.0")
+    expect(pkg.devDependencies.cesium).toBe(pkg.peerDependencies.cesium)
+    expect((Cesium as unknown as { VERSION: string }).VERSION).toBe(
+      pkg.peerDependencies.cesium,
+    )
+  })
+
   beforeAll(() => {
     for (const key of BROWSER_CONSTRUCTORS) {
       savedGlobals[key] = globals[key]

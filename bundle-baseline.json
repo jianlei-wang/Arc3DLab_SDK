@@ -1,16 +1,18 @@
 {
   "note": "Bundle size baseline for the ESM library entry. Regenerate with `npm run build` then update rawBytes/gzipBytes from `node -e`. tolerancePercent is the allowed growth before `lint:size` fails. requiredAssets must be emitted as standalone files; large base64 image data URIs are forbidden so heavy assets stay lazy-loaded.",
   "tolerancePercent": 5,
-  "requiredAssets": ["dist/globe.jpg"],
+  "requiredAssets": [
+    "dist/globe.jpg"
+  ],
   "inlineImageLimitBytes": 5000,
   "entries": {
     "dist/arc3dlab.esm.js": {
-      "rawBytes": 290538,
-      "gzipBytes": 76898
+      "rawBytes": 314737,
+      "gzipBytes": 83753
     },
     "dist/engine-cesium.js": {
       "rawBytes": 655,
-      "gzipBytes": 360
+      "gzipBytes": 363
     }
   }
 }

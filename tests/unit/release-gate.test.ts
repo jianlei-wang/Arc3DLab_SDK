@@ -3,8 +3,10 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
 import {
+  CESIUM_PEER_VERSION,
   checkDependencyBoundaries,
   checkLicense,
+  checkPackageManifest,
   checkWorkspaceAliases,
   diffManifest,
   PUBLIC_EXPORT_NAMES,
@@ -14,6 +16,15 @@ const here = dirname(fileURLToPath(import.meta.url))
 const manifest = JSON.parse(
   readFileSync(resolve(here, "../../scripts/public-api-manifest.json"), "utf8"),
 ) as { values: string[]; types: string[] }
+const pkg = JSON.parse(
+  readFileSync(resolve(here, "../../package.json"), "utf8"),
+) as Record<string, unknown> & {
+  exports: Record<string, Record<string, string>>
+  peerDependencies: Record<string, string>
+  devDependencies: Record<string, string>
+  engines: Record<string, string>
+  files: string[]
+}
 
 describe("release gates", () => {
   it("keeps package dependency boundaries", () => {
@@ -46,6 +57,33 @@ describe("release gates", () => {
 
   it("keeps license, NOTICE, and Cesium peer consistent", () => {
     expect(checkLicense()).toEqual([])
+  })
+
+  it("keeps the ESM-only and exact Cesium peer contract", () => {
+    expect(checkPackageManifest(pkg)).toEqual([])
+    expect(CESIUM_PEER_VERSION).toBe("1.146.0")
+  })
+
+  it("rejects CJS exports, a loose Cesium peer, and incomplete dist publishing", () => {
+    const mutated = structuredClone(pkg)
+    mutated.type = "commonjs"
+    mutated.main = "dist/arc3dlab.cjs"
+    mutated.exports["."].require = "./dist/arc3dlab.cjs"
+    mutated.peerDependencies.cesium = "^1.146.0"
+    mutated.devDependencies.cesium = "1.147.0"
+    mutated.engines.node = ">=20"
+    mutated.files = ["dist/*.*"]
+
+    const issues = checkPackageManifest(mutated).join("\n")
+    expect(issues).toContain("type must be")
+    expect(issues).toContain("must not declare main")
+    expect(issues).toContain("must not declare require")
+    expect(issues).toContain("peerDependencies.cesium")
+    expect(issues).toContain("devDependencies.cesium")
+    expect(issues).toContain("engines.node")
+    expect(issues).toContain("complete")
+    expect(issues).toContain("!dist/src")
+    expect(issues).toContain("!dist/packages")
   })
 
   it("treats export signature changes as gate failures", () => {

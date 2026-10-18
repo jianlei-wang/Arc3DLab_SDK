@@ -91,7 +91,9 @@
     "registry": "https://registry.npmjs.org/"
   },
   "files": [
-    "dist/*.*",
+    "dist",
+    "!dist/src",
+    "!dist/packages",
     "README.md",
     "CHANGES.md",
     "LOG.md",

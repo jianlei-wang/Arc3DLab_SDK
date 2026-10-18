@@ -3,6 +3,49 @@
 > 面向 SDK 维护者的架构、合同与质量门禁迭代记录，按日期倒序排列。
 > 面向使用者的发布变更日志见根目录 `CHANGES.md`。
 
+## 2026-10-18（四类产物最终同步）
+
+- SDK 包：`npm run build` 重新产出 ESM、声明、Worker、source map 与静态资源；`scripts/publish-manifest.mjs` 的期望清单与 tarball 安装 smoke 覆盖全部入口；`files` 维持 `dist` 整树并排除声明中间目录。
+- API 文档：`docs:build` 从当前源码重建 533 页 / 520 符号，`lint:docs` 维持 summary 100% / params 98.6%。
+- Sandcastle：`demo-vue3` 通过 `vue-tsc -b` 与 Vite 生产构建；土方示例输出 `CutFillResult.terrain`，与 SDK 新字段同步。
+- 开发指南：补充根入口分析作业公共导出、土方 `status` / `terrain` 字段与发布 `files` 整树策略，修正文档覆盖率描述；`guide:build` 通过。
+- 记录：本条目与 `CHANGES.md` 的 `chore` 段登记本次同步；浏览器 E2E 覆盖分析 Worker、动态材质与场景就绪路径。
+
+## 2026-10-18（架构边界与就绪/所有权合同补强）
+
+- 目标：把 Cesium-first、运行时就绪、空间计算精度与公开对象生命周期四类边界写成可核对合同，减少“facade 就绪即资源可用”“经纬度 API 可承担测绘级转换”“句柄可重复卸载”等误读。
+- Cesium-first：`01-principles.md` 的 Rule 4 登记 `Material._materialCache` 为唯一公开 API 例外并指向 `COMPATIBILITY.md` 风险登记；Rule 10 与 `guide/intro/what-is.md` 明确 `engine.type` 当前仅接受 `"cesium"`，RenderPolicy 是 Cesium 内的渲染路径选择，替换引擎需要新增适配层。
+- 就绪语义：`README.md` 创建示例补充 `whenSceneReady()`；`guide/runtime/readiness.md` 新增资源就绪对照表，区分 facade、首屏、底图、地形、数据源、瓦片集、图形与分析结果，并说明 `ready: true` 不保证默认底图成功、`whenSceneReady()` 可在更换底图/地形后重复调用；`11-api.md` 同步同一判定。
+- 精度边界：`guide/analysis/measure.md` 与 `09-analysis.md` 明确 WGS84 经纬度/椭球高输入、无投影与垂直基准转换、球面与局部平面模型适用范围、多边形拓扑假设、跨日界线处理范围、高纬/极点限制，以及测绘级成果需外部验证。
+- 地形 no-data：`CutFillResult` 新增 `terrain.sampled` / `fallback` / `unavailable` 计数，`unavailable` 表示该网格点按椭球高 0 参与体积计算；`invalid-polygon` / `empty-grid` 返回全 0 计数。`analysis-volume` 新增不可用地形回归，避免把回退 0 当作真实测量。
+- 生命周期：`11-api.md` 与 `guide/runtime/lifecycle.md` 新增所有权/释放/重复调用/重试表；`guide/plugins/plugins.md` 明确安装失败可重试、同名重复安装拒绝、重复卸载抛 `RESOURCE_NOT_FOUND`、作用域关闭后拒绝登记；`guide/runtime/lifecycle.md` 说明取消是终态与数据源失败记录的同 ID 重试。
+- 验证：`npx vitest run tests/unit/analysis-volume.test.ts`；后续运行 `format:check`、typecheck、`docs:build`、`lint:docs`、`guide:build` 与相关门禁。
+
+## 2026-10-18（数据源失败记录与重试合同）
+
+- 问题：`DataManager.add()` 在加载前登记资产与 `loading` 图层；加载失败后保留 `failed` 记录，但相同 ID 重试会在 `registerAsset()` 处以 `DUPLICATE_RESOURCE` 失败。应用在加载期间销毁时，等待完成后的路径也未清理目录记录，可能遗留永久 `loading` 图层。
+- 契约：加载失败继续保留 `failed` 图层与资产用于诊断；相同 ID 再次调用 `add()` 会先注销该失败记录，再按新资产重试；成功或加载中的同 ID 记录仍按重复资源拒绝。
+- 回滚：加载成功后的视图登记、生命周期校验或注册表登记失败会注销图层与资产，并尽力移除已创建的数据源；注册表仅在本次登记成功后回滚，避免误删外部资源。加载期间应用销毁时，无论加载最终完成还是失败，目录记录都会回滚并以 `APP_DESTROYED` 结束。
+- 验证：`data-manager-ownership` 覆盖失败后同 ID 重试、成功记录重复拒绝、销毁后加载完成/失败两条回滚路径，以及既有注册表登记失败回滚。
+
+## 2026-10-18（场景形变监听器释放）
+
+- 问题：`scheduleSceneRestore()` 的 `morphComplete` 回调触发后只设置 `cancelled`，未注销监听器；返回的 `cancel` 又因 `cancelled` 已为 `true` 直接返回，导致每次场景切换都留下一个失效但仍被事件源持有的回调。
+- 修复：恢复回调执行前先调用注销函数，保证只恢复一次且监听器即时释放；若事件源在 `addEventListener()` 返回前同步触发，则在拿到注销函数后立即补调用。
+- 验证：`scene-morph` 测试改为断言回调执行一次且注销一次，并新增注册阶段同步触发的回归用例；重复调用 `cancel` 不会重复注销。
+
+## 2026-10-18（分析作业统一路由与 Worker 生命周期）
+
+- 问题：`AnalysisJobHost` 仅作为内部能力存在，`AnalysisManager` 注入各服务的 `runTask` 直接调用 `runAnalysisTask`，`createTaskExecutor` 也只包装任务合同；纯数值分析虽已有 Worker 实现，却未从 `app.analysis` 的高层方法进入，Worker 生命周期也无明确所有者。
+- 路由：`jobs.ts` 扩展纯数值作业类型（矩形/多边形/距离查询、面积、测量、土方网格）；`task-executor.ts` 的 `AnalysisTaskExecutor` 新增 `runJob`，`createTaskExecutor(context, { registry, host })` 把作业交给共享宿主；`AnalysisManager` 持有 `AnalysisJobHost`，测量、空间查询与 `cutFill` 网格构建经统一路由，`terrain.*` / `visibility.*` / 地形采样保持主线程。
+- 生命周期：`AnalysisManager.destroy()` 调用 `jobHost.destroy()`，终止 Worker、拒绝未完成作业并清理监听；`app.destroy()` 既有分析销毁步骤自动覆盖。
+- 输入边界：空间查询投递前把图形注册表投影为 `{ id, type, positions }` 快照；Viewer、Primitive、地形状态与闭包不进入 Worker。
+- 公共 API：根入口与 `@arc3dlab/sdk` 导出 `AnalysisJobHost` / `executeAnalysisJob` 及作业类型，`scripts/public-api-manifest.json` 随刷新。
+- 取消隔离：`AnalysisJobHost` 从单 Worker 改为最多 4 个槽位的 Worker 池，每个在途作业独占一个 Worker，完成后回池复用、超出容量排队；单项 `AbortSignal` 只终止该作业的 Worker，其他并发作业与排队作业不受影响。新增两个作业同时在途、仅取消其一的回归测试。
+- 发布链路：`package.json` 的 `files` 改为发布 `dist` 整树并排除 `dist/src` / `dist/packages` 声明中间目录，source map、Worker、静态资源与后续嵌套 chunk 自动收录；`scripts/publish-manifest.mjs` 从构建产物收集期望清单，`scripts/pack-smoke.mjs` 逐项断言产物与 `exports` / `module` / `types` 入口都进入 tarball 并完成解压安装，同时从安装包 bundle 解析 Worker 引用，在消费者目录用真实 Worker 线程执行测量与面积作业。
+- 发布合同：`checkPackageManifest` 纳入 `lint:exports`，持续校验 `type: module`、无 `main` / `require` 出口、`peer` / `dev` Cesium 精确为 `1.146.0`、Node `>=22` 与 `files` 完整策略；材质集成测试新增运行时 `Cesium.VERSION` 与 peer 版本一致性断言，浏览器 E2E 增加雷达/扩散材质的真实编译与绘制场景，二者继续由 CI 的 `gate` / `e2e` 任务覆盖。
+- 验证：扩展 `analysis-task-services` / `analysis-worker` 测试，覆盖 Worker 路由、取消终止、`destroy()` 清理与场景依赖操作留在主线程。
+
 ## 2026-10-16（最终产物同步：API 文档 / Sandcastle / 开发指南）
 
 - 目标：任务 1-16 改动完成后，对 SDK 包、API 文档、Sandcastle 与开发指南做最终一致性核对并保证四者可构建。

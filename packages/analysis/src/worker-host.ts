@@ -21,8 +21,25 @@ export {
   type AnalysisWorkerFactory,
 } from "./worker-protocol"
 
+/** 同时执行分析作业的最大 Worker 数量。 */
+const MAX_WORKERS = 4
+
+/** 一个可复用的 Worker 槽位，同一时刻最多承载一个作业。 */
+interface WorkerSlot {
+  /** 底层 Worker 实例。 */
+  worker: AnalysisWorkerLike
+  /** 当前正在执行的作业标识；空闲时为空。 */
+  jobId?: number
+}
+
 /** 未完成的作业条目。 */
 interface PendingEntry {
+  /** 待执行的作业。 */
+  job: AnalysisJob
+  /** 本次调用的任务选项。 */
+  options?: AnalysisTaskOptions
+  /** 作业占用的 Worker 槽位；进程内执行或排队时为空。 */
+  slot?: WorkerSlot
   /** 以结果兑现 Promise。 */
   resolve: (result: AnalysisJobResult) => void
   /** 以错误拒绝 Promise。 */
@@ -75,20 +92,27 @@ function assertCloneableJob(job: AnalysisJob): void {
 /**
  * 运行纯数值分析作业的宿主。
  *
- * 当运行环境提供 `Worker` 时，作业被投递到独立线程执行；否则降级为进程内
- * 执行，两者遵循相同的调度与取消契约：
+ * 宿主维护一个最多 4 个 Worker 的池，每个在途作业独占一个 Worker 槽位；
+ * 作业完成后槽位回到空闲池复用，超出容量的作业排队等待。
+ * 因此取消一个作业只会终止它自己的 Worker，不会影响其他并发作业。
+ *
+ * 调度与取消契约：
  * 1. 作业与结果必须可结构化克隆，不可克隆的输入在 `run` 前以
  *    `INVALID_FORMAT` 拒绝。
- * 2. 取消通过 `Worker.terminate()`（Worker 路径）或协作式检查（进程内路径）
- *    实现，语义保持为抛出 `Arc3DError("CANCELLED")`。
- * 3. 跨线程错误沿用 {@link serializeAnalysisError} / {@link restoreAnalysisError}，
+ * 2. 取消会终止该作业独占的 Worker，并以 `Arc3DError("CANCELLED")` 拒绝；
+ *    其他在途作业继续运行，排队作业由释放的槽位继续调度。
+ * 3. 运行环境不提供 `Worker` 或 Worker 创建失败时，作业降级为进程内执行，
+ *    取消语义保持不变。
+ * 4. 跨线程错误沿用 {@link serializeAnalysisError} / {@link restoreAnalysisError}，
  *    保持 `Arc3DError` 错误码不丢失。
  */
 export class AnalysisJobHost {
   private seq = 0
   private pending = new Map<number, PendingEntry>()
+  private queue: number[] = []
+  private slots = new Set<WorkerSlot>()
+  private idle: WorkerSlot[] = []
   private terminated = false
-  private worker: AnalysisWorkerLike | undefined
   private workerUnavailable = false
   private readonly execute: (job: AnalysisJob) => AnalysisJobResult
   private readonly createWorker: AnalysisWorkerFactory
@@ -104,6 +128,9 @@ export class AnalysisJobHost {
 
   /**
    * 异步运行一个分析作业，支持取消。
+   *
+   * 每个在途作业独占一个 Worker 槽位，取消信号只影响传入它的作业。
+   *
    * @param job - 待运行的分析作业。
    * @param options - 任务选项，包含取消信号。
    * @returns 作业执行结果。
@@ -120,109 +147,264 @@ export class AnalysisJobHost {
       throw new Arc3DError("CANCELLED", "Cancelled analysis job")
     }
     assertCloneableJob(job)
-    const worker = this.ensureWorker()
     const id = (this.seq += 1)
     return new Promise<AnalysisJobResult>((resolve, reject) => {
-      const settle = (error?: unknown, result?: AnalysisJobResult) => {
-        const entry = this.pending.get(id)
-        if (!entry) return
-        this.pending.delete(id)
-        entry.cleanup()
-        if (error !== undefined) {
-          entry.reject(
-            error instanceof Arc3DError
-              ? error
-              : restoreAnalysisError(serializeAnalysisError(error)),
-          )
-          return
-        }
-        entry.resolve(result as AnalysisJobResult)
+      const entry: PendingEntry = {
+        job,
+        options,
+        resolve,
+        reject,
+        cleanup: () => undefined,
       }
-      const onAbort = () => {
-        if (worker) this.abortWorker()
-        settle(new Arc3DError("CANCELLED", "Cancelled analysis job"))
-      }
-      const cleanup = () =>
+      const onAbort = () => this.cancel(id)
+      entry.cleanup = () =>
         options?.signal?.removeEventListener("abort", onAbort)
-      this.pending.set(id, { resolve, reject, cleanup })
+      this.pending.set(id, entry)
       options?.signal?.addEventListener("abort", onAbort, { once: true })
-      if (worker) {
-        try {
-          worker.postMessage({ id, job })
-        } catch (error) {
-          settle(error)
-        }
-        return
-      }
-      queueMicrotask(() => {
-        if (!this.pending.has(id)) return
-        try {
-          const result = this.execute(job)
-          if (options?.signal?.aborted) {
-            settle(new Arc3DError("CANCELLED", "Cancelled analysis job"))
-            return
-          }
-          settle(undefined, result)
-        } catch (error) {
-          settle(error)
-        }
-      })
+      this.dispatch(id)
     })
   }
 
-  /** 终止宿主并拒绝所有未完成的作业。 */
+  /** 终止宿主、终止全部 Worker 并拒绝所有未完成的作业。 */
   destroy(): void {
+    if (this.terminated) return
     this.terminated = true
+    this.queue = []
     this.rejectAll(new Arc3DError("CANCELLED", "Analysis worker terminated"))
-    this.resetWorker()
+    for (const slot of Array.from(this.slots)) {
+      this.dropSlot(slot)
+    }
   }
 
-  private ensureWorker(): AnalysisWorkerLike | undefined {
-    if (this.worker) return this.worker
-    if (this.workerUnavailable) return undefined
-    let created: AnalysisWorkerLike | undefined
-    try {
-      created = this.createWorker()
-    } catch {
-      created = undefined
+  /**
+   * 调度一个待执行作业。
+   * @param id - 作业标识。
+   */
+  private dispatch(id: number): void {
+    const entry = this.pending.get(id)
+    if (!entry) return
+    if (this.workerUnavailable) {
+      this.runInProcess(id)
+      return
     }
-    if (!created) {
+    const slot = this.acquireSlot()
+    if (slot === null) {
+      this.queue.push(id)
+      return
+    }
+    if (slot === undefined) {
+      this.runInProcess(id)
+      return
+    }
+    this.post(id, slot)
+  }
+
+  /**
+   * 从空闲池获取槽位，或在容量允许时创建新 Worker。
+   * @returns 可用槽位；`null` 表示池已满；`undefined` 表示 Worker 不可用。
+   */
+  private acquireSlot(): WorkerSlot | null | undefined {
+    const reused = this.idle.pop()
+    if (reused) return reused
+    if (this.slots.size >= MAX_WORKERS) return null
+    let worker: AnalysisWorkerLike | undefined
+    try {
+      worker = this.createWorker()
+    } catch {
+      worker = undefined
+    }
+    if (!worker) {
       this.workerUnavailable = true
       return undefined
     }
-    created.onmessage = (event) => this.handleMessage(event.data)
-    created.onerror = (event) => this.handleWorkerError(event)
-    this.worker = created
-    return this.worker
+    const slot: WorkerSlot = { worker }
+    worker.onmessage = (event) => this.handleMessage(slot, event.data)
+    worker.onerror = (event) => this.handleWorkerError(slot, event)
+    this.slots.add(slot)
+    return slot
   }
 
-  private handleMessage(data: unknown): void {
-    const message = data as AnalysisWorkerResponse
-    if (typeof message?.id !== "number") return
-    const entry = this.pending.get(message.id)
-    if (!entry) return
-    this.pending.delete(message.id)
-    entry.cleanup()
-    if ("error" in message) {
-      entry.reject(restoreAnalysisError(message.error))
-    } else {
-      entry.resolve(message.result)
+  /**
+   * 把作业投递到指定槽位。
+   * @param id - 作业标识。
+   * @param slot - 已分配的空闲槽位。
+   */
+  private post(id: number, slot: WorkerSlot): void {
+    const entry = this.pending.get(id)
+    if (!entry) {
+      this.releaseSlot(slot)
+      return
+    }
+    entry.slot = slot
+    slot.jobId = id
+    try {
+      slot.worker.postMessage({ id, job: entry.job })
+    } catch (error) {
+      entry.slot = undefined
+      this.dropSlot(slot)
+      this.settle(id, error)
+      this.pump()
     }
   }
 
-  private handleWorkerError(event: unknown): void {
-    this.workerUnavailable = true
+  /**
+   * 在进程内执行作业，用于 Worker 不可用的降级路径。
+   * @param id - 作业标识。
+   */
+  private runInProcess(id: number): void {
+    queueMicrotask(() => {
+      const entry = this.pending.get(id)
+      if (!entry) return
+      try {
+        const result = this.execute(entry.job)
+        if (entry.options?.signal?.aborted) {
+          this.settle(id, new Arc3DError("CANCELLED", "Cancelled analysis job"))
+          return
+        }
+        this.settle(id, undefined, result)
+      } catch (error) {
+        this.settle(id, error)
+      }
+    })
+  }
+
+  /**
+   * 处理 Worker 返回的消息。
+   * @param slot - 消息所属槽位。
+   * @param data - Worker 回传的响应。
+   */
+  private handleMessage(slot: WorkerSlot, data: unknown): void {
+    const message = data as AnalysisWorkerResponse
+    if (typeof message?.id !== "number") return
+    const entry = this.pending.get(message.id)
+    if (!entry || entry.slot !== slot) return
+    if ("error" in message) {
+      this.settle(message.id, restoreAnalysisError(message.error))
+    } else {
+      this.settle(message.id, undefined, message.result)
+    }
+    this.pump()
+  }
+
+  /**
+   * 处理 Worker 错误，只拒绝该槽位上的作业。
+   * @param slot - 出错的槽位。
+   * @param event - Worker 错误事件。
+   */
+  private handleWorkerError(slot: WorkerSlot, event: unknown): void {
+    const jobId = slot.jobId
     const detail =
       event instanceof Error ? event.message : "Analysis worker failed"
-    this.rejectAll(new Arc3DError("ENGINE_FAILURE", detail))
-    this.resetWorker()
+    this.dropSlot(slot)
+    if (jobId !== undefined) {
+      const entry = this.pending.get(jobId)
+      if (entry) {
+        entry.slot = undefined
+        this.settle(jobId, new Arc3DError("ENGINE_FAILURE", detail))
+      }
+    }
+    this.pump()
   }
 
-  private abortWorker(): void {
-    this.rejectAll(new Arc3DError("CANCELLED", "Cancelled analysis job"))
-    this.resetWorker()
+  /**
+   * 取消单个作业；仅终止该作业独占的 Worker。
+   * @param id - 作业标识。
+   */
+  private cancel(id: number): void {
+    const entry = this.pending.get(id)
+    if (!entry) return
+    const slot = entry.slot
+    entry.slot = undefined
+    if (slot) this.dropSlot(slot)
+    this.settle(id, new Arc3DError("CANCELLED", "Cancelled analysis job"))
+    this.pump()
   }
 
+  /**
+   * 继续调度排队中的作业。
+   */
+  private pump(): void {
+    while (this.queue.length > 0) {
+      const id = this.queue.shift() as number
+      if (!this.pending.has(id)) continue
+      if (this.workerUnavailable) {
+        this.runInProcess(id)
+        continue
+      }
+      const slot = this.acquireSlot()
+      if (slot === null) {
+        this.queue.unshift(id)
+        return
+      }
+      if (slot === undefined) {
+        this.runInProcess(id)
+        continue
+      }
+      this.post(id, slot)
+    }
+  }
+
+  /**
+   * 完成一个作业并释放其槽位。
+   * @param id - 作业标识。
+   * @param error - 可选错误；省略时按成功处理。
+   * @param result - 成功时的结果。
+   */
+  private settle(
+    id: number,
+    error?: unknown,
+    result?: AnalysisJobResult,
+  ): void {
+    const entry = this.pending.get(id)
+    if (!entry) return
+    this.pending.delete(id)
+    entry.cleanup()
+    if (entry.slot) {
+      this.releaseSlot(entry.slot)
+      entry.slot = undefined
+    }
+    if (error !== undefined) {
+      entry.reject(
+        error instanceof Arc3DError
+          ? error
+          : restoreAnalysisError(serializeAnalysisError(error)),
+      )
+      return
+    }
+    entry.resolve(result as AnalysisJobResult)
+  }
+
+  /**
+   * 将槽位标记为空闲，供后续作业复用。
+   * @param slot - 待释放的槽位。
+   */
+  private releaseSlot(slot: WorkerSlot): void {
+    slot.jobId = undefined
+    if (!this.slots.has(slot)) return
+    if (!this.idle.includes(slot)) this.idle.push(slot)
+  }
+
+  /**
+   * 终止并移除一个槽位。
+   * @param slot - 待移除的槽位。
+   */
+  private dropSlot(slot: WorkerSlot): void {
+    this.slots.delete(slot)
+    this.idle = this.idle.filter((item) => item !== slot)
+    slot.jobId = undefined
+    slot.worker.onmessage = null
+    slot.worker.onerror = null
+    try {
+      slot.worker.terminate()
+    } catch {
+      // 终止失败不影响宿主状态。
+    }
+  }
+
+  /**
+   * 拒绝所有未完成的作业，用于宿主销毁。
+   * @param error - 拒绝原因。
+   */
   private rejectAll(error: Arc3DError): void {
     const entries = Array.from(this.pending.values())
     this.pending.clear()
@@ -230,17 +412,5 @@ export class AnalysisJobHost {
       entry.cleanup()
       entry.reject(error)
     }
-  }
-
-  private resetWorker(): void {
-    if (!this.worker) return
-    this.worker.onmessage = null
-    this.worker.onerror = null
-    try {
-      this.worker.terminate()
-    } catch {
-      // 终止失败不影响宿主状态。
-    }
-    this.worker = undefined
   }
 }

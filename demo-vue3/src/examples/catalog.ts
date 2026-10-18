@@ -1307,6 +1307,7 @@ const earthwork = await app.analysis.volume.cutFill({
   designHeight: 10,
 })
 await app.analysis.volume.excavate({ positions, depth: 40 })
+console.log("terrain samples", earthwork.terrain)
 
 app.ui.tooltip.show(
   \`cut \${earthwork.cutCubicMeters.toFixed(0)} m3 / fill \${earthwork.fillCubicMeters.toFixed(0)} m3\`

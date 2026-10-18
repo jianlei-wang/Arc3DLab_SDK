@@ -31,14 +31,14 @@ const locatePlugin: Arc3DPlugin<Arc3DApp> = {
 
 `Arc3DPlugin` 字段：
 
-| 字段 | 说明 |
-| --- | --- |
-| `name` | 插件名，需全局唯一；不能为 `core` / `arc3dlab`。 |
-| `version` | 可选版本。 |
-| `requiresCapabilities` | 声明所需能力，安装前校验。 |
-| `dependsOnPlugins` | 声明依赖的其他插件名。 |
-| `install(app, context, scope)` | 安装逻辑。 |
-| `uninstall?(app, context)` | 卸载逻辑。 |
+| 字段                           | 说明                                             |
+| ------------------------------ | ------------------------------------------------ |
+| `name`                         | 插件名，需全局唯一；不能为 `core` / `arc3dlab`。 |
+| `version`                      | 可选版本。                                       |
+| `requiresCapabilities`         | 声明所需能力，安装前校验。                       |
+| `dependsOnPlugins`             | 声明依赖的其他插件名。                           |
+| `install(app, context, scope)` | 安装逻辑。                                       |
+| `uninstall?(app, context)`     | 卸载逻辑。                                       |
 
 ## 安装与卸载
 
@@ -49,6 +49,14 @@ await app.plugins.uninstall("locate")
 ```
 
 安装失败会自动回滚：执行已注册的释放回调并清理该插件注册的扩展。
+
+### 生命周期合同
+
+- `app.use()` 串行执行；同名插件已安装时抛 `DUPLICATE_RESOURCE`。
+- `install()` 抛错后插件状态为 `failed`，不会登记为已安装。修复原因后可以再次安装同名插件，作用域会重新打开。
+- 安装期间若应用进入销毁流程，安装会回滚并以 `CANCELLED` 结束。
+- `uninstall()` 成功后将状态置为 `disposed`，同名插件可以重新安装；重复卸载已移除的插件抛 `RESOURCE_NOT_FOUND`，卸载不是幂等操作。
+- 安装阶段拿到的 `scope` 在关闭后拒绝新的 `track` / `manage` / `register*` 调用，抛 `INVALID_ARGUMENT`。长生命周期逻辑应把清理登记到作用域，避免持有已关闭的作用域。
 
 ## 作用域与自动清理
 

@@ -62,6 +62,75 @@ export const PUBLIC_EXPORT_NAMES = [
   "createId",
 ]
 
+/** 发布合同锁定的 Cesium 版本；升级该值属于兼容性变更。 */
+export const CESIUM_PEER_VERSION = "1.146.0"
+
+const REQUIRED_PUBLISH_ROOT_FILES = [
+  "README.md",
+  "CHANGES.md",
+  "LOG.md",
+  "NOTICE.md",
+  "LICENSE",
+]
+
+function collectExportConditionKeys(value, keys = []) {
+  if (Array.isArray(value)) {
+    for (const item of value) collectExportConditionKeys(item, keys)
+    return keys
+  }
+  if (value && typeof value === "object") {
+    for (const [key, nested] of Object.entries(value)) {
+      if (key === "require") keys.push(key)
+      collectExportConditionKeys(nested, keys)
+    }
+  }
+  return keys
+}
+
+/**
+ * 校验 ESM-only、Cesium 精确 peer 与完整发布产物策略。
+ * @param pkg - 已解析的 `package.json`。
+ * @returns 不满足发布合同的项目列表。
+ */
+export function checkPackageManifest(pkg) {
+  const issues = []
+  if (pkg.type !== "module") {
+    issues.push('package.json type must be "module" (ESM-only)')
+  }
+  if (pkg.main !== undefined) {
+    issues.push("package.json must not declare main (ESM-only)")
+  }
+  if (collectExportConditionKeys(pkg.exports).length > 0) {
+    issues.push("package.json exports must not declare require (ESM-only)")
+  }
+  if (pkg.peerDependencies?.cesium !== CESIUM_PEER_VERSION) {
+    issues.push(`peerDependencies.cesium must be ${CESIUM_PEER_VERSION}`)
+  }
+  if (pkg.devDependencies?.cesium !== CESIUM_PEER_VERSION) {
+    issues.push(`devDependencies.cesium must match peer ${CESIUM_PEER_VERSION}`)
+  }
+  if (pkg.engines?.node !== ">=22") {
+    issues.push("engines.node must be >=22")
+  }
+  const files = pkg.files ?? []
+  if (!files.includes("dist")) {
+    issues.push('package.json files must publish the complete "dist" tree')
+  }
+  for (const excluded of ["!dist/src", "!dist/packages"]) {
+    if (!files.includes(excluded)) {
+      issues.push(
+        `package.json files must exclude declaration intermediates ${excluded}`,
+      )
+    }
+  }
+  for (const file of REQUIRED_PUBLISH_ROOT_FILES) {
+    if (!files.includes(file)) {
+      issues.push(`package.json files missing ${file}`)
+    }
+  }
+  return issues
+}
+
 function walkTs(dir, files = []) {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name)
@@ -419,6 +488,7 @@ export function diffManifest(actual, expected) {
 export function checkPublicExports(root = ROOT) {
   const issues = []
   const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
+  issues.push(...checkPackageManifest(pkg))
   const rootExport = pkg.exports?.["."]
   const engineExport = pkg.exports?.["./engine-cesium"]
   if (rootExport?.import !== "./dist/arc3dlab.esm.js") {
@@ -432,18 +502,6 @@ export function checkPublicExports(root = ROOT) {
   }
   if (engineExport?.types !== "./dist/engine-cesium.d.ts") {
     issues.push("engine-cesium types must be ./dist/engine-cesium.d.ts")
-  }
-  if (
-    rootExport?.require !== undefined ||
-    engineExport?.require !== undefined
-  ) {
-    issues.push("packages are ESM-only; exports must not declare require")
-  }
-  if (pkg.main !== undefined) {
-    issues.push("package.json must not declare main (ESM-only)")
-  }
-  if (pkg.peerDependencies?.cesium !== "1.146.0") {
-    issues.push("peerDependencies.cesium must be 1.146.0")
   }
   if (pkg.packageManager !== "npm@10.9.4") {
     issues.push("packageManager must be npm@10.9.4")
@@ -522,8 +580,14 @@ export function checkLicense(root = ROOT) {
       issues.push(`package.json files missing ${required}`)
     }
   }
-  if (!files.some((entry) => entry.startsWith("dist/"))) {
-    issues.push("package.json files missing dist/*")
+  if (
+    !files.some(
+      (entry) =>
+        entry === "dist" ||
+        (entry.startsWith("dist/") && !entry.startsWith("!")),
+    )
+  ) {
+    issues.push("package.json files missing dist")
   }
   return issues
 }

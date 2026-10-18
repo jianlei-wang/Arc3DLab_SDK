@@ -71,6 +71,15 @@ app.graphics.addPolygon({
 })
 ```
 
+`Arc3D.create()` 解析只表示运行时门面就绪。需要初始飞行、截图或依赖底图瓦片的量算时，先等待场景就绪：
+
+```ts
+const result = await app.scene.whenSceneReady({ timeoutMs: 10000 })
+if (!result.ready || result.defaultBaseLayer === "failed") {
+  console.warn("scene not ready", result.timedOut, result.defaultBaseLayer)
+}
+```
+
 旧版 `Viewer` / `Map` 兼容入口已在 2.0.0 随 `@arc3dlab/legacy` 包移除。旧代码请迁移到 `Arc3D.create()`，映射见 `docs/architecture/13-migration.md`。
 
 ### 3. 注意：若出现Cesium静态文件访问出错

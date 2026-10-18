@@ -51,14 +51,21 @@ export {
   type PlotResult,
 } from "@arc3dlab/plotting"
 export {
-  runAnalysisTask,
+  AnalysisJobHost,
   AnalysisTaskRegistry,
   createTaskExecutor,
+  executeAnalysisJob,
+  runAnalysisTask,
+  type AnalysisJob,
+  type AnalysisJobHostOptions,
+  type AnalysisJobResult,
   type AnalysisTask,
   type AnalysisResult,
   type AnalysisExecution,
   type AnalysisTaskStatus,
   type AnalysisTaskExecutor,
+  type AnalysisWorkerFactory,
+  type AnalysisWorkerLike,
   type ResultArtifact,
 } from "@arc3dlab/analysis"
 export {

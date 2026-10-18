@@ -1,6 +1,6 @@
 # 兼容性与版本策略
 
-Updated: 2026-10-12
+Updated: 2026-10-18
 
 ## 模块格式
 
@@ -10,6 +10,28 @@ Updated: 2026-10-12
 - 构建目标为现代打包器（Vite / Rollup / webpack 5 ESM）与 Node `>=22` ESM。
 - 不支持 CommonJS `require("arc3dlab")`；如需在 CJS 环境使用，请通过动态 `import()`。
 - 发布合同由 `scripts/pack-smoke.mjs` 覆盖运行时导入与 `.d.ts` 消费者类型编译。
+- `npm run lint:exports` 持续治理 ESM-only 与依赖锁定：`type` 必须为 `module`，`main` 与 `exports.*.require` 不得出现，`peerDependencies.cesium` 与 `devDependencies.cesium` 必须同时精确等于 `1.146.0`，Node 引擎下限为 `>=22`。
+
+## 发布产物策略
+
+`package.json` 的 `files` 以 `dist` 整树为发布来源，并排除仅用于声明汇总的中间目录：
+
+```json
+"files": [
+  "dist",
+  "!dist/src",
+  "!dist/packages",
+  "README.md",
+  "CHANGES.md",
+  "LOG.md",
+  "NOTICE.md",
+  "LICENSE"
+]
+```
+
+- `dist` 发布全部构建产物：入口 JS、source map、最终 `.d.ts`、`dist/assets/**` 中的 Worker、静态图片，以及未来新增的顶层或嵌套 chunk。
+- `dist/src` 与 `dist/packages` 只包含 `vite-plugin-dts` 的中间声明，不进入 tarball；消费者使用的是 `dist/index.d.ts` 与 `dist/engine-cesium.d.ts`。
+- `scripts/publish-manifest.mjs` 从构建产物生成期望清单；`npm run test:pack` 逐项断言清单文件、`exports` / `module` / `types` 入口都进入 tarball 并完成解压安装，同时拒绝多打包的 `dist` 文件。
 
 ## 渲染引擎定位
 
@@ -17,11 +39,11 @@ Updated: 2026-10-12
 
 ## 兼容矩阵
 
-| Arc3DLab | Cesium | Node | 状态 |
-|---|---|---|---|
-| 2.0.x | 1.146.0 | >=22 | Active |
-| 1.0.x | 1.146.0 | >=22 | Legacy（旧版兼容入口仍可用） |
-| 0.x | 1.136.0 | >=20 | Legacy |
+| Arc3DLab | Cesium  | Node | 状态                         |
+| -------- | ------- | ---- | ---------------------------- |
+| 2.0.x    | 1.146.0 | >=22 | Active                       |
+| 1.0.x    | 1.146.0 | >=22 | Legacy（旧版兼容入口仍可用） |
+| 0.x      | 1.136.0 | >=20 | Legacy                       |
 
 peerDependencies 精确锁定为 `cesium@1.146.0`。
 
@@ -29,11 +51,11 @@ peerDependencies 精确锁定为 `cesium@1.146.0`。
 
 2.0.0 移除了以下旧版兼容资产，属于 SemVer Major 破坏性变更：
 
-| 已移除符号 | 归属 | 迁移路径 |
-|---|---|---|
+| 已移除符号                                                    | 归属                           | 迁移路径                                                                        |
+| ------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------- |
 | `Viewer` / `Map` / `LegacyViewerOptions` / `LegacyMapOptions` | 根入口与 `@arc3dlab/legacy` 包 | `Arc3D.create()` / `Arc3D.createSync()`，见 `docs/architecture/13-migration.md` |
-| `Arc3DPlugin.dependsOn` | `@arc3dlab/sdk` | 能力依赖使用 `requiresCapabilities`，插件依赖使用 `dependsOnPlugins` |
-| `AnalysisWorkerHost` | `@arc3dlab/analysis` | 使用 `AnalysisJobHost` |
+| `Arc3DPlugin.dependsOn`                                       | `@arc3dlab/sdk`                | 能力依赖使用 `requiresCapabilities`，插件依赖使用 `dependsOnPlugins`            |
+| `AnalysisWorkerHost`                                          | `@arc3dlab/analysis`           | 使用 `AnalysisJobHost`                                                          |
 
 迁移窗口：1.x 期间旧版符号保持可用；自 2.0.0 起仅保留当前契约符号，消费者需在升级前完成迁移。
 
@@ -47,24 +69,26 @@ peerDependencies 精确锁定为 `cesium@1.146.0`。
 
 SDK 直接依赖以下 Cesium 内部实现入口，它们带下划线、不属于 Cesium 公开 API，也不属于 Arc3DLab 的稳定公开合同，**不得被无限期依赖**。升级 `cesium` 时必须逐项核查。
 
-| 内部 API | 使用位置 | 用途 |
-|---|---|---|
+| 内部 API                                              | 使用位置                                                                                                      | 用途               |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------ |
 | `Material._materialCache.addMaterial` / `getMaterial` | `packages/effects/src/materials.ts`（动态扩散、线尾迹）、`packages/graphics/src/dynamic/materials.ts`（雷达） | 注册自定义材质类型 |
 
 - **原因**：Cesium 1.146.0 未提供公开的材质注册 API，`Material.fromType` 自身也消费同一内部缓存。
 - **缓解措施**：
   - `cesium` 在 `peerDependencies` 中精确锁定为 `1.146.0`，降低近期不兼容概率。
   - 注册入口以 `if (!cache) return` 守卫访问，结构缺失时静默跳过而非抛错。
-  - `tests/integration/cesium-material-registration.test.ts` 针对锁定版本做版本契约集成测试：探针缓存结构、校验三类材质进入缓存、并复用 Cesium 真实编译路径（`Material.fromType`）。
-  - 升级流程：升级 `cesium` → 运行该集成测试与浏览器 E2E → 若失败，更新访问层与测试后重新锁定版本。
+  - `tests/integration/cesium-material-registration.test.ts` 针对锁定版本做版本契约集成测试：探针缓存结构、校验三类材质进入缓存、复用 Cesium 真实编译路径（`Material.fromType`），并断言运行时 `Cesium.VERSION` 与 `package.json` 的 peer 版本一致。
+  - 浏览器 E2E 在真实渲染路径创建雷达扫描与扩散点图形，覆盖自定义材质在 Chromium 中的实际编译与绘制。
+  - 升级流程：更新 `peerDependencies.cesium` / `devDependencies.cesium` 与本文件兼容矩阵 → `npm run lint:exports` → `npm run test:integration` → `npm run build && npm run test:pack` → `npm run test:e2e`。任一步失败都先更新访问层与测试，再重新锁定版本。
+  - CI 治理：`gate` 任务运行类型检查、全量测试（含材质注册集成用例）、构建、体积与打包 smoke；独立的 `e2e` 任务运行浏览器回归。
 
 ## SemVer 承诺范围
 
-| 变更类型 | 版本位 | 示例 |
-|---|---|---|
-| 公共 API 破坏性变更 | Major | 移除或改名根入口导出、改变 Manager 方法签名 |
-| 向后兼容新增 | Minor | 新增 Manager 方法、新增可选配置字段、新增语义类型 |
-| 修复与内部实现 | Patch | 缺陷修复、性能优化、内部类型重构 |
+| 变更类型            | 版本位 | 示例                                              |
+| ------------------- | ------ | ------------------------------------------------- |
+| 公共 API 破坏性变更 | Major  | 移除或改名根入口导出、改变 Manager 方法签名       |
+| 向后兼容新增        | Minor  | 新增 Manager 方法、新增可选配置字段、新增语义类型 |
+| 修复与内部实现      | Patch  | 缺陷修复、性能优化、内部类型重构                  |
 
 纳入 SemVer 保证的公共合同：根入口与 `@arc3dlab/sdk` 的命名导出、`Arc3DApp` 及其 Managers（`graphics` / `layers` / `data` / `scene` / `interaction` / `analysis` / `effects` / `ui` / `terrain`）的方法签名、`packages/core` 语义类型。
 

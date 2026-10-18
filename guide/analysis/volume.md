@@ -25,8 +25,12 @@ console.log(result.estimatedErrorCubicMeters)
 | `sampleCount` | 采样点数量。 |
 | `resolutionMeters` | 网格分辨率（米）。 |
 | `estimatedErrorCubicMeters` | 估算误差。 |
+| `status` | `computed` / `invalid-polygon` / `empty-grid`。 |
+| `terrain` | 地形来源计数：`sampled` / `fallback` / `unavailable`。 |
 
 未提供 `designHeight` 时，使用采样点平均高程作为设计面。
+
+`terrain.unavailable > 0` 表示部分网格点没有可用地形，按椭球高 0 参与体积计算；应结合该计数判断结果是否适合工程用途。
 
 ## 按多边形与深度开挖
 
