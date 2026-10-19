@@ -33,5 +33,6 @@ features:
 - [运行时](/runtime/create-app)：理解 `Arc3D.create()` 与 `Arc3DApp`。
 - [空间分析](/analysis/measure)：测量、地形、通视、查询与土方计算。
 - [插件系统](/plugins/plugins)：以插件形式扩展运行时。
+- [版本与稳定性](/public/stability)：理解稳定 / 实验性 API、弃用周期与升级判断。
 
 需要查具体符号与参数时，请打开顶栏的 **API 文档**；想在浏览器里直接改代码看效果时，请打开 **Sandcastle**。

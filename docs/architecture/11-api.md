@@ -1,6 +1,23 @@
 # 公共 API
 
-Updated: 2026-10-18
+Updated: 2026-10-19
+
+## 稳定性分级
+
+`scripts/public-api-stability.json` 是公开导出稳定性分级的机器可读事实源，`npm run lint:stability` 校验每个导出恰好属于一个等级：
+
+| 等级           | 版本承诺                                                                    | 当前范围                                                                                       |
+| -------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `stable`       | 破坏性变更只能出现在 major；向后兼容新增进入 minor；修复进入 patch          | 根入口的高层运行时、类型合同与纯计算 API                                                       |
+| `experimental` | 允许在 minor 发生不兼容变更，必须写入 `CHANGES.md`；patch 不得破坏          | 根入口的 Worker 作业传输层；`arc3dlab/engine-cesium` 子路径全部导出                            |
+| `internal`     | 不承诺兼容性，可随 patch 调整；消费者不应依赖                               | `NativeContext` 与标绘动画内部函数 `activeFrameValue` / `activePropertyKey` / `triangularWave` |
+| `deprecated`   | 至少保留一个 minor，只能在下一个 major 或更晚移除；必须提供替代项与迁移说明 | 当前没有已弃用导出                                                                             |
+
+实验性根入口：`AnalysisJobHost`、`executeAnalysisJob`、`executeAnalysisJobCooperatively`，以及 `AnalysisJob` / `AnalysisJobResult` / `AnalysisJobHostOptions` / `AnalysisJobHostDiagnostics` / `AnalysisWorkerFactory` / `AnalysisWorkerLike` / `CooperativeAnalysisExecutor` / `CooperativeAnalysisJobOptions`。`app.analysis` 的高层服务与 `AnalysisResult` 仍属于稳定合同；需要长期稳定性的消费者应通过 `AnalysisManager` 使用分析能力。
+
+`arc3dlab/engine-cesium` 子路径是 Cesium 适配接缝，整体按实验性处理；根入口的 `CesiumEngine` 仍为稳定导出。`app.native.*` 不属于上述导出分级，继续按 advanced / unstable 逃生舱处理。
+
+弃用流程、最短周期与 major 边界见 `COMPATIBILITY.md` 的「弃用周期」；发布前检查见 `docs/guides/release-checklist.md`。
 
 ## 稳定入口
 
@@ -18,9 +35,11 @@ const app = await Arc3D.create({
 - `Arc3D` / `Arc3DApp`
 - `Graphic` / `Layer`
 - `LngLat` / `LngLatHeight` / `CameraPose`
-- `PickResult` / `Arc3DPlugin` / `NativeContext`
+- `PickResult` / `Arc3DPlugin`
 - `SceneReadyOptions` / `SceneReadyResult` / `DefaultBaseLayerState`
 - `Arc3DError` / `createId`
+
+`NativeContext` 属于内部逃生舱，仅用于读取底层对象，不纳入 SemVer 保证。
 
 ## 业务语义类型
 
@@ -79,7 +98,7 @@ result.defaultBaseLayer // disabled | loading | ready | failed
 
 ## 公共类型白名单
 
-对外承诺类型通过根入口与 `@arc3dlab/sdk` 命名导出；禁止消费者深路径导入 `packages/*/src`。`app.native.viewer` 为 advanced / unstable 逃生舱，随 Cesium 版本变化，不纳入 SemVer 保证。
+对外承诺类型通过根入口与 `@arc3dlab/sdk` 命名导出；禁止消费者深路径导入 `packages/*/src`。`app.native.viewer` 为 advanced / unstable 逃生舱，随 Cesium 版本变化，不纳入 SemVer 保证。稳定性分级与导出快照分别由 `scripts/public-api-stability.json` 与 `scripts/public-api-manifest.json` 维护，`npm run api:review` 会按版本规则评估变更。
 
 P2 能力入口：
 
@@ -102,7 +121,7 @@ P2 能力入口：
 import { CesiumEngine } from "arc3dlab/engine-cesium"
 ```
 
-根入口不再导出全部 Cesium 类。需要 Cesium 类型时从 `cesium` 导入。
+`arc3dlab/engine-cesium` 子路径整体为实验性接口，允许在 minor 调整；根入口的 `CesiumEngine` 为稳定导出。根入口不再导出全部 Cesium 类。需要 Cesium 类型时从 `cesium` 导入。
 
 ## 兼容入口（已移除）
 

@@ -98,7 +98,10 @@ Cesium 类型从 `cesium` 导入。
 
 ### 环境
 
-- Node.js：仓库 `package.json` 记录目标为 `v22.20.0`
+- Node.js：`package.json` 的 `engines.node` 为 `>=22`
+- 浏览器：支持 `structuredClone` 与 ES module Worker 的现代浏览器（Chrome / Edge 98+、Firefox 94+、Safari 15.4+），并具备 Cesium 所需的 WebGL2
+- Worker：默认在独立线程执行纯数值分析；环境缺少 `Worker` 或创建失败时自动降级到进程内，`AnalysisJobHost.getDiagnostics().workerUnavailable` 会反映实际路径。降级与主线程共享事件循环，只有分块作业能在块间取消，其他同步作业可能阻塞渲染
+- 打包器：Vite 5+、Rollup 4+、webpack 5 ESM；Worker 依赖 `new Worker(new URL(...), { type: "module" })`，覆盖 `worker.format` 时需保持 `"es"`
 - 包管理：根目录 `npm install`
 - 许可证：`GPL-2.0-only`，与 `LICENSE` 一致
 
@@ -157,6 +160,12 @@ npm run build:sandcastle
 # 校验发布元数据（版本、日志、兼容矩阵与迁移说明）
 npm run release:check -- --tag v2.0.0
 
+# 发布包安装与类型/Worker 验证
+npm run test:pack
+
+# 真实 Vite 消费者生产构建 + 浏览器 Worker/降级验证
+npm run test:consumer
+
 # 格式化
 npm run format
 ```
@@ -166,8 +175,11 @@ npm run format
 - `dist/arc3dlab.esm.js`：主 ESM
 - `dist/index.d.ts`：主类型
 - `dist/engine-cesium.js` 与 `dist/engine-cesium.d.ts`：引擎子路径
+- `dist/assets/analysis-worker-entry-*.js`：分析 Worker 的 ES module 资源
+- `dist/globe.jpg` 等静态资源
+- `dist/**/*.map`：仅本地调试使用，不进入 npm tarball
 
-Cesium 作为 external，不会打进 SDK bundle。
+Cesium 作为 external，不会打进 SDK bundle；消费端必须自行安装精确匹配的 `cesium@1.146.0`。
 
 ## 即时测试
 
@@ -232,9 +244,11 @@ const app = await Arc3D.create({
 ```bash
 # 仓库根目录
 npm run build
+npm run test:pack
+npm run test:consumer
 ```
 
-检查 `dist/` 是否包含 ESM 与 `.d.ts`。随后可把 demo 临时改为引用 `../dist/arc3dlab.esm.js`，或在另一项目执行 `npm i ../Arc3DLab_SDK` 做本地包验证。
+`test:pack` 会在干净临时目录安装 tarball，验证 ESM / NodeNext 类型解析、CJS 拒绝、缺失与不兼容 Cesium、Worker 执行和发布文件清单。`test:consumer` 进一步把 tarball 安装到最小 Vite 消费者，执行生产构建，并在 Chromium 中验证默认 Worker 的消息往返与 `createWorker` 返回空时的进程内降级。
 
 ## 预览
 
@@ -326,39 +340,41 @@ npm run guide:dev
 
 对外发布的是根包 `arc3dlab`。`files` 以 `dist` 整树为发布来源，并排除声明中间目录：
 
-- `dist`（含入口 JS、source map、Worker、静态资源与嵌套 chunk）
+- `dist`（含入口 JS、Worker、静态资源与嵌套 chunk；source map 不发布）
 - `!dist/src`
 - `!dist/packages`
+- `!dist/**/*.map`
 - `README.md`
 - `CHANGES.md`
 - `LOG.md`
 - `NOTICE.md`
 - `LICENSE`
 
-`scripts/publish-manifest.mjs` 生成期望产物清单。`npm run test:pack` 不只检查清单与入口，还会实际安装 tarball 并验证：
+`scripts/publish-manifest.mjs` 生成期望产物清单，并排除 `dist/**/*.map`。`npm run test:pack` 不只检查清单与入口，还会实际安装 tarball 并验证：
 
 - 打包与安装目录中的 `LICENSE` / `NOTICE.md` / `README.md` / `CHANGES.md` / `LOG.md` 与仓库内容一致；
 - 安装后的 `package.json` 保持 ESM-only、无 `main` / `require` 出口、无运行时 `dependencies`，且 `peerDependencies` 只有精确的 `cesium@1.146.0`；
-- `exports` / `module` / `types` 指向的文件存在，TypeScript 消费者能编译；
+- `exports` / `module` / `types` 指向的文件存在，TypeScript 消费者在 `bundler` 与 `nodenext` 解析模式下都能编译；
+- 缺失 Cesium 时导入明确失败，CJS `require()` 被拒绝，不兼容的 Cesium 版本触发 npm peer 冲突；
 - 安装包内的 Worker 资产能真实执行距离与面积作业；
-- tarball 不夹带 `src/`、`packages/`、`tests/`、`scripts/`、`node_modules/` 等源码路径。
+- tarball 不夹带 `src/`、`packages/`、`tests/`、`scripts/`、`node_modules/` 等源码路径、source map 或私有 `node_modules`。
 
 ### 发布分支合并后
 
-版本号与发布日志在合并进发布分支后按实际发布计划更新：
+版本号与发布日志在合并进发布分支后按实际发布计划更新。完整审计表见 `docs/guides/release-checklist.md`。
 
 1. 更新根 `package.json` 版本，并同步 `package-lock.json` 根版本。可用 `npm version <version> --no-git-tag-version`，避免提前创建 tag。
-2. 把 `CHANGES.md` 的 `Unreleased` 条目整理到 `## v<version> - YYYY-MM-DD`，并清空 `Unreleased`；破坏性变化保留 `### Breaking Changes` 小节。打 tag 时仍有 `Unreleased` 条目会被门禁拒绝。
+2. 把 `CHANGES.md` 的 `Unreleased` 条目整理到 `## v<version> - YYYY-MM-DD`，并清空 `Unreleased`；必须包含 `### Known Limitations`，破坏性变化保留 `### Breaking Changes`，弃用项使用 `### Deprecated`。打 tag 时仍有 `Unreleased` 条目会被门禁拒绝。
 3. 破坏性变化必须同步迁移说明：`docs/architecture/13-migration.md`、`docs/guides/migration.md` 或 `guide/migration/` 至少一处覆盖该版本。
 4. 同步 `COMPATIBILITY.md` 的活跃兼容矩阵（例如 `2.0.x`）。
-5. 运行 `npm run release:check -- --tag v<version>`。该门禁校验版本、锁文件、发布日志、兼容矩阵与破坏性变更迁移说明的一致性。
-6. 如公共 API 有变更，先运行 `node scripts/release-gate.mjs exports:update` 刷新 manifest，再人工审查签名 diff；刷新基线不等于接受破坏性变更。
+5. 如公共 API 有变更，先运行 `node scripts/release-gate.mjs exports:update` 刷新 manifest，再运行 `npm run api:review` 按稳定性等级与版本位审查，最后运行 `npm run api:snapshot` 写入 `scripts/api-history/v<version>.json`。刷新基线不等于接受破坏性变更。
+6. 运行 `npm run release:check`，确认版本、锁文件、发布日志、已知限制、兼容矩阵、迁移说明与 API 快照一致。
 
 ### 发布前检查
 
-1. `npm run release:check -- --tag v<version>` 通过。
-2. `npm run gate:release` 通过（包含单测覆盖率、依赖/许可/API 门禁、API 文档、开发指南、构建、体积、基准、发布元数据与 `test:pack`）。
-3. `npm run test:e2e` 通过；Firefox 额外运行 `xvfb-run -a npm run test:e2e:firefox`。
+1. `npm run release:preflight -- --tag v<version>` 通过；该检查要求工作区干净、tag 指向 HEAD、快照存在且发布元数据一致。
+2. `npm run gate:release` 通过（包含单测覆盖率、依赖/导出/稳定性/许可/API 门禁、API 文档、开发指南、构建、体积、基准、发布元数据与 `test:pack`）。
+3. `npm run test:e2e` 通过；Firefox 额外运行 `xvfb-run -a npm run test:e2e:firefox`；`npm run test:consumer` 验证 tarball 在真实 Vite 生产构建与浏览器中的 Worker/降级路径。
 4. 在 `demo-vue3` 安装依赖后运行 `npm run build:sandcastle`，确认 Sandcastle 与当前源码同一提交可构建。
 5. `npm pack --dry-run` 检查最终文件列表，再用 `npm run test:pack` 做实际安装验证。
 
@@ -413,8 +429,10 @@ npm publish --tag alpha --access public
 ### 发布后
 
 1. 给 Git 打与 `package.json` 相同的 tag，例如 `v2.0.0`。
-2. 推送分支与 tag；tag 会触发发布验证工作流。
-3. 在消费项目中安装新版本，核对 Cesium 静态资源与主入口 `Arc3D.create()`。
+2. 推送分支与 tag；tag 会触发发布验证工作流，归档 tarball 与 `SHA256SUMS`。
+3. 运行 `npm run release:verify -- --version <version>`，从 registry 下载 tarball 并核对完整性、发布清单与安装导入路径。
+4. 在消费项目中安装新版本，核对 Cesium 静态资源与主入口 `Arc3D.create()`。
+5. 按 `docs/guides/release-checklist.md` 的模板记录发布提交、tag、tarball、门禁结果与回滚方案。
 
 ## 贡献约束（摘要）
 

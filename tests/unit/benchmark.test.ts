@@ -69,3 +69,43 @@ describe("scripts/benchmark.mjs", () => {
     }
   })
 })
+
+describe("scripts/analysis-benchmark.ts", () => {
+  it("prints repeatable volume baselines with budgets and sampling error", () => {
+    const root = join(dirname(fileURLToPath(import.meta.url)), "../..")
+    const output = execFileSync(
+      process.execPath,
+      [
+        join(root, "node_modules/vite-node/vite-node.mjs"),
+        "--root",
+        root,
+        join(root, "scripts/analysis-benchmark.ts"),
+        "--check",
+      ],
+      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    )
+    const report = JSON.parse(output)
+    expect(report.budgetMs).toBe(5000)
+    expect(report.ok).toBe(true)
+    expect(
+      report.scenarios.map((scenario: { name: string; mode: string }) => [
+        scenario.name,
+        scenario.mode,
+      ]),
+    ).toEqual([
+      ["cutfill-small", "direct"],
+      ["cutfill-medium", "direct"],
+      ["cutfill-large", "direct"],
+      ["cutfill-medium", "fallback"],
+    ])
+    for (const scenario of report.scenarios) {
+      expect(scenario.withinBudget).toBe(true)
+      expect(scenario.assertionsPassed).toBe(true)
+      expect(scenario.sampleCount).toBe(scenario.samples * scenario.samples)
+      if (scenario.samples >= 64) {
+        expect(scenario.relativeAreaError).toBeLessThan(0.05)
+      }
+      expect(scenario.rssPeakBytes).toBeGreaterThan(0)
+    }
+  }, 30_000)
+})

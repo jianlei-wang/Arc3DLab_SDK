@@ -27,6 +27,7 @@
 - `12-engineering.md`：构建、测试、发布、许可证
 - `13-migration.md`：旧目录到新模块映射
 - `14-roadmap.md`：P0-P4 路线
+- `15-architecture-evolution.md`：架构演进准入与证据记录
 - `CHANGELOG.md`：设计迭代日志
 - `docs/guides/sdk-development.md`：SDK 开发、测试、预览、发布
 

@@ -11,6 +11,11 @@ const sidebar = [
     ],
   },
   {
+    text: "版本与稳定性",
+    collapsed: false,
+    items: [{ text: "版本与稳定性", link: "/public/stability" }],
+  },
+  {
     text: "运行时",
     collapsed: false,
     items: [

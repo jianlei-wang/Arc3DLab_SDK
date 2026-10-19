@@ -6,7 +6,7 @@ Arc3DLab 是面向三维 WebGIS 应用的模块化场景运行时 SDK。CesiumJS
 
 定位为 **Cesium-first**：`core` 不依赖 Cesium，业务包可直接使用 Cesium；`Engine` 是内部生命周期/能力接缝，多渲染后端为长期路线图，不是当前 API 合同。包为 **ESM-only**，通过 `import` 使用，不支持 CommonJS `require()`（详见 `COMPATIBILITY.md`）。
 
-设计文档位于 `docs/architecture/`，开发说明位于 `docs/guides/sdk-development.md`，迁移指南位于 `docs/guides/migration.md`。
+设计文档位于 `docs/architecture/`，开发说明位于 `docs/guides/sdk-development.md`，迁移指南位于 `docs/guides/migration.md`。发布检查清单位于 `docs/guides/release-checklist.md`，稳定性分级与弃用周期见 `COMPATIBILITY.md`。
 
 ## 文档体系
 

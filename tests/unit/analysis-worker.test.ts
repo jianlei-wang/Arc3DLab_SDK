@@ -16,7 +16,9 @@ type WorkerReply =
 class FakeWorker implements AnalysisWorkerLike {
   onmessage: ((event: { data: unknown }) => void) | null = null
   onerror: ((event: unknown) => void) | null = null
+  onmessageerror: ((event: unknown) => void) | null = null
   terminated = false
+  terminateCalls = 0
   readonly requests: Array<{ id: number; job: AnalysisJob }> = []
 
   constructor(
@@ -40,8 +42,19 @@ class FakeWorker implements AnalysisWorkerLike {
 
   terminate(): void {
     this.terminated = true
+    this.terminateCalls += 1
   }
 }
+
+class ThrowingWorker extends FakeWorker {
+  override postMessage(): void {
+    throw new Error("DataCloneError: job could not be cloned")
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 const square: AnalysisJob = {
   type: "area",
@@ -668,6 +681,321 @@ describe("AnalysisJobHost worker transport", () => {
     host.destroy()
   })
 
+  it("rejects malformed worker responses with INVALID_FORMAT", async () => {
+    const malformed: Array<Record<string, unknown>> = [
+      {},
+      { result: null },
+      { result: { type: "distance", meters: 10 } },
+      { result: { type: "area", squareMeters: Number.NaN } },
+      { result: { type: "cutfill-grid", grid: null } },
+      { error: { code: "INVALID_ARGUMENT" } },
+      { error: { code: "NOT_A_REAL_CODE", message: "boom" } },
+      {
+        result: { type: "area", squareMeters: 1 },
+        error: { code: "INVALID_ARGUMENT", message: "boom" },
+      },
+    ]
+    for (const payload of malformed) {
+      const workers: FakeWorker[] = []
+      const host = new AnalysisJobHost({
+        createWorker: () => {
+          const worker = new FakeWorker(undefined, false)
+          workers.push(worker)
+          return worker
+        },
+      })
+      const pending = host.run(square)
+      const request = workers[0].requests[0]
+      workers[0].onmessage?.({ data: { id: request.id, ...payload } })
+      await expect(pending).rejects.toMatchObject({ code: "INVALID_FORMAT" })
+      expect(workers[0].terminated).toBe(true)
+      expect(host.getDiagnostics()).toMatchObject({
+        protocolErrors: 1,
+        activeWorkers: 0,
+        queuedJobs: 0,
+        pendingJobs: 0,
+        completedJobs: 0,
+        failedJobs: 1,
+        cancelledJobs: 0,
+      })
+      host.destroy()
+    }
+  })
+
+  it("ignores malformed messages that cannot be attributed to a task", async () => {
+    const workers: FakeWorker[] = []
+    const host = new AnalysisJobHost({
+      createWorker: () => {
+        const worker = new FakeWorker(undefined, false)
+        workers.push(worker)
+        return worker
+      },
+    })
+    const pending = host.run(square)
+    const request = workers[0].requests[0]
+    workers[0].onmessage?.({ data: "garbage" })
+    workers[0].onmessage?.({ data: { id: "not-a-number" } })
+    workers[0].onmessage?.({
+      data: { id: request.id + 100, result: { type: "area", squareMeters: 1 } },
+    })
+    expect(host.getDiagnostics()).toMatchObject({
+      protocolErrors: 2,
+      pendingJobs: 1,
+      completedJobs: 0,
+    })
+
+    workers[0].onmessage?.({
+      data: { id: request.id, result: executeAnalysisJob(square) },
+    })
+    await expect(pending).resolves.toEqual({
+      type: "area",
+      squareMeters: expect.any(Number),
+    })
+    expect(host.getDiagnostics()).toMatchObject({
+      protocolErrors: 2,
+      pendingJobs: 0,
+      completedJobs: 1,
+    })
+    host.destroy()
+  })
+
+  it("ignores responses routed to the wrong worker slot", async () => {
+    const workers: FakeWorker[] = []
+    const host = new AnalysisJobHost({
+      maxWorkers: 2,
+      createWorker: () => {
+        const worker = new FakeWorker(undefined, false)
+        workers.push(worker)
+        return worker
+      },
+    })
+    const first = host.run(square)
+    const second = host.run(square)
+    const firstRequest = workers[0].requests[0]
+    const secondRequest = workers[1].requests[0]
+    workers[0].onmessage?.({
+      data: {
+        id: secondRequest.id,
+        result: executeAnalysisJob(secondRequest.job),
+      },
+    })
+    expect(host.getDiagnostics()).toMatchObject({
+      pendingJobs: 2,
+      completedJobs: 0,
+    })
+
+    workers[0].onmessage?.({
+      data: { id: firstRequest.id, result: executeAnalysisJob(square) },
+    })
+    workers[1].onmessage?.({
+      data: { id: secondRequest.id, result: executeAnalysisJob(square) },
+    })
+    await expect(first).resolves.toMatchObject({ type: "area" })
+    await expect(second).resolves.toMatchObject({ type: "area" })
+    expect(host.getDiagnostics()).toMatchObject({
+      pendingJobs: 0,
+      completedJobs: 2,
+      protocolErrors: 0,
+    })
+    host.destroy()
+  })
+
+  it("settles a job with ENGINE_FAILURE when postMessage throws synchronously", async () => {
+    let attempts = 0
+    const workers: FakeWorker[] = []
+    const host = new AnalysisJobHost({
+      maxWorkers: 1,
+      maxQueue: 0,
+      createWorker: () => {
+        attempts += 1
+        const worker = attempts === 1 ? new ThrowingWorker() : new FakeWorker()
+        workers.push(worker)
+        return worker
+      },
+    })
+    await expect(host.run(square)).rejects.toMatchObject({
+      code: "ENGINE_FAILURE",
+      message: expect.stringContaining("Failed to post"),
+    })
+    expect(workers[0].terminated).toBe(true)
+    expect(host.getDiagnostics()).toMatchObject({
+      activeWorkers: 0,
+      runningJobs: 0,
+      queuedJobs: 0,
+      pendingJobs: 0,
+      createdWorkers: 1,
+      startedJobs: 0,
+      failedJobs: 1,
+    })
+
+    await expect(host.run(square)).resolves.toEqual({
+      type: "area",
+      squareMeters: expect.any(Number),
+    })
+    expect(attempts).toBe(2)
+    expect(host.getDiagnostics()).toMatchObject({
+      createdWorkers: 2,
+      completedJobs: 1,
+      failedJobs: 1,
+      pendingJobs: 0,
+    })
+    host.destroy()
+  })
+
+  it("falls back to in-process execution on messageerror", async () => {
+    const workers: FakeWorker[] = []
+    const host = new AnalysisJobHost({
+      createWorker: () => {
+        const worker = new FakeWorker(undefined, false)
+        workers.push(worker)
+        return worker
+      },
+    })
+    const pending = host.run(square)
+    workers[0].onmessageerror?.({ message: "deserialize failed" })
+    await expect(pending).resolves.toEqual({
+      type: "area",
+      squareMeters: expect.any(Number),
+    })
+    expect(workers[0].terminated).toBe(true)
+    expect(workers[0].onmessageerror).toBeNull()
+    expect(host.getDiagnostics()).toMatchObject({
+      workerUnavailable: true,
+      activeWorkers: 0,
+      pendingJobs: 0,
+      completedJobs: 1,
+      failedJobs: 0,
+    })
+    host.destroy()
+  })
+
+  it("propagates fallback failures once without retrying the worker", async () => {
+    const workers: FakeWorker[] = []
+    let fallbacks = 0
+    const host = new AnalysisJobHost({
+      createWorker: () => {
+        const worker = new FakeWorker(undefined, false)
+        workers.push(worker)
+        return worker
+      },
+      executeCooperative: async () => {
+        fallbacks += 1
+        throw new Arc3DError("ENGINE_FAILURE", "fallback failed")
+      },
+    })
+    const pending = host.run(square)
+    const request = workers[0].requests[0]
+    const staleHandler = workers[0].onmessage
+    workers[0].onerror?.({ message: "worker crashed" })
+    await expect(pending).rejects.toMatchObject({
+      code: "ENGINE_FAILURE",
+      message: "fallback failed",
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    staleHandler?.({
+      data: { id: request.id, result: executeAnalysisJob(square) },
+    })
+    expect(fallbacks).toBe(1)
+    expect(host.getDiagnostics()).toMatchObject({
+      pendingJobs: 0,
+      inProcessJobs: 0,
+      completedJobs: 0,
+      failedJobs: 1,
+      cancelledJobs: 0,
+    })
+    host.destroy()
+  })
+
+  it("settles cancellation once when a worker error races an abort", async () => {
+    const workers: FakeWorker[] = []
+    const host = new AnalysisJobHost({
+      createWorker: () => {
+        const worker = new FakeWorker(undefined, false)
+        workers.push(worker)
+        return worker
+      },
+    })
+    const controller = new AbortController()
+    const pending = host.run(square, { signal: controller.signal })
+    workers[0].onerror?.({ message: "worker crashed" })
+    controller.abort()
+    await expect(pending).rejects.toMatchObject({ code: "CANCELLED" })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(host.getDiagnostics()).toMatchObject({
+      pendingJobs: 0,
+      inProcessJobs: 0,
+      completedJobs: 0,
+      cancelledJobs: 1,
+      failedJobs: 0,
+    })
+    host.destroy()
+  })
+
+  it("does not dispatch a fallback that was queued before destroy", async () => {
+    const workers: FakeWorker[] = []
+    const host = new AnalysisJobHost({
+      createWorker: () => {
+        const worker = new FakeWorker(undefined, false)
+        workers.push(worker)
+        return worker
+      },
+    })
+    const pending = host.run(square)
+    workers[0].onerror?.({ message: "worker crashed" })
+    host.destroy()
+    await expect(pending).rejects.toMatchObject({ code: "CANCELLED" })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(host.getDiagnostics()).toMatchObject({
+      terminated: true,
+      pendingJobs: 0,
+      inProcessJobs: 0,
+      completedJobs: 0,
+      cancelledJobs: 1,
+      failedJobs: 0,
+    })
+  })
+
+  it("keeps queue counters consistent under backpressure", async () => {
+    const host = new AnalysisJobHost({
+      maxWorkers: 2,
+      maxQueue: 3,
+      createWorker: () => new FakeWorker(),
+    })
+    const results = await Promise.all(
+      Array.from({ length: 50 }, () =>
+        host.run(square).catch((error: unknown) => error),
+      ),
+    )
+    const failures = results.filter(
+      (result): result is Arc3DError => result instanceof Arc3DError,
+    )
+    expect(failures).toHaveLength(45)
+    expect(failures.every((error) => error.code === "QUEUE_FULL")).toBe(true)
+    expect(
+      results.filter((result) => !(result instanceof Arc3DError)),
+    ).toHaveLength(5)
+    const diagnostics = host.getDiagnostics()
+    expect(diagnostics).toMatchObject({
+      activeWorkers: 2,
+      idleWorkers: 2,
+      runningJobs: 0,
+      queuedJobs: 0,
+      pendingJobs: 0,
+      startedJobs: 5,
+      completedJobs: 5,
+      failedJobs: 45,
+      cancelledJobs: 0,
+      rejectedJobs: 45,
+    })
+    expect(
+      diagnostics.completedJobs +
+        diagnostics.failedJobs -
+        diagnostics.rejectedJobs +
+        diagnostics.cancelledJobs,
+    ).toBe(5)
+    host.destroy()
+  })
+
   it("rejects non-cloneable jobs before dispatching to a worker", async () => {
     let created = 0
     const host = new AnalysisJobHost({
@@ -684,6 +1012,84 @@ describe("AnalysisJobHost worker transport", () => {
       code: "INVALID_FORMAT",
     })
     expect(created).toBe(0)
+    host.destroy()
+  })
+
+  it("rejects jobs when structuredClone is unavailable", async () => {
+    vi.stubGlobal("structuredClone", undefined)
+    let created = 0
+    const host = new AnalysisJobHost({
+      createWorker: () => {
+        created += 1
+        return new FakeWorker()
+      },
+    })
+    await expect(host.run(square)).rejects.toMatchObject({
+      code: "UNSUPPORTED_CAPABILITY",
+      message: expect.stringContaining("structuredClone"),
+    })
+    expect(created).toBe(0)
+    host.destroy()
+  })
+
+  it("snapshots nested job inputs while queued", async () => {
+    const workers: FakeWorker[] = []
+    const host = new AnalysisJobHost({
+      createWorker: () => {
+        const worker = new FakeWorker(undefined, false)
+        workers.push(worker)
+        return worker
+      },
+    })
+    for (let i = 0; i < 4; i += 1) {
+      host.run(square).catch(() => undefined)
+    }
+    expect(workers).toHaveLength(4)
+
+    const graphics: Array<{
+      id: string
+      type: "point"
+      positions: Array<{ longitude: number; latitude: number; height: number }>
+    }> = [
+      {
+        id: "in",
+        type: "point",
+        positions: [{ longitude: 104.05, latitude: 30.55, height: 0 }],
+      },
+    ]
+    const pending = host.run({
+      type: "rect-query",
+      graphics,
+      rect: { west: 104, south: 30.5, east: 104.2, north: 30.7 },
+    })
+
+    graphics[0].id = "mutated"
+    graphics[0].positions[0].longitude = 0
+    graphics[0].positions[0].height = 999
+
+    const first = workers[0].requests[0]
+    workers[0].onmessage?.({
+      data: { id: first.id, result: executeAnalysisJob(first.job) },
+    })
+
+    const queued = workers[0].requests[1]
+    expect(queued.job).toMatchObject({
+      type: "rect-query",
+      graphics: [
+        {
+          id: "in",
+          type: "point",
+          positions: [{ longitude: 104.05, latitude: 30.55, height: 0 }],
+        },
+      ],
+    })
+    workers[0].onmessage?.({
+      data: { id: queued.id, result: executeAnalysisJob(queued.job) },
+    })
+    await expect(pending).resolves.toEqual({
+      type: "query",
+      graphics: [{ id: "in", type: "point" }],
+    })
     host.destroy()
   })
 
@@ -840,12 +1246,17 @@ describe("AnalysisJobHost worker transport", () => {
 
       vi.advanceTimersByTime(1)
       expect(workers[0].terminated).toBe(true)
+      expect(workers[0].terminateCalls).toBe(1)
       expect(host.getDiagnostics()).toMatchObject({
         activeWorkers: 0,
         idleWorkers: 0,
         createdWorkers: 1,
         reclaimedWorkers: 1,
       })
+
+      vi.advanceTimersByTime(60_000)
+      expect(workers[0].terminateCalls).toBe(1)
+      expect(host.getDiagnostics().reclaimedWorkers).toBe(1)
 
       await host.run(square)
       expect(workers).toHaveLength(2)
@@ -883,6 +1294,32 @@ describe("AnalysisJobHost worker transport", () => {
       })
       expect(workers[0].terminated).toBe(false)
       host.destroy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("cancels idle reclamation timers on destroy", async () => {
+    vi.useFakeTimers()
+    try {
+      const workers: FakeWorker[] = []
+      const host = new AnalysisJobHost({
+        idleTimeoutMs: 1_000,
+        createWorker: () => {
+          const worker = new FakeWorker()
+          workers.push(worker)
+          return worker
+        },
+      })
+      await host.run(square)
+      host.destroy()
+      vi.advanceTimersByTime(60_000)
+      expect(workers[0].terminateCalls).toBe(1)
+      expect(host.getDiagnostics()).toMatchObject({
+        terminated: true,
+        activeWorkers: 0,
+        reclaimedWorkers: 0,
+      })
     } finally {
       vi.useRealTimers()
     }

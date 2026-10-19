@@ -3,6 +3,49 @@
 > 面向 SDK 维护者的架构、合同与质量门禁迭代记录，按日期倒序排列。
 > 面向使用者的发布变更日志见根目录 `CHANGES.md`。
 
+## 2026-10-19（稳定 API 分级与发布验证闭环）
+
+- 问题：公共导出只有签名基线，没有稳定性分级与已发布快照；`release:check` 无法判断新增功能是否进入 minor、破坏性变更是否进入 major，也不要求 `Known Limitations`；发布前后缺少 tag 提交一致性、registry 完整性与安装导入验证。
+- 稳定性：新增 `scripts/public-api-stability.json` 作为分级事实源，根入口 97 个稳定导出、11 个实验性导出、4 个内部导出，`arc3dlab/engine-cesium` 全部实验性；`lint:stability` 校验覆盖、重复、弃用元数据与 manifest 注记。
+- API 审查：`scripts/api-stability.mjs` 从最近历史快照计算导出与签名 diff，移除/修改按已发布分级判定，新增按当前策略判定；稳定破坏性变更要求 major，实验性不兼容变更要求 minor，internal 允许 patch，`removeIn` 之前移除被拒绝。`api:snapshot` 将当前 manifest 与稳定性策略写入 `scripts/api-history/v<version>.json`。
+- 发布元数据：`release:check` 要求每个已发布小节包含 `Known Limitations`，按上一版本推导 SemVer（breaking → major，feat → minor+），要求弃用项出现 `### Deprecated`，tag 检查要求同版本 API 快照与当前 manifest 一致。
+- 发布闭环：新增 `release:preflight`（干净工作区、tag → HEAD、快照、发布元数据）与 `release:verify`（npm metadata、SRI、tarball 清单、安装后 manifest 与两个入口的 import）；`release.yml` 增加 tag 提交校验与 `SHA256SUMS`，新增手动 `release-verify.yml`。
+- 架构治理：新增 `15-architecture-evolution.md`，规定问题证据、基线、目标、最小验证、回滚与决策记录；多渲染后端与共享 Worker 池登记为 deferred，发布消费端验证登记为 accepted。
+- 验证：`api-stability` 7 个、`release-check` 13 个、`release-preflight` 2 个、`verify-registry` 4 个、`release-gate` 11 个单元测试通过；`gate:release` 退出 0（93 个测试文件 / 708 通过 | 1 跳过）；四类产物从同一工作区重建成功（SDK dist、API 文档 540 页 / 527 符号、开发指南、Sandcastle），`test:consumer` 完成 tarball 安装、Vite 生产构建与 Chromium Worker 资产验证。
+
+## 2026-10-19（打包兼容性与真实消费端验证）
+
+- 发布包内容：`files` 与 `scripts/publish-manifest.mjs` 同时排除 `dist/**/*.map`，tarball 只保留入口、声明、Worker、静态资源与嵌套 chunk；pack smoke 新增 source map、私有 `node_modules` 与多余 `dist` 产物拒绝。
+- 消费端合同：`test:pack` 增加缺失 Cesium peer、CJS `require()` 拒绝、`bundler` / `nodenext` 双模式类型编译、错误 Cesium 版本的 npm `ERESOLVE` 冲突，以及安装后无传递 Cesium 副本检查。
+- 真实消费端：新增 `tests/fixtures/vite-consumer` 与 `scripts/consumer-smoke.mjs`（`test:consumer`），从 tarball 安装到最小 Vite 项目，执行 production build，在 Chromium 中验证 Worker 资产 200、默认 Worker 消息往返、诊断计数与 `createWorker` 返回空时的进程内降级。
+- 文档与 CI：`COMPATIBILITY.md` 与 `docs/guides/sdk-development.md` 补齐打包器、Worker 要求、fallback 诊断与 Cesium 安装失败语义；`quality.yml` 新增 Linux / Windows / macOS 打包兼容矩阵，e2e job 增加 `test:consumer`。
+- 依赖与警告：`npm audit` 无高危项，构建无新增警告；未执行未经消费端验证的 Vite / Vitest / TypeScript 主版本升级，`npm outdated` 中的主版本差异保留为后续独立评估项。
+- 验证：`npm run test:pack`、`npm run test:consumer`、`npm run build` 通过；其余门禁随最终 `gate:release` 复验。
+
+## 2026-10-19（参数校验、数值正确性与数据质量）
+
+- 采样预算：`AnalysisSampleBudget` 区分省略与显式非法上限，`NaN`、`Infinity`、负数、小数与非法类型统一抛 `INVALID_ARGUMENT`；`reserve()` 拒绝负数/小数/非有限值，零值合法，累计不变量与零预算、超大安全整数、预算耗尽均有回归测试。`runAnalysisTask` 的 `maxSamples` 同样经 `resolveSampleCount` 校验。
+- 地形质量：`CutFillResult.terrain` 新增 `quality`（`complete` / `partial` / `degraded`），真实零高程保持 `sampled`，无数据统一为 `unavailable`；`cutFillTask` 输出降级/部分回退警告。Cesium 不暴露 no-data 原因，缺失与超出覆盖范围在文档中统一按无数据语义处理。
+- 数值边界：几何入口校验经纬度范围与高度量级（上限 `1e9` 米），`fromLocalMeters` 校验偏移结果；矩形倒置、非有限坐标与超限高度统一以 `INVALID_ARGUMENT` 拒绝，避免 `Infinity` / `NaN` 结果。
+- known-answer：新增轴对齐矩形网格面积随采样数收敛、常量高差棱柱体积、经验覆盖误差公式、真实零高程与缺失地形、极小/全球尺度面积、跨日界线与高度异常测试；新增小/中/大网格与进程内降级执行模式的宽松性能基线，并提供 `scripts/analysis-benchmark.ts` 记录耗时、采样数、RSS/堆峰值与相对解析面积误差，接入 `bench:check`。
+- 体积基线：合法功能增长后 `arc3dlab.esm.js` raw 334131 / gzip 89175，`bundle-baseline.json` 同步更新；`lint:size` 通过。
+- 验证：`tsc --noEmit`、全量 `test:coverage`（89 文件 / 687 通过 | 1 跳过）、`build`、`lint:size`、`bench:check`、`release:check` 通过。
+
+## 2026-10-19（Worker 调度与错误恢复）
+
+- 响应校验：`worker-protocol` 新增运行时解析与结果校验，检查任务 ID、`result` / `error` 二选一、公开错误码、结果类型与有限数值；可归属的畸形响应终止槽位并以 `INVALID_FORMAT` 结算，无法归属的消息只累加 `protocolErrors`。
+- 传输故障：`postMessage` 同步抛错时立即释放槽位并以 `ENGINE_FAILURE` 稳定结算，不降级重放；`AnalysisWorkerLike` 新增可选 `onmessageerror`，与 `error` 统一按基础设施故障降级一次。
+- 取消语义：明确区分取消请求已发出、计算已停止与结果不再交付；Worker 终止与分块检查点可停止计算，同步降级作业只保证结果不再交付，并记录各路径的取消延迟上界。
+- 验证：`analysis-worker` 扩展至 51 个测试，覆盖畸形响应、错误槽位路由、`postMessage` 抛错、`messageerror`、降级失败、取消/故障/销毁竞争、背压计数与销毁时空闲回收；`tsc --noEmit` 通过。
+
+## 2026-10-19（发布治理与运行时快照契约）
+
+- CI 统一：新增可复用的 `quality.yml`，`ci.yml` 与 `release.yml` 共用同一 Node 22、action v7 和 `gate:release`；Sandcastle、Chromium/Firefox E2E、API 文档与开发指南构件由同一 workflow 生成。
+- 分支差异：在 `12-engineering` 记录 `master` 与 `jianlei_wang` 的触发器、Node、action 版本、质量门禁、文档任务、Sandcastle、E2E 与发布验证差异，并逐项给出保留、合并或删除决策。
+- 分支保护：新增 `scripts/configure-repo-governance.sh`，以 `quality / gate` 为必需检查，禁止直接推送、强推与删除分支，要求 PR 合并；当前 GitHub App 令牌无 `admin` 权限，API 返回 403，规则需管理员应用。
+- 运行时契约：`AnalysisJobHost` 缺少 `structuredClone` 时抛 `UNSUPPORTED_CAPABILITY`，不再静默返回原作业；补充不可用环境与嵌套输入快照测试。兼容性文档写入 Node `>=22` 与浏览器基线（Chrome/Edge 98+、Firefox 94+、Safari 15.4+）。
+- 验证：worker 单测 41 个通过；格式化与文档检查通过。
+
 ## 2026-10-18（稳定发布与 API 治理）
 
 - 问题：公共 API manifest、打包 smoke 与四类产物（发布包 / API 文档 / 开发指南 / Sandcastle）已有基础门禁，但缺少发布分支合并后的版本/日志/迁移一致性检查，且 CI 未构建 Sandcastle；`test:pack` 也未验证许可文件归档与安装后依赖合同。

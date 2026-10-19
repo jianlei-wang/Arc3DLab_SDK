@@ -134,6 +134,40 @@ describe("release gates", () => {
     )
   })
 
+  it("treats deprecation metadata changes as gate failures", () => {
+    const base = {
+      values: ["a"],
+      types: [],
+      signatures: { a: "(): void" },
+      deprecated: { a: "use b instead" },
+    }
+    const expected = { entries: { ".": base } }
+    const removed = diffManifest(
+      {
+        ".": {
+          values: ["a"],
+          types: [],
+          signatures: { a: "(): void" },
+          deprecated: {},
+        },
+      },
+      expected,
+    )
+    expect(removed.some((issue) => issue.includes("deprecation removed"))).toBe(
+      true,
+    )
+    const changed = diffManifest(
+      {
+        ".": {
+          ...base,
+          deprecated: { a: "use c instead" },
+        },
+      },
+      expected,
+    )
+    expect(changed.some((issue) => issue.includes("reason changed"))).toBe(true)
+  })
+
   it("treats removed public entries as gate failures", () => {
     const issues = diffManifest(
       {},

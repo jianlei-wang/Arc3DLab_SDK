@@ -33,25 +33,54 @@ export interface AnalysisTaskOptions {
 }
 
 /**
+ * 校验并解析累计采样上限。
+ *
+ * 省略时返回默认值；显式传入时必须是非负安全整数，单位为「采样点数量」。
+ * 零值表示预算为零，允许创建但无法再预留任何采样点。
+ *
+ * @param value - 调用方传入的累计采样上限。
+ * @param fallback - 省略时采用的默认值。
+ * @returns 校验后的累计采样上限。
+ * @throws {Arc3DError} 参数不是非负安全整数时抛出。
+ */
+export function resolveSampleLimit(
+  value: number | undefined,
+  fallback = DEFAULT_MAX_SAMPLES,
+): number {
+  if (value === undefined) return fallback
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `maxSamples must be a non-negative safe integer: ${value}`,
+    )
+  }
+  return value
+}
+
+/**
  * 任务级累计采样预算，由一次分析任务内所有子操作共同分摊。
  *
  * 以「累计已消耗采样点数量」为口径：每次 {@link reserve} 请求的采样会先与
- * 剩余额度比较，超限时抛错且不改变已消耗量。
+ * 剩余额度比较，超限时抛错且不改变已消耗量。上限与单次预留均要求为非负
+ * 安全整数；零预算合法，但任何正数预留都会因超出额度而失败。预算只增不减，
+ * 不提供 release；需要重新分配额度时应创建新的预算实例。
  */
 export class AnalysisSampleBudget {
-  /** 允许消耗的累计采样点上限。 */
+  /** 允许消耗的累计采样点上限，单位为采样点数量。 */
   readonly maxSamples: number
   private consumed = 0
 
   /**
    * 创建采样预算。
-   * @param maxSamples - 允许消耗的累计采样点上限，缺省取默认上限。
+   *
+   * `maxSamples` 省略时使用默认上限；显式传入的 `NaN`、`Infinity`、负数、
+   * 小数或非法类型会抛出 `INVALID_ARGUMENT`，不会被替换为默认值。
+   *
+   * @param maxSamples - 允许消耗的累计采样点上限，单位为采样点数量。
+   * @throws {Arc3DError} 上限不是非负安全整数时抛出。
    */
-  constructor(maxSamples = DEFAULT_MAX_SAMPLES) {
-    const finite = Number.isFinite(maxSamples)
-      ? maxSamples
-      : DEFAULT_MAX_SAMPLES
-    this.maxSamples = Math.max(0, Math.floor(finite))
+  constructor(maxSamples?: number) {
+    this.maxSamples = resolveSampleLimit(maxSamples)
   }
 
   /** 已消耗的采样点数量。 */
@@ -66,21 +95,30 @@ export class AnalysisSampleBudget {
 
   /**
    * 请求消耗指定数量的采样点。
-   * @param count - 请求消耗的采样点数量。
+   *
+   * 零值表示不消耗并返回 0；负数、小数及非有限数值均视为非法输入，避免
+   * 静默截断后掩盖调用方的参数错误。
+   *
+   * @param count - 请求消耗的采样点数量，单位为采样点。
    * @returns 被接受的采样点数量。
-   * @throws {Arc3DError} 请求超出剩余额度时抛出。
+   * @throws {Arc3DError} 数量不是非负安全整数，或超出剩余额度时抛出。
    */
   reserve(count: number): number {
-    const requested = Number.isFinite(count) ? Math.floor(count) : 0
-    if (requested <= 0) return 0
-    if (requested > this.remaining) {
+    if (!Number.isSafeInteger(count) || count < 0) {
       throw new Arc3DError(
         "INVALID_ARGUMENT",
-        `Analysis sample budget exceeded: requested ${requested}, remaining ${this.remaining} of ${this.maxSamples}`,
+        `Analysis sample reservation must be a non-negative safe integer: ${count}`,
       )
     }
-    this.consumed += requested
-    return requested
+    if (count === 0) return 0
+    if (count > this.remaining) {
+      throw new Arc3DError(
+        "INVALID_ARGUMENT",
+        `Analysis sample budget exceeded: requested ${count}, remaining ${this.remaining} of ${this.maxSamples}`,
+      )
+    }
+    this.consumed += count
+    return count
   }
 }
 

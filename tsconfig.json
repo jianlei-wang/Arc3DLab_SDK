@@ -28,6 +28,12 @@
       "@arc3dlab/sdk": ["packages/sdk/src/index.ts"]
     }
   },
-  "include": ["src/**/*", "packages/**/*", "tests/**/*", "examples/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*",
+    "packages/**/*",
+    "tests/**/*",
+    "examples/**/*",
+    "scripts/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "tests/fixtures/vite-consumer"]
 }

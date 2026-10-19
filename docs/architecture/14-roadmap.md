@@ -1,6 +1,6 @@
 # 路线图
 
-Updated: 2026-10-08
+Updated: 2026-10-19
 
 ## P0 底座
 
@@ -25,3 +25,7 @@ Plugin Manager、Capability Registry、Command Bus、Tool Registry。
 ## P4 平台
 
 领域插件：mining / ocean / geology / disaster / urban。
+
+## 演进准入
+
+路线图中的长期方向按 `15-architecture-evolution.md` 的证据门槛推进：先记录问题证据、基线指标、最小验证与回滚路径，再决定是否进入稳定 API。当前多渲染后端与共享全局 Worker 池均为 deferred，2.0.0 不新增对应公共合同。

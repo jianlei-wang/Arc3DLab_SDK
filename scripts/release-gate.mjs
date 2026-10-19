@@ -310,6 +310,50 @@ function describeClassMember(checker, member) {
   return `${prefix}${normalize(member.getText())}`
 }
 
+function jsDocText(tag) {
+  if (!tag) return undefined
+  return typeof tag.comment === "string"
+    ? normalize(tag.comment)
+    : normalize(
+        (tag.comment ?? [])
+          .map((part) => (typeof part.text === "string" ? part.text : ""))
+          .join(" "),
+      )
+}
+
+function deprecatedReason(node) {
+  const tag = ts.getJSDocDeprecatedTag(node)
+  return tag ? jsDocText(tag) || "已弃用" : undefined
+}
+
+function collectDeprecations(symbol) {
+  const deprecated = {}
+  for (const decl of symbol.getDeclarations() ?? []) {
+    const reason = deprecatedReason(decl)
+    if (reason) {
+      const name = decl.name ? decl.name.getText() : undefined
+      if (name) deprecated[name] = reason
+    }
+    if (!ts.isClassDeclaration(decl)) continue
+    const className = decl.name ? decl.name.text : ""
+    for (const member of decl.members) {
+      if (
+        !ts.isPropertyDeclaration(member) &&
+        !ts.isMethodDeclaration(member) &&
+        !ts.isGetAccessorDeclaration(member) &&
+        !ts.isSetAccessorDeclaration(member)
+      ) {
+        continue
+      }
+      const memberReason = deprecatedReason(member)
+      if (!memberReason) continue
+      const memberName = member.name ? member.name.getText() : undefined
+      if (memberName) deprecated[`${className}.${memberName}`] = memberReason
+    }
+  }
+  return deprecated
+}
+
 function describeSymbol(checker, printer, symbol) {
   const declarations = symbol.getDeclarations() ?? []
   const decl =
@@ -373,6 +417,7 @@ function collectEntrySurface(checker, printer, source) {
   const values = []
   const types = []
   const signatures = {}
+  const deprecated = {}
   const moduleSymbol = source ? checker.getSymbolAtLocation(source) : undefined
   if (moduleSymbol) {
     for (const sym of checker.getExportsOfModule(moduleSymbol)) {
@@ -384,6 +429,7 @@ function collectEntrySurface(checker, printer, source) {
       if (isValue) values.push(name)
       else if (isType) types.push(name)
       signatures[name] = toPortable(describeSymbol(checker, printer, resolved))
+      Object.assign(deprecated, collectDeprecations(resolved))
     }
   }
   values.sort()
@@ -392,7 +438,16 @@ function collectEntrySurface(checker, printer, source) {
   for (const name of Object.keys(signatures).sort()) {
     sortedSignatures[name] = signatures[name]
   }
-  return { values, types, signatures: sortedSignatures }
+  const sortedDeprecations = {}
+  for (const name of Object.keys(deprecated).sort()) {
+    sortedDeprecations[name] = deprecated[name]
+  }
+  return {
+    values,
+    types,
+    signatures: sortedSignatures,
+    deprecated: sortedDeprecations,
+  }
 }
 
 /**
@@ -448,6 +503,23 @@ function diffEntry(key, actual, expected) {
     if (removed.length) {
       issues.push(
         `public API ${kind} removed: ${key} ${removed.join(", ")} (update ${MANIFEST_PATH} and docs)`,
+      )
+    }
+  }
+  const expDep = expected.deprecated ?? {}
+  const actDep = actual.deprecated ?? {}
+  for (const name of sortedUnion(Object.keys(expDep), Object.keys(actDep))) {
+    if (actDep[name] === undefined) {
+      issues.push(
+        `public API deprecation removed: ${key} ${name} (update ${MANIFEST_PATH} and docs)`,
+      )
+    } else if (expDep[name] === undefined) {
+      issues.push(
+        `public API deprecation added: ${key} ${name} (update ${MANIFEST_PATH} and docs)`,
+      )
+    } else if (expDep[name] !== actDep[name]) {
+      issues.push(
+        `public API deprecation reason changed: ${key} ${name} (update ${MANIFEST_PATH} and docs)`,
       )
     }
   }
@@ -536,7 +608,9 @@ export function checkPublicExports(root = ROOT) {
     if (
       rootEntry &&
       (JSON.stringify(rootEntry.values) !== JSON.stringify(expected.values) ||
-        JSON.stringify(rootEntry.types) !== JSON.stringify(expected.types))
+        JSON.stringify(rootEntry.types) !== JSON.stringify(expected.types) ||
+        JSON.stringify(rootEntry.deprecated ?? {}) !==
+          JSON.stringify(expected.deprecated ?? {}))
     ) {
       issues.push(
         `${MANIFEST_PATH} top-level values/types must match entries["."]`,
@@ -655,9 +729,12 @@ if (isDirectRun()) {
   else if (command === "exports:update") {
     const surface = collectPublicSurface()
     const rootEntry = surface["."]
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"))
     const manifest = {
+      version: pkg.version,
       values: rootEntry.values,
       types: rootEntry.types,
+      deprecated: rootEntry.deprecated,
       entries: surface,
     }
     writeFileSync(

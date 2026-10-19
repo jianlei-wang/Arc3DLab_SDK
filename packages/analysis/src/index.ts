@@ -674,6 +674,7 @@ export {
   VolumeAnalysis,
   type CutFillResult,
   type CutFillStatus,
+  type CutFillTerrainQuality,
 } from "./volume"
 export {
   slopeFromHeights,

@@ -1,0 +1,27 @@
+name: Release Registry Verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 已发布版本，例如 2.1.0
+        required: true
+
+permissions:
+  contents: read
+
+# 发布后只读验证：从 npm registry 下载 tarball，核对完整性、内容清单与安装导入路径。
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: node scripts/verify-registry.mjs --version "${{ inputs.version }}"

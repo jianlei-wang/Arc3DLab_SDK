@@ -15,9 +15,16 @@ permissions:
 
 # 发布验证只打包与归档，不自动执行 npm publish；发布凭据与人工确认留在发布流程中。
 jobs:
-  verify:
+  quality:
+    uses: ./.github/workflows/quality.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
+
+  package:
+    name: package
+    needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
@@ -30,40 +37,24 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Verify tag points to checked-out commit
+        run: |
+          test "$(git rev-parse "${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
       - name: Verify release metadata
         run: node scripts/release-check.mjs --tag "$RELEASE_TAG"
-      - name: Run release gate
-        run: npm run gate:release
-      - run: npx playwright install --with-deps chromium firefox
-      - run: npm run test:e2e
-      - run: xvfb-run -a npm run test:e2e:firefox
-      - name: Install Sandcastle dependencies
-        run: npm ci
-        working-directory: demo-vue3
-      - name: Build Sandcastle from the same commit
-        run: npm run build
-        working-directory: demo-vue3
+      - name: Release preflight
+        run: node scripts/release-preflight.mjs --tag "$RELEASE_TAG"
+      - run: npm run build
       - name: Pack release tarball
         run: |
           mkdir -p release
           npm pack --pack-destination release
+          cd release
+          sha256sum ./*.tgz > SHA256SUMS
       - uses: actions/upload-artifact@v7
         with:
           name: release-tarball
-          path: release/*.tgz
-          retention-days: 30
-      - uses: actions/upload-artifact@v7
-        with:
-          name: api-docs
-          path: api-docs/
-          retention-days: 30
-      - uses: actions/upload-artifact@v7
-        with:
-          name: guide-dist
-          path: guide/.vitepress/dist/
-          retention-days: 30
-      - uses: actions/upload-artifact@v7
-        with:
-          name: sandcastle-dist
-          path: demo-vue3/dist/
+          path: |
+            release/*.tgz
+            release/SHA256SUMS
           retention-days: 30

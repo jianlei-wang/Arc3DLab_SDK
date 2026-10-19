@@ -1,4 +1,5 @@
 {
+  "version": "2.0.0",
   "values": [
     "ActiveStyle",
     "AnalysisJobHost",
@@ -115,6 +116,7 @@
     "VerticalReference",
     "WebServiceProvider"
   ],
+  "deprecated": {},
   "entries": {
     ".": {
       "values": [
@@ -243,7 +245,7 @@
         "AnalysisExecution": "export interface AnalysisExecution<TResult = unknown> { value: TResult; units?: AnalysisUnits; warnings?: string[]; artifacts?: ResultArtifact[]; extent?: [ number, number, number, number ]; confidence?: number; }",
         "AnalysisJob": "export type AnalysisJob = { type: \"rect-query\"; graphics: QueryGraphic[]; rect: RectQuery; relation?: QueryRelation; } | { type: \"polygon-query\"; graphics: QueryGraphic[]; positions: PositionInput[]; relation?: QueryRelation; } | { type: \"distance-query\"; graphics: QueryGraphic[]; position: PositionInput; meters: number; } | { type: \"area\"; positions: PositionInput[]; holes?: PositionInput[][]; mode?: AreaMode; } | { type: \"distance\"; positions: PositionInput[]; } | { type: \"height\"; from: PositionInput; to: PositionInput; } | { type: \"heading\"; from: PositionInput; to: PositionInput; } | { type: \"space-angle\"; from: PositionInput; via: PositionInput; to: PositionInput; } | { type: \"slope\"; from: PositionInput; to: PositionInput; } | { type: \"projected-distance\"; from: PositionInput; to: PositionInput; } | { type: \"surface-distance\"; positions: PositionInput[]; } | { type: \"triangle-area\"; positions: [ PositionInput, PositionInput, PositionInput ]; } | { type: \"cutfill-grid\"; polygon: PositionInput[]; samples: number; };",
         "AnalysisJobHost": "class AnalysisJobHost\n  constructor(options?: AnalysisJobHostOptions): AnalysisJobHost\n  run(job: AnalysisJob, options?: AnalysisTaskOptions): Promise<AnalysisJobResult>\n  destroy(): void\n  getDiagnostics(): AnalysisJobHostDiagnostics",
-        "AnalysisJobHostDiagnostics": "export interface AnalysisJobHostDiagnostics { maxWorkers: number; maxQueue: number; activeWorkers: number; idleWorkers: number; createdWorkers: number; reclaimedWorkers: number; peakWorkers: number; idleTimeoutMs: number; runningJobs: number; queuedJobs: number; inProcessJobs: number; inProcessCancellation: \"cooperative\" | \"completion-only\"; pendingJobs: number; startedJobs: number; completedJobs: number; cancelledJobs: number; failedJobs: number; rejectedJobs: number; timedJobs: number; totalExecutionMs: number; averageExecutionMs: number; maxExecutionMs: number; lastExecutionMs: number; workerUnavailable: boolean; terminated: boolean; }",
+        "AnalysisJobHostDiagnostics": "export interface AnalysisJobHostDiagnostics { maxWorkers: number; maxQueue: number; activeWorkers: number; idleWorkers: number; createdWorkers: number; reclaimedWorkers: number; peakWorkers: number; idleTimeoutMs: number; runningJobs: number; queuedJobs: number; inProcessJobs: number; inProcessCancellation: \"cooperative\" | \"completion-only\"; pendingJobs: number; startedJobs: number; completedJobs: number; cancelledJobs: number; failedJobs: number; rejectedJobs: number; protocolErrors: number; timedJobs: number; totalExecutionMs: number; averageExecutionMs: number; maxExecutionMs: number; lastExecutionMs: number; workerUnavailable: boolean; terminated: boolean; }",
         "AnalysisJobHostOptions": "export interface AnalysisJobHostOptions { execute?: (job: AnalysisJob) => AnalysisJobResult; executeCooperative?: CooperativeAnalysisExecutor; createWorker?: AnalysisWorkerFactory; maxWorkers?: number; maxQueue?: number; idleTimeoutMs?: number; }",
         "AnalysisJobResult": "export type AnalysisJobResult = { type: \"query\"; graphics: JobQueryHit[]; } | { type: \"area\"; squareMeters: number; } | { type: \"distance\"; meters: number; } | { type: \"height\"; meters: number; } | { type: \"heading\"; degrees: number; } | { type: \"space-angle\"; degrees: number; } | { type: \"slope\"; degrees: number; } | { type: \"projected-distance\"; meters: number; } | { type: \"surface-distance\"; meters: number; } | { type: \"triangle-area\"; squareMeters: number; } | { type: \"cutfill-grid\"; grid: CutFillGrid; };",
         "AnalysisResult": "export interface AnalysisResult<TResult = unknown> { taskId: string; algorithm: string; algorithmVersion: string; status: AnalysisTaskStatus; value?: TResult; units?: AnalysisUnits; spatialReference?: SpatialReference; verticalReference?: VerticalReference; extent?: [ number, number, number, number ]; warnings: string[]; confidence?: number; inputSnapshot?: unknown; source?: string; artifacts: ResultArtifact[]; error?: { code?: string; message: string; }; startedAt?: number; finishedAt?: number; }",
@@ -252,7 +254,7 @@
         "AnalysisTaskRegistry": "class AnalysisTaskRegistry\n  add(task: AnalysisTask<unknown>): AnalysisTask<unknown>\n  update(id: string, patch: Partial<AnalysisTask<unknown>>): AnalysisTask<unknown> | undefined\n  get(id: string): AnalysisTask<unknown> | undefined\n  list(): AnalysisTask<unknown>[]\n  clear(): void",
         "AnalysisTaskStatus": "export type AnalysisTaskStatus = \"pending\" | \"running\" | \"succeeded\" | \"failed\" | \"cancelled\";",
         "AnalysisWorkerFactory": "export type AnalysisWorkerFactory = () => AnalysisWorkerLike | undefined;",
-        "AnalysisWorkerLike": "export interface AnalysisWorkerLike { postMessage(message: unknown): void; terminate(): void; onmessage: ((event: { data: unknown; }) => void) | null; onerror: ((event: unknown) => void) | null; }",
+        "AnalysisWorkerLike": "export interface AnalysisWorkerLike { postMessage(message: unknown): void; terminate(): void; onmessage: ((event: { data: unknown; }) => void) | null; onerror: ((event: unknown) => void) | null; onmessageerror?: ((event: unknown) => void) | null; }",
         "Arc3D": "Arc3D: { create(config: Arc3DConfig): Promise<Arc3DApp>; createSync(config: Arc3DConfig): Arc3DApp; }",
         "Arc3DApp": "class Arc3DApp\n  readonly scene: SceneController\n  readonly camera: CameraController\n  readonly basemap: BasemapManager\n  readonly terrain: TerrainManager\n  readonly layers: LayerManager\n  readonly graphics: GraphicManager\n  readonly data: DataManager\n  readonly interaction: InteractionManager\n  readonly analysis: AnalysisManager\n  readonly effects: EffectsManager\n  readonly plotting: PlottingManager\n  readonly ui: UIManager\n  readonly plugins: PluginManager<Arc3DApp>\n  readonly performance: PerformanceManager\n  readonly credits: CreditFacade\n  readonly logger: Logger\n  readonly native: NativeContext\n  constructor(context: Arc3DContext): Arc3DApp\n  on: Arc3DContext[\"events\"][\"on\"]\n  use(plugin: Arc3DPlugin<Arc3DApp>): Promise<void>\n  getDiagnostics(): RuntimeDiagnostics & { postprocess: number; plugins: string[]; }\n  destroy(): Promise<void>",
         "Arc3DConfig": "export interface Arc3DConfig { container: string | Element; engine?: { type?: \"cesium\"; cesium?: { ionToken?: string; defaultViewRectangle?: [ number, number, number, number ]; defaultBaseLayer?: boolean; }; }; scene?: { mode?: SceneModeName; depthTestAgainstTerrain?: boolean; resolutionScale?: number | \"auto\"; controls?: \"default\" | \"mapbox\"; fpsShow?: boolean; creditMode?: CreditMode; }; tokens?: { cesiumIon?: string; tdt?: string; }; logger?: { level?: \"debug\" | \"info\" | \"warn\" | \"error\" | \"silent\"; }; }",
@@ -346,7 +348,8 @@
         "triangularWave": "(tick: number, min: number, max: number, step: number): number",
         "wgs84ToBd09": "(longitude: number, latitude: number): LngLat",
         "wgs84ToGcj02": "(longitude: number, latitude: number): LngLat"
-      }
+      },
+      "deprecated": {}
     },
     "./engine-cesium": {
       "values": [
@@ -388,7 +391,8 @@
         "toDegrees": "(value: number, unit: CameraPose[\"unit\"]): number",
         "toRadians": "(value: number, unit: CameraPose[\"unit\"]): number",
         "withIonAccessToken": "<T>(token: string | undefined, work: () => Promise<T>, scope?: IonTokenScope): Promise<T>"
-      }
+      },
+      "deprecated": {}
     }
   }
 }

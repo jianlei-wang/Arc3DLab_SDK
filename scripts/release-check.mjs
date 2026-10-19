@@ -66,6 +66,77 @@ export function hasBreakingChanges(section) {
 }
 
 /**
+ * 判断版本小节是否包含向后兼容的新功能。
+ * @param section - 版本小节。
+ * @returns 是否存在 `feat` 小节。
+ */
+export function hasFeatures(section) {
+  return /^###\s+feat\b/im.test(section.body)
+}
+
+/**
+ * 判断版本小节是否记录弃用项。
+ * @param section - 版本小节。
+ * @returns 是否存在 `Deprecated` 小节。
+ */
+export function hasDeprecations(section) {
+  return /^###\s+Deprecated\b/im.test(section.body)
+}
+
+/**
+ * 判断版本小节是否记录已知限制。
+ * @param section - 版本小节。
+ * @returns 是否存在 `Known Limitations` 小节。
+ */
+export function hasKnownLimitations(section) {
+  return /^###\s+Known Limitations\b/im.test(section.body)
+}
+
+/**
+ * 列出 `CHANGES.md` 中所有带 semver 的版本小节。
+ * @param changes - `CHANGES.md` 内容。
+ * @returns 版本、解析结果与小节，按版本从高到低排序。
+ */
+export function listReleaseVersions(changes) {
+  const seen = new Set()
+  const releases = []
+  for (const line of String(changes).split(/\r?\n/)) {
+    const match = /^##\s+(.+?)\s*$/.exec(line)
+    if (!match) continue
+    const title = match[1]
+    const candidate = /^\[?v?([^\]\s]+)\]?/.exec(title)?.[1]
+    if (!candidate || seen.has(candidate)) continue
+    const parsed = parseReleaseVersion(candidate)
+    if (!parsed) continue
+    const section = findVersionSection(changes, candidate)
+    if (!section) continue
+    seen.add(candidate)
+    releases.push({ version: candidate, parsed, section })
+  }
+  return releases.sort((left, right) => {
+    for (const key of ["major", "minor", "patch"]) {
+      if (left.parsed[key] !== right.parsed[key]) {
+        return right.parsed[key] - left.parsed[key]
+      }
+    }
+    return 0
+  })
+}
+
+function compareVersions(left, right) {
+  for (const key of ["major", "minor", "patch"]) {
+    if (left[key] !== right[key]) return left[key] - right[key]
+  }
+  return 0
+}
+
+function releasedVersionsBefore(changes, current) {
+  return listReleaseVersions(changes)
+    .filter((release) => compareVersions(release.parsed, current) < 0)
+    .sort((left, right) => compareVersions(right.parsed, left.parsed))
+}
+
+/**
  * 校验发布元数据，确保版本号、发布日志、兼容矩阵与迁移说明一致。
  *
  * 该函数只读取传入内容，不访问文件系统，便于在测试中构造边界数据。
@@ -132,6 +203,11 @@ export function checkReleaseState(state, options = {}) {
     if (!section.body) {
       issues.push(`CHANGES.md section for v${version} is empty`)
     }
+    if (!hasKnownLimitations(section)) {
+      issues.push(
+        `CHANGES.md section for v${version} must include a "### Known Limitations" section`,
+      )
+    }
     if (hasBreakingChanges(section)) {
       const covered = state.migrationDocs.some(
         (content) =>
@@ -144,6 +220,50 @@ export function checkReleaseState(state, options = {}) {
         )
       }
     }
+    const previous = releasedVersionsBefore(state.changes, parsed)[0]
+    if (previous) {
+      if (compareVersions(parsed, previous.parsed) <= 0) {
+        issues.push(
+          `CHANGES.md v${version} must be newer than the previous release v${previous.version}`,
+        )
+      }
+      if (
+        hasBreakingChanges(section) &&
+        parsed.major <= previous.parsed.major
+      ) {
+        issues.push(
+          `breaking changes in v${version} require a major bump from v${previous.version}`,
+        )
+      }
+      if (
+        hasFeatures(section) &&
+        parsed.major <= previous.parsed.major &&
+        parsed.minor <= previous.parsed.minor
+      ) {
+        issues.push(
+          `features in v${version} require a minor or major bump from v${previous.version}`,
+        )
+      }
+    }
+    if (state.stabilityPolicy) {
+      let policy
+      try {
+        policy = JSON.parse(state.stabilityPolicy)
+      } catch {
+        policy = undefined
+      }
+      const deprecations = Object.values(policy?.entries ?? {}).flatMap(
+        (entry) => Object.values(entry.deprecated ?? {}),
+      )
+      const due = deprecations.filter(
+        (meta) => String(meta?.since ?? "") === version,
+      )
+      if (due.length > 0 && !hasDeprecations(section)) {
+        issues.push(
+          `CHANGES.md section for v${version} must include "### Deprecated" for ${due.length} deprecated API(s)`,
+        )
+      }
+    }
   }
 
   if (options.tag) {
@@ -152,6 +272,40 @@ export function checkReleaseState(state, options = {}) {
       issues.push(
         `CHANGES.md Unreleased entries must be moved into v${version} before tagging ${options.tag}`,
       )
+    }
+    if (!state.apiManifest) {
+      issues.push(`missing ${"scripts/public-api-manifest.json"}`)
+    } else if (!state.apiSnapshot) {
+      issues.push(
+        `missing API snapshot scripts/api-history/v${version}.json; run npm run api:snapshot`,
+      )
+    } else {
+      let manifest
+      let snapshot
+      try {
+        manifest = JSON.parse(state.apiManifest)
+      } catch (error) {
+        issues.push(`public API manifest is not valid JSON: ${String(error)}`)
+      }
+      try {
+        snapshot = JSON.parse(state.apiSnapshot)
+      } catch (error) {
+        issues.push(`public API snapshot is not valid JSON: ${String(error)}`)
+      }
+      if (manifest && snapshot) {
+        if (snapshot.version !== version) {
+          issues.push(
+            `API snapshot version ${String(snapshot.version)} must match package.json ${version}`,
+          )
+        }
+        if (
+          JSON.stringify(snapshot.entries) !== JSON.stringify(manifest.entries)
+        ) {
+          issues.push(
+            `API snapshot v${version} is stale; run npm run api:snapshot after review`,
+          )
+        }
+      }
     }
   }
 
@@ -187,12 +341,26 @@ export function collectReleaseState(root = ROOT) {
     join(root, "docs/guides/migration.md"),
     ...walkMarkdown(join(root, "guide/migration")),
   ].filter((path) => existsSync(path))
+  const packageJson = readFileSync(join(root, "package.json"), "utf8")
+  const version = JSON.parse(packageJson).version
+  const manifestPath = join(root, "scripts/public-api-manifest.json")
+  const snapshotPath = join(root, `scripts/api-history/v${version}.json`)
+  const policyPath = join(root, "scripts/public-api-stability.json")
   return {
-    packageJson: readFileSync(join(root, "package.json"), "utf8"),
+    packageJson,
     packageLock: readFileSync(join(root, "package-lock.json"), "utf8"),
     changes: readFileSync(join(root, "CHANGES.md"), "utf8"),
     compatibility: readFileSync(join(root, "COMPATIBILITY.md"), "utf8"),
     migrationDocs: migrationFiles.map((path) => readFileSync(path, "utf8")),
+    apiManifest: existsSync(manifestPath)
+      ? readFileSync(manifestPath, "utf8")
+      : undefined,
+    apiSnapshot: existsSync(snapshotPath)
+      ? readFileSync(snapshotPath, "utf8")
+      : undefined,
+    stabilityPolicy: existsSync(policyPath)
+      ? readFileSync(policyPath, "utf8")
+      : undefined,
   }
 }
 

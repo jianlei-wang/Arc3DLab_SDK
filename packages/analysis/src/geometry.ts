@@ -1,4 +1,5 @@
 import {
+  Arc3DError,
   parsePosition,
   type LngLatHeight,
   type PositionInput,
@@ -33,6 +34,61 @@ export interface RectQuery {
 
 const DEG = Math.PI / 180
 const RAD = 180 / Math.PI
+/**
+ * 允许的最大绝对高度，单位为米。
+ *
+ * 取值远大于地球表面与常规航天器高度，同时避免地心坐标计算在高数量级下
+ * 溢出为 `Infinity`。超过该范围的高度视为输入错误。
+ */
+const MAX_ABS_HEIGHT_METERS = 1e9
+
+function assertLngLatLike(point: LngLatLike, name: string): void {
+  if (!point || typeof point !== "object") {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `${name} must be a longitude/latitude object`,
+    )
+  }
+  if (!Number.isFinite(point.longitude)) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `${name} longitude must be finite: ${point.longitude}`,
+    )
+  }
+  if (point.longitude < -180 || point.longitude > 180) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `${name} longitude out of range: ${point.longitude}`,
+    )
+  }
+  if (!Number.isFinite(point.latitude)) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `${name} latitude must be finite: ${point.latitude}`,
+    )
+  }
+  if (point.latitude < -90 || point.latitude > 90) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `${name} latitude out of range: ${point.latitude}`,
+    )
+  }
+}
+
+function assertHeightValue(height: number, name: string): void {
+  if (!Number.isFinite(height) || Math.abs(height) > MAX_ABS_HEIGHT_METERS) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `${name} height magnitude must be finite and not exceed ${MAX_ABS_HEIGHT_METERS} meters: ${height}`,
+    )
+  }
+}
+
+function assertRingPoints(ring: LngLatLike[], name: string): void {
+  for (let index = 0; index < ring.length; index += 1) {
+    assertLngLatLike(ring[index], `${name}[${index}]`)
+  }
+}
 
 function deltaLonRad(from: LngLatLike, to: LngLatLike): number {
   let dLon = to.longitude - from.longitude
@@ -48,6 +104,7 @@ function deltaLonRad(from: LngLatLike, to: LngLatLike): number {
  */
 export function toMeasurePoint(input: PositionInput): LngLatHeight {
   const point = parsePosition(input)
+  assertHeightValue(point.height, "position")
   return {
     ...point,
     height: Number.isFinite(point.height) ? point.height : MISSING_HEIGHT,
@@ -74,6 +131,7 @@ export function closeRing(ring: LngLatLike[]): LngLatLike[] {
  * @returns 经度连续化后的环形边界点列表。
  */
 export function unwrapRing(ring: LngLatLike[]): LngLatLike[] {
+  assertRingPoints(ring, "ring")
   if (ring.length === 0) return []
   const out: LngLatLike[] = [
     { longitude: ring[0].longitude, latitude: ring[0].latitude },
@@ -94,6 +152,20 @@ export function unwrapRing(ring: LngLatLike[]): LngLatLike[] {
  * @returns 拆分后的矩形范围列表。
  */
 export function splitRectAtAntimeridian(rect: RectQuery): RectQuery[] {
+  assertLngLatLike(
+    { longitude: rect.west, latitude: rect.south },
+    "rectangle south-west",
+  )
+  assertLngLatLike(
+    { longitude: rect.east, latitude: rect.north },
+    "rectangle north-east",
+  )
+  if (rect.south > rect.north) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `rectangle south cannot exceed north: ${rect.south} > ${rect.north}`,
+    )
+  }
   if (rect.west <= rect.east) return [rect]
   return [
     { west: rect.west, south: rect.south, east: 180, north: rect.north },
@@ -109,9 +181,11 @@ export function splitRectAtAntimeridian(rect: RectQuery): RectQuery[] {
 export function toEcef(
   point: LngLatLike & { height?: number },
 ): [number, number, number] {
+  assertLngLatLike(point, "point")
+  const height = point.height ?? MISSING_HEIGHT
+  assertHeightValue(height, "point")
   const lon = point.longitude * DEG
   const lat = point.latitude * DEG
-  const height = point.height ?? MISSING_HEIGHT
   const sinLat = Math.sin(lat)
   const cosLat = Math.cos(lat)
   const n = WGS84_A / Math.sqrt(1 - WGS84_E2 * sinLat * sinLat)
@@ -150,6 +224,8 @@ export function geodesicDistanceMeters(
   from: LngLatLike,
   to: LngLatLike,
 ): number {
+  assertLngLatLike(from, "from")
+  assertLngLatLike(to, "to")
   const lat1 = from.latitude * DEG
   const lat2 = to.latitude * DEG
   const dLat = lat2 - lat1
@@ -191,6 +267,8 @@ export function ellipsoidHeightDelta(
   from: LngLatLike & { height?: number },
   to: LngLatLike & { height?: number },
 ): number {
+  assertHeightValue(from.height ?? MISSING_HEIGHT, "from")
+  assertHeightValue(to.height ?? MISSING_HEIGHT, "to")
   return Math.abs(
     (to.height ?? MISSING_HEIGHT) - (from.height ?? MISSING_HEIGHT),
   )
@@ -203,6 +281,8 @@ export function ellipsoidHeightDelta(
  * @returns 方位角，单位为度，以正北为起点顺时针。
  */
 export function headingDegrees(from: LngLatLike, to: LngLatLike): number {
+  assertLngLatLike(from, "from")
+  assertLngLatLike(to, "to")
   if (from.longitude === to.longitude && from.latitude === to.latitude) return 0
   const lat1 = from.latitude * DEG
   const lat2 = to.latitude * DEG
@@ -243,6 +323,8 @@ function toEastNorth(
   origin: LngLatLike,
   point: LngLatLike,
 ): { east: number; north: number } {
+  assertLngLatLike(origin, "origin")
+  assertLngLatLike(point, "point")
   const lat = origin.latitude * DEG
   return {
     east: (point.longitude - origin.longitude) * DEG * WGS84_A * Math.cos(lat),
@@ -280,12 +362,21 @@ export function fromLocalMeters(
   east: number,
   north: number,
 ): LngLatLike {
+  assertLngLatLike(origin, "origin")
+  if (!Number.isFinite(east) || !Number.isFinite(north)) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `local offset must be finite: east=${east}, north=${north}`,
+    )
+  }
   const lat = origin.latitude * DEG
   const denom = WGS84_A * Math.cos(lat)
-  return {
+  const point = {
     longitude: origin.longitude + (denom === 0 ? 0 : (east / denom) * RAD),
     latitude: origin.latitude + (north / WGS84_A) * RAD,
   }
+  assertLngLatLike(point, "local offset result")
+  return point
 }
 
 function shoelace(points: Array<{ east: number; north: number }>): number {
@@ -348,6 +439,8 @@ export function polygonAreaSquareMeters(
   holes: LngLatLike[][] = [],
   mode: AreaMode = "geodesic",
 ): number {
+  assertRingPoints(outer, "outer")
+  holes.forEach((hole, index) => assertRingPoints(hole, `hole[${index}]`))
   const areaOf = mode === "planar" ? planarRingArea : geodesicRingArea
   const outerArea = areaOf(outer)
   const holeArea = holes.reduce((sum, hole) => sum + areaOf(hole), 0)
@@ -361,6 +454,7 @@ export function polygonAreaSquareMeters(
  * @returns 点位于矩形内时返回 true。
  */
 export function pointInRect(point: LngLatLike, rect: RectQuery): boolean {
+  assertLngLatLike(point, "point")
   return splitRectAtAntimeridian(rect).some(
     (part) =>
       point.longitude >= part.west &&
@@ -377,6 +471,7 @@ export function pointInRect(point: LngLatLike, rect: RectQuery): boolean {
  * @returns 点位于多边形内时返回 true。
  */
 export function pointInPolygon(point: LngLatLike, ring: LngLatLike[]): boolean {
+  assertLngLatLike(point, "point")
   const pts = unwrapRing(ring)
   if (pts.length < 3) return false
   const origin = pts[0]

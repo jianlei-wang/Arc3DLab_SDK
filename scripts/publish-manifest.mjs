@@ -26,8 +26,8 @@ function walkFiles(dir, files = []) {
 
 /**
  * 收集构建后应当发布到 npm tarball 的 `dist` 产物。
- * 中间声明文件不参与发布，其余所有文件（JS、sourcemap、声明入口、图片与 Worker 资源）
- * 都必须随包发布。
+ * 中间声明目录与 source map 不参与发布；其余文件（JS、声明入口、图片与 Worker
+ * 资源）都必须随包发布。source map 仅在仓库构建目录保留，用于本地调试。
  * @param root - 仓库根目录。
  * @returns 以仓库根目录为基准的相对路径（POSIX 分隔符），按字典序排列。
  */
@@ -38,6 +38,7 @@ export function collectPublishArtifacts(root) {
   }
   return walkFiles(dist)
     .map((path) => toPosix(relative(root, path)))
+    .filter((path) => !path.endsWith(".map"))
     .filter(
       (path) =>
         !path.endsWith(".d.ts") ||

@@ -86,6 +86,16 @@ function assertFiniteCutFillResult(result: CutFillResult): void {
 /** 土方计算状态，用于区分正常结果与非法/退化输入。 */
 export type CutFillStatus = "computed" | "invalid-polygon" | "empty-grid"
 
+/**
+ * 地形数据质量。
+ *
+ * - `complete`：所有采样点均得到真实地形高程。
+ * - `partial`：部分采样点回退到球面高程，结果仍为数值但精度下降。
+ * - `degraded`：存在无地形数据的采样点，这些点按椭球高 0 参与计算，
+ *   结果只能作为降级参考，不能当作真实地形量。
+ */
+export type CutFillTerrainQuality = "complete" | "partial" | "degraded"
+
 /** 土方平衡计算结果。 */
 export interface CutFillResult {
   /** 挖方体积，单位为立方米。 */
@@ -118,19 +128,49 @@ export interface CutFillResult {
     fallback: number
     /** 无可用地形、按椭球高 0 计算的点数。 */
     unavailable: number
+    /** 根据采样来源统计得到的数据质量。 */
+    quality: CutFillTerrainQuality
   }
 }
 
 function summarizeTerrain(
   samples: Array<{ status: string }>,
 ): CutFillResult["terrain"] {
-  const summary = { sampled: 0, fallback: 0, unavailable: 0 }
+  const summary = {
+    sampled: 0,
+    fallback: 0,
+    unavailable: 0,
+    quality: "complete" as CutFillTerrainQuality,
+  }
   for (const sample of samples) {
     if (sample.status === "sampled") summary.sampled += 1
     else if (sample.status === "fallback") summary.fallback += 1
     else if (sample.status === "unavailable") summary.unavailable += 1
   }
+  if (summary.unavailable > 0) summary.quality = "degraded"
+  else if (summary.fallback > 0) summary.quality = "partial"
   return summary
+}
+
+/** 生成与地形质量对应的任务警告。 */
+function terrainWarnings(terrain: CutFillResult["terrain"]): string[] {
+  if (terrain.quality === "complete") return []
+  if (terrain.quality === "degraded") {
+    return [
+      `Cut fill terrain is incomplete: ${terrain.unavailable} of ${
+        terrain.sampled + terrain.fallback + terrain.unavailable
+      } samples had no terrain height and were treated as ellipsoid height 0.`,
+    ]
+  }
+  return [
+    `Cut fill terrain used fallback heights for ${terrain.fallback} of ${
+      terrain.sampled + terrain.fallback + terrain.unavailable
+    } samples; accuracy is lower than fully sampled terrain.`,
+  ]
+}
+
+function emptyTerrain(): CutFillResult["terrain"] {
+  return { sampled: 0, fallback: 0, unavailable: 0, quality: "complete" }
 }
 
 /** 体积分析服务，提供土方平衡计算与开挖能力。 */
@@ -174,7 +214,7 @@ export class VolumeAnalysis {
         resolutionMeters: 0,
         estimatedErrorCubicMeters: 0,
         status: "invalid-polygon",
-        terrain: { sampled: 0, fallback: 0, unavailable: 0 },
+        terrain: emptyTerrain(),
       }
     }
 
@@ -192,7 +232,7 @@ export class VolumeAnalysis {
         resolutionMeters: grid.resolutionMeters,
         estimatedErrorCubicMeters: 0,
         status: "empty-grid",
-        terrain: { sampled: 0, fallback: 0, unavailable: 0 },
+        terrain: emptyTerrain(),
       }
     }
 
@@ -272,9 +312,11 @@ export class VolumeAnalysis {
       verticalReference: ELLIPSOID_VERTICAL,
       execute: async (runner) => {
         runner.throwIfCancelled("analyze cut fill")
+        const value = await this.cutFill(options)
         return {
-          value: await this.cutFill(options),
+          value,
           units: { volume: "m3", length: "m" },
+          warnings: terrainWarnings(value.terrain),
           artifacts: [{ id: "cutfill", kind: "volume" }],
         }
       },

@@ -3,7 +3,10 @@ import { LifecycleManager, type Arc3DContext } from "@arc3dlab/core"
 import { ClipAnalysis, VolumeAnalysis } from "@arc3dlab/analysis"
 import { Cartographic } from "cesium"
 
-function volume(heightAt: (longitude: number, latitude: number) => number) {
+function volume(
+  heightAt: (longitude: number, latitude: number) => number,
+  options: { sampleHeightSupported?: boolean; detailedHeight?: number } = {},
+) {
   const globe = {
     clippingPlanes: { enabled: false, removeAll() {}, destroy() {} },
     clippingPolygons: { enabled: false, removeAll() {} },
@@ -20,7 +23,13 @@ function volume(heightAt: (longitude: number, latitude: number) => number) {
       native: {
         viewer: {
           scene: {
-            sampleHeightSupported: false,
+            sampleHeightSupported: options.sampleHeightSupported ?? false,
+            sampleHeightMostDetailed: async (cartos: Cartographic[]) =>
+              cartos.map((carto) => {
+                const clone = carto.clone()
+                clone.height = options.detailedHeight ?? Number.NaN
+                return clone
+              }),
             globe,
           },
         },
@@ -57,6 +66,7 @@ describe("VolumeAnalysis", () => {
       sampled: result.sampleCount,
       fallback: 0,
       unavailable: 0,
+      quality: "complete",
     })
   })
 
@@ -178,7 +188,46 @@ describe("VolumeAnalysis", () => {
       sampled: 0,
       fallback: 0,
       unavailable: result.sampleCount,
+      quality: "degraded",
     })
+  })
+
+  it("marks fallback terrain as a partial result", async () => {
+    const { analysis } = volume(() => 100, {
+      sampleHeightSupported: true,
+    })
+    const result = await analysis.cutFill({
+      positions: pit,
+      samples: 8,
+      designHeight: 90,
+    })
+    expect(result.terrain).toEqual({
+      sampled: 0,
+      fallback: result.sampleCount,
+      unavailable: 0,
+      quality: "partial",
+    })
+    expect(result.cutCubicMeters).toBeGreaterThan(0)
+  })
+
+  it("surfaces degraded and partial terrain as task warnings", async () => {
+    const degraded = await volume(() => Number.NaN).analysis.cutFillTask({
+      positions: pit,
+      samples: 8,
+    })
+    expect(degraded.status).toBe("succeeded")
+    expect(degraded.value?.terrain.quality).toBe("degraded")
+    expect(degraded.warnings.join(" ")).toMatch(/no terrain height/)
+
+    const partial = await volume(() => 100, {
+      sampleHeightSupported: true,
+    }).analysis.cutFillTask({
+      positions: pit,
+      samples: 8,
+      designHeight: 90,
+    })
+    expect(partial.value?.terrain.quality).toBe("partial")
+    expect(partial.warnings.join(" ")).toMatch(/fallback heights/)
   })
 
   it("excavates through clip polygon and floor plane", async () => {

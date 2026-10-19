@@ -5,7 +5,11 @@ import {
   type SpatialReference,
   type VerticalReference,
 } from "@arc3dlab/core"
-import { DEFAULT_MAX_SAMPLES, type AnalysisProgress } from "./scheduler"
+import {
+  DEFAULT_MAX_SAMPLES,
+  resolveSampleCount,
+  type AnalysisProgress,
+} from "./scheduler"
 
 /** 分析任务的生命周期状态。 */
 export type AnalysisTaskStatus =
@@ -302,7 +306,11 @@ export async function runAnalysisTask<TInput, TResult>(
 ): Promise<AnalysisResult<TResult>> {
   const id = createId("task")
   const algorithmVersion = options.algorithmVersion ?? "1.0.0"
-  const maxSamples = options.maxSamples ?? DEFAULT_MAX_SAMPLES
+  const maxSamples = resolveSampleCount(
+    options.maxSamples,
+    DEFAULT_MAX_SAMPLES,
+    "maxSamples",
+  )
 
   const warnings: string[] = []
   let inputSnapshot: unknown

@@ -6,11 +6,12 @@ import {
 } from "./jobs"
 import { yieldToEventLoop, type AnalysisTaskOptions } from "./scheduler"
 import {
+  isAnalysisJobResult,
+  parseAnalysisWorkerResponse,
   restoreAnalysisError,
   serializeAnalysisError,
   type AnalysisWorkerFactory,
   type AnalysisWorkerLike,
-  type AnalysisWorkerResponse,
 } from "./worker-protocol"
 
 export {
@@ -105,6 +106,8 @@ export interface AnalysisJobHostDiagnostics {
   failedJobs: number
   /** 因队列已满被拒绝的作业数量。 */
   rejectedJobs: number
+  /** 收到的畸形 Worker 响应数量，用于诊断协议不兼容。 */
+  protocolErrors: number
   /** 已纳入耗时统计的作业数量，包含成功、失败与已开始的取消。 */
   timedJobs: number
   /** 已执行作业的累计耗时，单位为毫秒。 */
@@ -253,17 +256,22 @@ function createDefaultWorker(): AnalysisWorkerLike | undefined {
  * 校验作业是否可结构化克隆，并返回独立副本。
  *
  * 返回的副本是后续校验、排队与投递的唯一数据来源，调用方在 `run` 返回后
- * 修改原对象不会影响已提交的作业。运行环境不提供 `structuredClone` 时
- * 退化为返回原对象。
+ * 修改原对象不会影响已提交的作业。运行环境必须提供 `structuredClone`。
  *
  * @param job - 待校验的作业。
- * @returns 作业的独立副本；无法克隆时返回原对象。
- * @throws {Arc3DError} 作业不可克隆时抛出。
+ * @returns 作业的独立副本。
+ * @throws {Arc3DError} 运行环境缺少 `structuredClone` 时抛出 `UNSUPPORTED_CAPABILITY`；作业不可克隆时抛出 `INVALID_FORMAT`。
  */
 function cloneJob(job: AnalysisJob): AnalysisJob {
-  if (typeof structuredClone !== "function") return job
+  const clone = globalThis.structuredClone
+  if (typeof clone !== "function") {
+    throw new Arc3DError(
+      "UNSUPPORTED_CAPABILITY",
+      "AnalysisJobHost requires structuredClone (Node >=22 or a browser with structuredClone support)",
+    )
+  }
   try {
-    return structuredClone(job)
+    return clone(job)
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error)
     throw new Arc3DError(
@@ -317,6 +325,7 @@ export class AnalysisJobHost {
   private cancelledJobs = 0
   private failedJobs = 0
   private rejectedJobs = 0
+  private protocolErrors = 0
   private timedJobs = 0
   private totalExecutionMs = 0
   private maxExecutionMs = 0
@@ -424,6 +433,7 @@ export class AnalysisJobHost {
       cancelledJobs: this.cancelledJobs,
       failedJobs: this.failedJobs,
       rejectedJobs: this.rejectedJobs,
+      protocolErrors: this.protocolErrors,
       timedJobs: this.timedJobs,
       totalExecutionMs: this.totalExecutionMs,
       averageExecutionMs:
@@ -513,6 +523,7 @@ export class AnalysisJobHost {
     const slot: WorkerSlot = { worker }
     worker.onmessage = (event) => this.handleMessage(slot, event.data)
     worker.onerror = (event) => this.handleWorkerError(slot, event)
+    worker.onmessageerror = (event) => this.handleWorkerError(slot, event)
     this.slots.add(slot)
     this.createdWorkers += 1
     if (this.slots.size > this.peakWorkers) this.peakWorkers = this.slots.size
@@ -539,7 +550,14 @@ export class AnalysisJobHost {
     } catch (error) {
       entry.slot = undefined
       this.dropSlot(slot)
-      this.settle(id, error)
+      const detail = error instanceof Error ? error.message : String(error)
+      this.settle(
+        id,
+        new Arc3DError(
+          "ENGINE_FAILURE",
+          `Failed to post analysis job to worker: ${detail}`,
+        ),
+      )
       this.pump()
     }
   }
@@ -599,19 +617,65 @@ export class AnalysisJobHost {
 
   /**
    * 处理 Worker 返回的消息。
+   *
+   * 消息在结算前经过运行时校验：任务标识、结果/错误二选一、错误码与结果
+   * 结构都必须合法。可归属到当前槽位的畸形响应以 `INVALID_FORMAT` 结算
+   * 并终止槽位；无法归属的畸形消息只计入 `protocolErrors`，不会让任务
+   * 永久挂起。
+   *
    * @param slot - 消息所属槽位。
    * @param data - Worker 回传的响应。
    */
   private handleMessage(slot: WorkerSlot, data: unknown): void {
-    const message = data as AnalysisWorkerResponse
-    if (typeof message?.id !== "number") return
+    const parsed = parseAnalysisWorkerResponse(data)
+    if (parsed.kind === "invalid") {
+      this.protocolErrors += 1
+      if (parsed.id !== undefined) {
+        this.failProtocol(slot, parsed.id, parsed.reason)
+      }
+      return
+    }
+    const message = parsed.response
     const entry = this.pending.get(message.id)
     if (!entry || entry.slot !== slot) return
     if ("error" in message) {
       this.settle(message.id, restoreAnalysisError(message.error))
+    } else if (!isAnalysisJobResult(message.result, entry.job)) {
+      this.protocolErrors += 1
+      this.failProtocol(
+        slot,
+        message.id,
+        "result does not match the requested job",
+      )
+      return
     } else {
       this.settle(message.id, undefined, message.result)
     }
+    this.pump()
+  }
+
+  /**
+   * 处理可归属到当前槽位的畸形响应。
+   *
+   * 终止该槽位并以 `INVALID_FORMAT` 结算任务，避免错误结果被当作成功。
+   * 新作业会重新创建 Worker；协议故障不会永久禁用 Worker 路径。
+   *
+   * @param slot - 消息所属槽位。
+   * @param id - 消息中的任务标识。
+   * @param reason - 校验失败原因。
+   */
+  private failProtocol(slot: WorkerSlot, id: number, reason: string): void {
+    const entry = this.pending.get(id)
+    if (!entry || entry.slot !== slot) return
+    entry.slot = undefined
+    this.dropSlot(slot)
+    this.settle(
+      id,
+      new Arc3DError(
+        "INVALID_FORMAT",
+        `Malformed analysis worker response: ${reason}`,
+      ),
+    )
     this.pump()
   }
 
@@ -816,6 +880,7 @@ export class AnalysisJobHost {
     slot.jobId = undefined
     slot.worker.onmessage = null
     slot.worker.onerror = null
+    slot.worker.onmessageerror = null
     try {
       slot.worker.terminate()
     } catch {

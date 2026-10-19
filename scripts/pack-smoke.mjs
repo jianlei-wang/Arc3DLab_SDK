@@ -170,6 +170,9 @@ try {
     if (FORBIDDEN_PACKED_PREFIXES.some((prefix) => path.startsWith(prefix))) {
       throw new Error(`Unexpected packed source path ${path}`)
     }
+    if (path.endsWith(".map")) {
+      throw new Error(`Unexpected packed source map ${path}`)
+    }
   }
 
   /** 本次构建发布到 tarball 的完整 `dist` 清单，中间声明目录除外。 */
@@ -208,18 +211,45 @@ try {
     ),
   )
 
-  runNpm(["install", "--ignore-scripts", join(work, tarball)], {
+  runNpm(
+    ["install", "--ignore-scripts", "--legacy-peer-deps", join(work, tarball)],
+    {
+      cwd: consumer,
+      stdio: "inherit",
+    },
+  )
+
+  writeFileSync(
+    join(consumer, "missing-cesium.mjs"),
+    `try {
+  await import("arc3dlab")
+  console.error("arc3dlab imported without the Cesium peer")
+  process.exitCode = 1
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error)
+  if (error?.code !== "ERR_MODULE_NOT_FOUND" || !message.includes("cesium")) {
+    throw error
+  }
+  console.log("pack missing-cesium smoke ok")
+}
+`,
+  )
+  execFileSync("node", ["missing-cesium.mjs"], {
     cwd: consumer,
     stdio: "inherit",
   })
 
   const cesiumLink = join(consumer, "node_modules/cesium")
-  if (!existsSync(cesiumLink)) {
-    mkdirSync(join(consumer, "node_modules"), { recursive: true })
-    symlinkSync(join(ROOT, "node_modules/cesium"), cesiumLink, "junction")
+  if (existsSync(cesiumLink)) {
+    throw new Error("Consumer unexpectedly resolved a transitive Cesium copy")
   }
-
+  mkdirSync(join(consumer, "node_modules"), { recursive: true })
+  symlinkSync(join(ROOT, "node_modules/cesium"), cesiumLink, "junction")
   const installedDir = join(consumer, "node_modules/arc3dlab")
+  const installedNodeModules = join(installedDir, "node_modules")
+  if (existsSync(installedNodeModules)) {
+    throw new Error("Published package must not contain private node_modules")
+  }
   const installedPackage = JSON.parse(
     readFileSync(join(installedDir, "package.json"), "utf8"),
   )
@@ -387,6 +417,20 @@ console.log("pack smoke ok")
   execFileSync("node", ["import.mjs"], { cwd: consumer, stdio: "inherit" })
 
   writeFileSync(
+    join(consumer, "require.cjs"),
+    `try {
+  require("arc3dlab")
+  console.error("arc3dlab unexpectedly provided a CommonJS export")
+  process.exitCode = 1
+} catch (error) {
+  if (error?.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error
+  console.log("pack esm-only smoke ok")
+}
+`,
+  )
+  execFileSync("node", ["require.cjs"], { cwd: consumer, stdio: "inherit" })
+
+  writeFileSync(
     join(consumer, "consumer.ts"),
     `import {
   Arc3D,
@@ -424,14 +468,29 @@ void (undefined as unknown as Result)
 `,
   )
 
+  writeFileSync(
+    join(consumer, "consumer-nodenext.mts"),
+    `import { Arc3D, Arc3DError } from "arc3dlab"
+import type { AnalysisJobHostOptions, AnalysisResult } from "arc3dlab"
+import { CesiumEngine } from "arc3dlab/engine-cesium"
+
+const options: AnalysisJobHostOptions = { maxWorkers: 1 }
+const result: AnalysisResult<number> = {
+  taskId: "t",
+  algorithm: "demo",
+  algorithmVersion: "1.0.0",
+  status: "succeeded",
+  warnings: [],
+  artifacts: [],
+}
+const error = new Arc3DError("INVALID_ARGUMENT", "nodenext")
+void [Arc3D, CesiumEngine, options, result, error]
+`,
+  )
+
   const tsc = join(ROOT, "node_modules/typescript/bin/tsc")
-  execFileSync(
-    process.execPath,
+  const typeChecks = [
     [
-      tsc,
-      "--noEmit",
-      "--strict",
-      "--skipLibCheck",
       "--module",
       "esnext",
       "--moduleResolution",
@@ -440,13 +499,78 @@ void (undefined as unknown as Result)
       "es2020",
       "consumer.ts",
     ],
-    { cwd: consumer, stdio: "inherit" },
-  )
+    [
+      "--module",
+      "nodenext",
+      "--moduleResolution",
+      "nodenext",
+      "--target",
+      "es2022",
+      "consumer-nodenext.mts",
+    ],
+  ]
+  for (const args of typeChecks) {
+    execFileSync(
+      process.execPath,
+      [tsc, "--noEmit", "--strict", "--skipLibCheck", ...args],
+      { cwd: consumer, stdio: "inherit" },
+    )
+  }
 
   console.log(
     `pack manifest smoke ok (${publishArtifacts.length} build artifacts, ${entryTargets.size} entry targets)`,
   )
   console.log("pack type smoke ok")
+
+  const mismatch = join(work, "mismatch")
+  const fakeCesium = join(mismatch, "fake-cesium")
+  mkdirSync(fakeCesium, { recursive: true })
+  writeFileSync(
+    join(fakeCesium, "package.json"),
+    JSON.stringify(
+      {
+        name: "cesium",
+        version: "1.0.0",
+        type: "module",
+        exports: "./index.js",
+      },
+      null,
+      2,
+    ),
+  )
+  writeFileSync(
+    join(fakeCesium, "index.js"),
+    "export const VERSION = '1.0.0'\n",
+  )
+  writeFileSync(
+    join(mismatch, "package.json"),
+    JSON.stringify(
+      {
+        name: "arc3dlab-peer-conflict",
+        type: "module",
+        private: true,
+        dependencies: { cesium: "file:./fake-cesium" },
+      },
+      null,
+      2,
+    ),
+  )
+  let peerConflict = ""
+  try {
+    runNpm(["install", "--ignore-scripts", join(work, tarball)], {
+      cwd: mismatch,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+  } catch (error) {
+    peerConflict = `${error.stdout ?? ""}${error.stderr ?? ""}`
+  }
+  if (!/ERESOLVE|peer/i.test(peerConflict)) {
+    throw new Error(
+      `Installing with incompatible Cesium did not fail as expected:\n${peerConflict}`,
+    )
+  }
+  console.log("pack peer-conflict smoke ok")
 } finally {
   try {
     rmSync(work, {
