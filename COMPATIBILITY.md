@@ -97,5 +97,7 @@ SDK 直接依赖以下 Cesium 内部实现入口，它们带下划线、不属�
 ## 变更管理流程
 
 1. 公共 API 变更先更新 `docs/architecture/11-api.md` 与 `CHANGES.md`。
-2. 破坏性变更必须补充 `docs/architecture/13-migration.md` 迁移指引。
-3. `npm run gate` 中的 `lint:exports` 校验发布入口与 `exports` 字段一致性，`lint:api` 阻止消费者深路径导入。
+2. 破坏性变更必须补充 `docs/architecture/13-migration.md` 或 `guide/migration/` 迁移指引。
+3. `npm run gate` 中的 `lint:exports` 校验发布入口、`exports` 字段与 manifest 子路径一致性，`lint:api` 阻止消费者深路径导入。
+4. 合并进发布分支后更新版本号、`CHANGES.md` 与活跃兼容矩阵，并运行 `npm run release:check -- --tag v<version>`。
+5. `npm run test:pack` 实际安装 tarball，校验许可证、声明文件、Worker、ESM-only 出口与 `cesium` peer 依赖合同。

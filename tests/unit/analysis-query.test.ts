@@ -129,6 +129,55 @@ describe("SpatialQueryService", () => {
     expect(result.graphics.map((item) => item.id)).toEqual(["wrap"])
   })
 
+  it("rejects non-finite or inverted rectangle bounds", async () => {
+    const query = service([])
+    for (const rect of [
+      { west: Number.NaN, south: 30, east: 120, north: 31 },
+      { west: 120, south: 30, east: 181, north: 31 },
+      { west: 120, south: -91, east: 121, north: 31 },
+      { west: 120, south: 31, east: 121, north: 30 },
+    ]) {
+      await expect(query.rectangle(rect)).rejects.toMatchObject({
+        code: "INVALID_ARGUMENT",
+      })
+    }
+  })
+
+  it("rejects invalid distance thresholds", async () => {
+    const query = service([])
+    for (const meters of [
+      -1,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      undefined as unknown as number,
+    ]) {
+      await expect(
+        query.distance({ position: [120, 30], meters }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+    }
+  })
+
+  it("rejects degenerate polygon queries", async () => {
+    const query = service([])
+    await expect(
+      query.polygon({
+        positions: [
+          [120, 30],
+          [120.1, 30],
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+    await expect(
+      query.polygon({
+        positions: [
+          [120, 30],
+          [120.1, 30],
+          [Number.NaN, 30.1],
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+  })
+
   it("selects a polyline by distance to the segment", async () => {
     const query = service([
       graphic("seg", "polyline", [

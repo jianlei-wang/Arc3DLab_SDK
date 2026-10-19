@@ -84,7 +84,15 @@ async function scenarioRuntime(): Promise<Record<string, unknown>> {
     x: canvas ? canvas.clientWidth / 2 : 0,
     y: canvas ? canvas.clientHeight / 2 : 0,
   }
-  const picked = app.interaction.pick(center)
+  let picked = app.interaction.pick(center)
+  for (
+    let attempt = 0;
+    attempt < 30 && picked.graphicId !== graphic.id;
+    attempt += 1
+  ) {
+    await nextFrames(1)
+    picked = app.interaction.pick(center)
+  }
   report.pickKind = picked.kind
   report.pickGraphicId = picked.graphicId
 
@@ -300,6 +308,124 @@ async function scenarioExternalService(): Promise<Record<string, unknown>> {
   return report
 }
 
+function restoreGlobalWorker(descriptor: PropertyDescriptor | undefined): void {
+  if (descriptor) {
+    Object.defineProperty(window, "Worker", descriptor)
+    return
+  }
+  delete (window as Window & { Worker?: typeof Worker }).Worker
+}
+
+function workerReport(app: Arc3D): Record<string, unknown> {
+  const diagnostics = app.analysis.getDiagnostics()
+  return {
+    workerUnavailable: diagnostics.workerUnavailable,
+    activeWorkers: diagnostics.activeWorkers,
+    idleWorkers: diagnostics.idleWorkers,
+    createdWorkers: diagnostics.createdWorkers,
+    pendingJobs: diagnostics.pendingJobs,
+    completedJobs: diagnostics.completedJobs,
+  }
+}
+
+async function scenarioWorkerFallback(): Promise<Record<string, unknown>> {
+  const report: Record<string, unknown> = { reportKind: "worker-fallback" }
+  const descriptor = Object.getOwnPropertyDescriptor(window, "Worker")
+  const positions: Array<[number, number, number]> = [
+    [116.391, 39.906, 0],
+    [116.401, 39.916, 0],
+  ]
+
+  const app = await Arc3D.create({ container: "app" })
+  try {
+    report.disabledReady = (
+      await app.scene.whenSceneReady({ timeoutMs: 20000 })
+    ).ready
+    Object.defineProperty(window, "Worker", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    })
+    const distance = await app.analysis.measure.distance({ positions })
+    report.disabledDistanceMeters = distance.meters
+    Object.assign(report, {
+      disabledWorkerUnavailable: workerReport(app).workerUnavailable,
+      disabledCreatedWorkers: workerReport(app).createdWorkers,
+      disabledPendingJobs: workerReport(app).pendingJobs,
+      disabledCompletedJobs: workerReport(app).completedJobs,
+    })
+  } finally {
+    restoreGlobalWorker(descriptor)
+  }
+  await app.destroy()
+
+  const failing = await Arc3D.create({ container: "app" })
+  try {
+    report.failingReady = (
+      await failing.scene.whenSceneReady({ timeoutMs: 20000 })
+    ).ready
+    class ThrowingWorker {
+      constructor() {
+        throw new Error("worker creation blocked by e2e")
+      }
+    }
+    Object.defineProperty(window, "Worker", {
+      configurable: true,
+      writable: true,
+      value: ThrowingWorker,
+    })
+    const area = await failing.analysis.measure.area({
+      positions: [
+        [104, 30.5],
+        [104.2, 30.5],
+        [104.2, 30.7],
+        [104, 30.7],
+      ],
+    })
+    report.failingSquareMeters = area.squareMeters
+    const diagnostics = workerReport(failing)
+    report.failingWorkerUnavailable = diagnostics.workerUnavailable
+    report.failingCreatedWorkers = diagnostics.createdWorkers
+    report.failingPendingJobs = diagnostics.pendingJobs
+    report.failingCompletedJobs = diagnostics.completedJobs
+  } finally {
+    restoreGlobalWorker(descriptor)
+  }
+  await failing.destroy()
+  return report
+}
+
+async function scenarioLifecycleBaseline(): Promise<Record<string, unknown>> {
+  const cycles: Array<Record<string, unknown>> = []
+  for (let index = 0; index < 3; index += 1) {
+    const app = await Arc3D.create({ container: "app" })
+    const ready = (await app.scene.whenSceneReady({ timeoutMs: 20000 })).ready
+    await app.analysis.measure.distance({
+      positions: [
+        [116.391, 39.906, 0],
+        [116.401, 39.916, 0],
+      ],
+    })
+    const before = app.analysis.getDiagnostics()
+    await app.destroy()
+    const after = app.analysis.getDiagnostics()
+    cycles.push({
+      ready,
+      graphics: app.graphics.list().length,
+      registry: app.context.registry.ids().length,
+      tracker: app.context.tracker.size,
+      activeWorkersBefore: before.activeWorkers,
+      peakWorkersBefore: before.peakWorkers,
+      pendingJobsBefore: before.pendingJobs,
+      activeWorkersAfter: after.activeWorkers,
+      idleWorkersAfter: after.idleWorkers,
+      pendingJobsAfter: after.pendingJobs,
+      terminated: after.terminated,
+    })
+  }
+  return { reportKind: "lifecycle-baseline", cycles }
+}
+
 async function scenarioPerf(): Promise<Record<string, unknown>> {
   const app = await Arc3D.create({ container: "app" })
   const report: Record<string, unknown> = { reportKind: "perf" }
@@ -362,6 +488,8 @@ const SCENARIOS: Record<string, () => Promise<Record<string, unknown>>> = {
   "multi-instance": scenarioMultiInstance,
   "task-cancel": scenarioTaskCancel,
   "external-service": scenarioExternalService,
+  "worker-fallback": scenarioWorkerFallback,
+  "lifecycle-baseline": scenarioLifecycleBaseline,
   perf: scenarioPerf,
 }
 

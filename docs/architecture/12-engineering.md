@@ -31,24 +31,23 @@ CesiumJS 采用 Apache-2.0，第三方底图、示例数据需要在 `NOTICE.md`
 
 ## 分发策略
 
-| 分发形态 | 许可证影响 | 结论 |
-|---|---|---|
-| 开源项目集成 | 与 GPL-2.0-only 兼容 | 直接使用 |
+| 分发形态             | 许可证影响                           | 结论           |
+| -------------------- | ------------------------------------ | -------------- |
+| 开源项目集成         | 与 GPL-2.0-only 兼容                 | 直接使用       |
 | 闭源商业产品静态链接 | 触发 GPL 传染，需整体 GPL 或商业授权 | 需评估商业授权 |
-| 独立部署的 Web 服务 | 未分发二进制，GPL 义务边界较窄 | 合规审查后使用 |
-| 二次分发 / SaaS 转售 | 受 GPL-2.0-only 约束 | 需商业授权 |
+| 独立部署的 Web 服务  | 未分发二进制，GPL 义务边界较窄       | 合规审查后使用 |
+| 二次分发 / SaaS 转售 | 受 GPL-2.0-only 约束                 | 需商业授权     |
 
 - 发布产物只包含 `dist/`、`LICENSE`、`NOTICE.md`、`README.md`，见 `package.json` 的 `files`。
 - `npm run gate` 的 `lint:license` 校验 `package.json` 与 `LICENSE` / `NOTICE.md` 一致。
 - 商业闭源或二次分发场景需另行获取授权；在完成授权方案前，对外默认按 GPL-2.0-only 分发。
-
 
 ## 测试
 
 - Unit：core 的 EventBus / Lifecycle / Registry / ID
 - Integration：Arc3DApp destroy 回收
 - 覆盖率：`npm run test:coverage`（v8）。全仓最低阈值 lines/statements 60、functions 58、branches 75；`core`、`engine-cesium`、`analysis` 等核心包在 `vitest.config.ts` 中另有不低于当前基线的按包阈值，CI 以 `test:coverage` 替代 `test`
-- E2E：`npm run test:e2e`（Playwright + Chromium，SwiftShader 无头 WebGL）。`e2e/app.spec.ts` 覆盖主链路（创建 → 添加 Graphic → 拾取 → 测量分析 → 销毁 → 重建）与失败路径（初始化失败、清理失败、多实例并行、长任务取消、外部服务成功/失败模拟）；`e2e/perf.spec.ts` 在 `PERF=1` 时采集真实浏览器下的创建、增删、帧时间与资源回收指标
+- E2E：`npm run test:e2e`（Playwright + Chromium，SwiftShader 无头 WebGL）；`npm run test:e2e:firefox` 覆盖 Firefox，需在 `xvfb-run -a` 下以有头模式运行（无头 Firefox 不提供 WebGL2）。`e2e/app.spec.ts` 覆盖主链路（创建 → 添加 Graphic → 拾取 → 测量分析 → 销毁 → 重建）与失败路径（初始化失败、清理失败、多实例并行、长任务取消、外部服务成功/失败模拟、Worker 禁用/创建失败降级、重复创建销毁基线）；`e2e/perf.spec.ts` 在 `PERF=1` 时采集真实浏览器下的创建、增删、帧时间与资源回收指标
 
 ## 性能证据分层
 
@@ -67,9 +66,12 @@ CesiumJS 采用 Apache-2.0，第三方底图、示例数据需要在 `NOTICE.md`
 - `gate`：`typecheck` → `test:coverage` → `lint:deps` → `lint:exports` → `lint:license` → `lint:api` → `lint:audit` → `docs:build` → `lint:docs` → `format:check` → `build` → `lint:size` → `bench:check` → `test:pack`
 - `docs`：构建 API 文档并上传 `api-docs` 构件
 - `guide`：构建 VitePress 开发指南并上传 `guide-dist` 构件
-- `e2e`：`npm ci` → `playwright install --with-deps chromium` → `test:e2e`，失败时上传 `playwright-report`
+- `e2e`：`npm ci` → `playwright install --with-deps chromium firefox` → Chromium 跑 `test:e2e`、Firefox 跑 `xvfb-run -a test:e2e:firefox`，失败时上传 `playwright-report`
+- `sandcastle`：`npm ci`（`demo-vue3`）→ `npm run build`（`demo-vue3`）→ 上传 `sandcastle-dist`，确保 Sandcastle 与当前提交的源码可同步构建
 
-另有 `.github/workflows/perf.yml`（定时 + 手动触发，非必需检查）运行 `PERF=1 npm run test:e2e -- e2e/perf.spec.ts` 采集真实浏览器性能趋势。
+另有 `.github/workflows/perf.yml`（定时 + 手动触发，非必需检查）在 Chromium 下运行 `PERF=1 npm run test:e2e -- e2e/perf.spec.ts` 采集真实浏览器性能趋势。
+
+发布 tag（`v*`）或手动触发 `.github/workflows/release.yml` 时，工作流从同一 tag 校验发布元数据、运行 `gate:release` 与 Chromium/Firefox E2E，构建 Sandcastle，生成 tarball，并上传 `release-tarball` / `api-docs` / `guide-dist` / `sandcastle-dist` 四类归档。工作流不自动执行 `npm publish`。
 
 本地分层门禁：`npm run gate:fast`（类型检查 + 单测 + 依赖/导出/许可/API 边界 + 格式）；`npm run gate:release`（快速层改用 `test:coverage`，叠加 `lint:audit`、`docs:build`、`lint:docs`、`guide:build`、`build`、`lint:size`、`bench:check`、`test:pack`）；`npm run gate` 是 `gate:fast` 的别名。浏览器 E2E 始终单独运行。
 
@@ -85,8 +87,10 @@ CesiumJS 采用 Apache-2.0，第三方底图、示例数据需要在 `NOTICE.md`
 ## 公共 API 与 SemVer 治理
 
 - `scripts/public-api-manifest.json` 记录根入口与 `./engine-cesium` 子路径的 `values` / `types` / `signatures`；`lint:exports`（`release-gate.mjs exports`）在 CI 中比对签名，签名漂移即失败。
+- manifest 的 `entries` 必须与 `package.json` 的 `exports` 子路径一一对应，顶层 `values` / `types` 必须与 `entries["."]` 一致；新增或移除子路径都会由门禁拦截。
 - API 变更流程：改代码 → `node scripts/release-gate.mjs exports:update` 刷新基线 → 人工审查签名 diff → 在 PR 模板中声明变更内容与 SemVer 判定（major / minor / patch）→ 破坏性变更写入 `CHANGES.md` 的 `Breaking Changes`。
 - `exports:update` 只负责刷新基线，不构成对破坏性改动的接受；签名 diff 仍需 CODEOWNERS 审阅。
+- `gate:release` 包含 `release:check`；发布分支合并后运行 `npm run release:check -- --tag v<version>`：校验 `package.json` / `package-lock.json` 版本、`CHANGES.md` 已发布小节与日期、`COMPATIBILITY.md` 活跃矩阵，以及破坏性变更所需的迁移说明；带 tag 检查时 `Unreleased` 必须已清空。
 - 高级 / 不稳定入口（如 `app.native.viewer`）不纳入 SemVer 保证，见 `11-api` 与 `COMPATIBILITY.md`。
 
 开发命令、即时测试、预览、API 文档生成和 npm 发布步骤见 `docs/guides/sdk-development.md`。

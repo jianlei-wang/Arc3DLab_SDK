@@ -3,6 +3,22 @@
 > 面向 SDK 维护者的架构、合同与质量门禁迭代记录，按日期倒序排列。
 > 面向使用者的发布变更日志见根目录 `CHANGES.md`。
 
+## 2026-10-18（稳定发布与 API 治理）
+
+- 问题：公共 API manifest、打包 smoke 与四类产物（发布包 / API 文档 / 开发指南 / Sandcastle）已有基础门禁，但缺少发布分支合并后的版本/日志/迁移一致性检查，且 CI 未构建 Sandcastle；`test:pack` 也未验证许可文件归档与安装后依赖合同。
+- API 治理：`lint:exports` 新增 manifest `entries` 与 `package.json.exports` 子路径双向一致性、顶层 `values` / `types` 与 `entries["."]` 一致性检查。
+- 发布元数据：新增 `scripts/release-check.mjs` 与 `npm run release:check`（接入 `gate:release`），校验 semver、`package.json` / `package-lock.json` 版本、`CHANGES.md` 已发布小节与日期、`COMPATIBILITY.md` 活跃矩阵；含 `Breaking Changes` 时必须存在覆盖该版本的迁移说明；带 tag 检查时 `Unreleased` 必须已清空。新增 8 个单元测试。
+- 打包合同：`test:pack` 校验 tarball 名称/版本、README/CHANGES/LOG/NOTICE/LICENSE 打包与安装内容一致、无源码路径泄漏，并校验安装后 `package.json` 的 ESM-only、无运行时依赖与精确 Cesium peer 合同。
+- 同一提交产物：CI 新增 `sandcastle` job 构建并上传 `sandcastle-dist`；新增 tag 触发的 `release.yml`，在同一 commit 运行发布检查、`gate:release`、Chromium/Firefox E2E、Sandcastle 构建与 `npm pack`，归档 tarball / API 文档 / 开发指南 / Sandcastle。
+- 验证：`release:check`、新增单测、`test:pack`、门禁脚本与工作流格式检查。
+
+## 2026-10-18（Worker 空闲回收与跨浏览器 E2E）
+
+- 问题：Worker 池中的槽位在作业完成后永久保留，多实例或一次性分析场景会持续占用线程与内存；浏览器 E2E 仅覆盖 Chromium，Worker 创建失败/禁用与重复创建销毁基线缺少真实浏览器回归。
+- 空闲回收：`AnalysisJobHostOptions` 新增 `idleTimeoutMs`（默认 30000，`0` 禁用），空闲槽位超时后自动终止并移出池；回收定时器在 Node.js 中 `unref()`。新增诊断字段 `createdWorkers` / `reclaimedWorkers` / `peakWorkers` / `idleTimeoutMs`，并校验负数、非整数与无穷值。
+- E2E：Playwright 新增 Firefox 项目，CI 安装 Chromium 与 Firefox；`worker-fallback` 场景在应用层分别模拟 `Worker` 不可用与构造器抛错，断言进程内降级、诊断计数与控制台无异常；`lifecycle-baseline` 场景连续三轮创建/分析/销毁，断言图形、注册表、跟踪器、活动 Worker 与待处理作业均回到基线。
+- 验证：`analysis-worker` 新增空闲回收、禁用回收、超时前复用与非法参数测试；`npx tsc --noEmit`、相关 Vitest、Chromium/Firefox Playwright 与格式检查。
+
 ## 2026-10-18（四类产物最终同步）
 
 - SDK 包：`npm run build` 重新产出 ESM、声明、Worker、source map 与静态资源；`scripts/publish-manifest.mjs` 的期望清单与 tarball 安装 smoke 覆盖全部入口；`files` 维持 `dist` 整树并排除声明中间目录。

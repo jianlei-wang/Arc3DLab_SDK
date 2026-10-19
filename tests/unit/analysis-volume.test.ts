@@ -60,6 +60,69 @@ describe("VolumeAnalysis", () => {
     })
   })
 
+  it("rejects non-finite or non-positive sample counts", async () => {
+    const { analysis } = volume(() => 100)
+    for (const samples of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(
+        analysis.cutFill({ positions: pit, samples }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+    }
+  })
+
+  it("rejects invalid sample caps", async () => {
+    const { analysis } = volume(() => 100)
+    for (const maxSamples of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(
+        analysis.cutFill({ positions: pit, maxSamples }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+    }
+  })
+
+  it("rejects non-finite design heights", async () => {
+    const { analysis } = volume(() => 100)
+    for (const designHeight of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(
+        analysis.cutFill({ positions: pit, designHeight }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+    }
+  })
+
+  it("treats zero design height as a valid level", async () => {
+    const { analysis } = volume(() => 100)
+    const result = await analysis.cutFill({
+      positions: pit,
+      samples: 8,
+      designHeight: 0,
+    })
+    expect(result.status).toBe("computed")
+    expect(result.designHeight).toBe(0)
+    expect(result.cutCubicMeters).toBeGreaterThan(0)
+  })
+
+  it("clamps extreme sample counts and keeps computed metrics finite", async () => {
+    const { analysis } = volume(() => 100)
+    const results = [
+      await analysis.cutFill({
+        positions: pit,
+        samples: Number.MAX_SAFE_INTEGER,
+      }),
+      await analysis.cutFill({
+        positions: pit,
+        maxSamples: Number.MAX_SAFE_INTEGER,
+      }),
+    ]
+    for (const result of results) {
+      expect(result.status).toBe("computed")
+      expect(result.sampleCount).toBeGreaterThan(0)
+      expect(Number.isFinite(result.cutCubicMeters)).toBe(true)
+      expect(Number.isFinite(result.fillCubicMeters)).toBe(true)
+      expect(Number.isFinite(result.designHeight)).toBe(true)
+      expect(Number.isFinite(result.sampleCount)).toBe(true)
+      expect(Number.isFinite(result.resolutionMeters)).toBe(true)
+      expect(Number.isFinite(result.estimatedErrorCubicMeters)).toBe(true)
+    }
+  })
+
   it("flags degenerate polygons instead of silently reporting zero", async () => {
     const { analysis } = volume(() => 100)
     const result = await analysis.cutFill({

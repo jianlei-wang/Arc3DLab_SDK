@@ -7,13 +7,14 @@ on:
 permissions:
   contents: read
 
+# 所有 Actions 须使用 node24 运行时；checkout/setup-node/upload-artifact 均为 v7 起。
 jobs:
   gate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -31,20 +32,21 @@ jobs:
       - run: npm run build
       - run: npm run lint:size
       - run: npm run bench:check
+      - run: npm run release:check
       - run: npm run test:pack
 
   docs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
       - run: npm run docs:build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: api-docs
           path: api-docs/
@@ -54,32 +56,54 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
       - run: npm run guide:build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: guide-dist
           path: guide/.vitepress/dist/
+          retention-days: 7
+
+  sandcastle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: demo-vue3/package-lock.json
+      - run: npm ci
+        working-directory: demo-vue3
+      - run: npm run build
+        working-directory: demo-vue3
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sandcastle-dist
+          path: demo-vue3/dist/
           retention-days: 7
 
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox
+      # Firefox 无头模式不提供 WebGL2，需在 Xvfb 虚拟显示中以有头模式运行。
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - run: xvfb-run -a npm run test:e2e:firefox
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report

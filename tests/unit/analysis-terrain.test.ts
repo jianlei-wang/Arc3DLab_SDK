@@ -163,6 +163,34 @@ describe("TerrainAnalysis", () => {
     )
   })
 
+  it("rejects invalid slope spacing and profile sample counts", async () => {
+    for (const sampleMeters of [0, -20, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(
+        terrain(() => 0).slope({ position: [120, 30], sampleMeters }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+    }
+    await expect(
+      terrain(() => 0).profile({
+        positions: [
+          [120, 30],
+          [120.1, 30],
+        ],
+        samples: Number.NaN,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+  })
+
+  it("rejects non-finite positions before sampling", async () => {
+    for (const position of [
+      [Number.NaN, 30],
+      [120, Number.POSITIVE_INFINITY],
+    ] as [number, number][]) {
+      await expect(
+        terrain(() => 0).sampleHeight({ position }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+    }
+  })
+
   it("carries source and status on the single-point profile path", async () => {
     const result = await terrain(() => 7).profile({ positions: [[120, 30]] })
     expect(result.points).toHaveLength(1)

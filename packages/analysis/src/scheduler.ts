@@ -154,17 +154,69 @@ export async function afterAnalysisAwait<T>(
 }
 
 /**
+ * 校验并解析采样数量参数。
+ *
+ * 省略时返回默认值；显式传入时必须为大于等于 1 的有限数值，否则抛出
+ * `INVALID_ARGUMENT`，避免非法数量进入后续几何计算。默认值只用于可省略
+ * 的参数；必填参数应传入 `undefined` 作为默认值，以便拒绝缺失输入。
+ *
+ * @param value - 调用方传入的采样数量。
+ * @param fallback - 省略时采用的默认值；必填参数传 `undefined`。
+ * @param name - 参数名称，用于错误提示。
+ * @returns 向下取整后的采样数量。
+ * @throws {Arc3DError} 参数不是大于等于 1 的有限数值时抛出。
+ */
+export function resolveSampleCount(
+  value: number | undefined,
+  fallback: number | undefined,
+  name: string,
+): number {
+  if (value === undefined) {
+    if (fallback === undefined) {
+      throw new Arc3DError(
+        "INVALID_ARGUMENT",
+        `${name} must be a finite number greater than or equal to 1: ${value}`,
+      )
+    }
+    return fallback
+  }
+  if (!Number.isFinite(value) || value < 1) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `${name} must be a finite number greater than or equal to 1: ${value}`,
+    )
+  }
+  return Math.floor(value)
+}
+
+/**
  * 将请求的采样数量限制在合法范围内。
+ *
+ * 请求数量必须是有限数值；上限必须是大于等于 1 的有限数值，否则抛出
+ * `INVALID_ARGUMENT`。请求数量小于 1 时按 1 处理。
+ *
  * @param requested - 请求的采样数量。
  * @param maxSamples - 允许的最大采样数量，默认取默认上限。
  * @returns 限制后的采样数量。
+ * @throws {Arc3DError} 请求数量或上限不是有限数值，或上限小于 1 时抛出。
  */
 export function clampSampleCount(
   requested: number,
   maxSamples = DEFAULT_MAX_SAMPLES,
 ): number {
-  if (!Number.isFinite(requested)) return 1
-  return Math.min(Math.max(1, Math.floor(requested)), maxSamples)
+  if (!Number.isFinite(maxSamples) || maxSamples < 1) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `maxSamples must be a finite number greater than or equal to 1: ${maxSamples}`,
+    )
+  }
+  if (!Number.isFinite(requested)) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `Requested sample count must be a finite number: ${requested}`,
+    )
+  }
+  return Math.min(Math.max(1, Math.floor(requested)), Math.floor(maxSamples))
 }
 
 /**

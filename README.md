@@ -85,7 +85,7 @@ if (!result.ready || result.defaultBaseLayer === "failed") {
 ### 3. 注意：若出现Cesium静态文件访问出错
 
 ```bash
-// 引入vite-plugin-cesium插件
+# 引入 vite-plugin-cesium 插件
 npm i vite-plugin-cesium --save-dev
 ```
 

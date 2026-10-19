@@ -55,8 +55,10 @@ export {
   AnalysisTaskRegistry,
   createTaskExecutor,
   executeAnalysisJob,
+  executeAnalysisJobCooperatively,
   runAnalysisTask,
   type AnalysisJob,
+  type AnalysisJobHostDiagnostics,
   type AnalysisJobHostOptions,
   type AnalysisJobResult,
   type AnalysisTask,
@@ -66,6 +68,8 @@ export {
   type AnalysisTaskExecutor,
   type AnalysisWorkerFactory,
   type AnalysisWorkerLike,
+  type CooperativeAnalysisExecutor,
+  type CooperativeAnalysisJobOptions,
   type ResultArtifact,
 } from "@arc3dlab/analysis"
 export {

@@ -4,16 +4,16 @@
 
 ## 文档地图
 
-| 文档 | 用途 |
-|---|---|
-| `docs/guides/sdk-development.md` | 本文件：开发、测试、预览、发布 |
-| `docs/architecture/` | 可迭代设计：模块边界、API 契约、路线图 |
-| `docs/architecture/11-api.md` | 稳定公共 API |
-| `docs/guides/migration.md` | 从 `Viewer` 迁到 `Arc3D.create()` |
-| `README.md` | 安装与最小用法 |
-| `CONTRIBUTING.md` | 贡献原则 |
-| `guide/`（VitePress） | 面向使用者的开发指南，本地预览 `npm run guide:dev` |
-| 自研生成器 `api-docs/` | 由源码生成的 API 参考 |
+| 文档                             | 用途                                               |
+| -------------------------------- | -------------------------------------------------- |
+| `docs/guides/sdk-development.md` | 本文件：开发、测试、预览、发布                     |
+| `docs/architecture/`             | 可迭代设计：模块边界、API 契约、路线图             |
+| `docs/architecture/11-api.md`    | 稳定公共 API                                       |
+| `docs/guides/migration.md`       | 从 `Viewer` 迁到 `Arc3D.create()`                  |
+| `README.md`                      | 安装与最小用法                                     |
+| `CONTRIBUTING.md`                | 贡献原则                                           |
+| `guide/`（VitePress）            | 面向使用者的开发指南，本地预览 `npm run guide:dev` |
+| 自研生成器 `api-docs/`           | 由源码生成的 API 参考                              |
 
 ## SDK 概览
 
@@ -150,6 +150,12 @@ npm run docs
 
 # 构建开发指南（VitePress）
 npm run guide:build
+
+# 构建 Sandcastle（需先在 demo-vue3 安装依赖）
+npm run build:sandcastle
+
+# 校验发布元数据（版本、日志、兼容矩阵与迁移说明）
+npm run release:check -- --tag v2.0.0
 
 # 格式化
 npm run format
@@ -329,17 +335,44 @@ npm run guide:dev
 - `NOTICE.md`
 - `LICENSE`
 
-`scripts/publish-manifest.mjs` 生成期望产物清单，`npm run test:pack` 断言清单、`exports` / `module` / `types` 入口都进入 tarball 并在解压安装目录可被真实 Worker 执行。
+`scripts/publish-manifest.mjs` 生成期望产物清单。`npm run test:pack` 不只检查清单与入口，还会实际安装 tarball 并验证：
+
+- 打包与安装目录中的 `LICENSE` / `NOTICE.md` / `README.md` / `CHANGES.md` / `LOG.md` 与仓库内容一致；
+- 安装后的 `package.json` 保持 ESM-only、无 `main` / `require` 出口、无运行时 `dependencies`，且 `peerDependencies` 只有精确的 `cesium@1.146.0`；
+- `exports` / `module` / `types` 指向的文件存在，TypeScript 消费者能编译；
+- 安装包内的 Worker 资产能真实执行距离与面积作业；
+- tarball 不夹带 `src/`、`packages/`、`tests/`、`scripts/`、`node_modules/` 等源码路径。
+
+### 发布分支合并后
+
+版本号与发布日志在合并进发布分支后按实际发布计划更新：
+
+1. 更新根 `package.json` 版本，并同步 `package-lock.json` 根版本。可用 `npm version <version> --no-git-tag-version`，避免提前创建 tag。
+2. 把 `CHANGES.md` 的 `Unreleased` 条目整理到 `## v<version> - YYYY-MM-DD`，并清空 `Unreleased`；破坏性变化保留 `### Breaking Changes` 小节。打 tag 时仍有 `Unreleased` 条目会被门禁拒绝。
+3. 破坏性变化必须同步迁移说明：`docs/architecture/13-migration.md`、`docs/guides/migration.md` 或 `guide/migration/` 至少一处覆盖该版本。
+4. 同步 `COMPATIBILITY.md` 的活跃兼容矩阵（例如 `2.0.x`）。
+5. 运行 `npm run release:check -- --tag v<version>`。该门禁校验版本、锁文件、发布日志、兼容矩阵与破坏性变更迁移说明的一致性。
+6. 如公共 API 有变更，先运行 `node scripts/release-gate.mjs exports:update` 刷新 manifest，再人工审查签名 diff；刷新基线不等于接受破坏性变更。
 
 ### 发布前检查
 
-1. `docs/architecture/` 与代码一致。
-2. `npm test` 通过。
-3. `npm run build` 产出 ESM 与类型。
-4. `package.json` 的 `version`、`license`、`peerDependencies` 正确。
-5. `CHANGES.md` 写好本版本变更；`COMPATIBILITY.md` 覆盖 Cesium 范围。
-6. `npm run test:pack` 验证发布产物、入口与 Worker 在解压安装目录可用。
-7. 用 `demo-vue3` 或本地 `npm pack` 做一次消费验证。
+1. `npm run release:check -- --tag v<version>` 通过。
+2. `npm run gate:release` 通过（包含单测覆盖率、依赖/许可/API 门禁、API 文档、开发指南、构建、体积、基准、发布元数据与 `test:pack`）。
+3. `npm run test:e2e` 通过；Firefox 额外运行 `xvfb-run -a npm run test:e2e:firefox`。
+4. 在 `demo-vue3` 安装依赖后运行 `npm run build:sandcastle`，确认 Sandcastle 与当前源码同一提交可构建。
+5. `npm pack --dry-run` 检查最终文件列表，再用 `npm run test:pack` 做实际安装验证。
+
+### 同一提交的发布产物
+
+发布 tag 触发的 `.github/workflows/release.yml` 会从同一个 commit 依次完成：
+
+- 发布元数据检查与 `gate:release`；
+- Chromium / Firefox 浏览器回归；
+- Sandcastle 构建；
+- `npm pack` 生成 tarball；
+- 上传 `release-tarball`、`api-docs`、`guide-dist`、`sandcastle-dist` 四类归档。
+
+工作流只验证与归档，不自动执行 `npm publish`；npm 发布凭据与最终人工确认留在发布流程中。任何一类产物都必须来自触发发布的同一个 tag。
 
 ### 版本与日志
 
@@ -353,6 +386,9 @@ alpha / beta 使用 SemVer 预发布号，例如 `2.1.0-alpha.1`。
 ### 发布命令
 
 ```bash
+# 确认发布元数据一致
+npm run release:check -- --tag v2.0.0
+
 # 确认登录 npm
 npm whoami
 
@@ -377,7 +413,7 @@ npm publish --tag alpha --access public
 ### 发布后
 
 1. 给 Git 打与 `package.json` 相同的 tag，例如 `v2.0.0`。
-2. 推送分支与 tag。
+2. 推送分支与 tag；tag 会触发发布验证工作流。
 3. 在消费项目中安装新版本，核对 Cesium 静态资源与主入口 `Arc3D.create()`。
 
 ## 贡献约束（摘要）

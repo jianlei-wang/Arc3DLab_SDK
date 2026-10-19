@@ -9,3 +9,4 @@ guide/.vitepress/dist
 guide/.vitepress/cache
 # Editor directories and files
 .vscode/*
+release/

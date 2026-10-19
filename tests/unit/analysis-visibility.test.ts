@@ -150,6 +150,42 @@ describe("VisibilityAnalysis", () => {
     ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
   })
 
+  it("rejects invalid viewshed radius, observer height, and sample count", async () => {
+    for (const radius of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(
+        visibility(() => 0).viewshed({
+          observer: [120, 30],
+          radius,
+        }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+    }
+    for (const observerHeight of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(
+        visibility(() => 0).viewshed({
+          observer: [120, 30],
+          radius: 500,
+          observerHeight,
+        }),
+      ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+    }
+    await expect(
+      visibility(() => 0).viewshed({
+        observer: [120, 30],
+        radius: 500,
+        samples: Number.NaN,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+  })
+
+  it("rejects non-finite positions before computing sight lines", async () => {
+    await expect(
+      visibility(() => 0).lineOfSight({
+        from: [Number.NaN, 30],
+        to: [120.02, 30],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" })
+  })
+
   it("keeps sample count and order across chunk boundaries", async () => {
     const result = await visibility(() => 0).lineOfSight({
       from: [120, 30, 0],

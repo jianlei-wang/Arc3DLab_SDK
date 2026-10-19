@@ -1,4 +1,5 @@
 import {
+  Arc3DError,
   ELLIPSOID_VERTICAL,
   WGS84_3D,
   type Arc3DContext,
@@ -13,9 +14,74 @@ import {
   type CutFillGrid,
 } from "./cutfill"
 import { sampleCartographics } from "./sampler"
-import type { AnalysisTaskOptions } from "./scheduler"
+import {
+  DEFAULT_MAX_SAMPLES,
+  resolveSampleCount,
+  type AnalysisTaskOptions,
+} from "./scheduler"
 import type { AnalysisResult } from "./task"
 import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
+
+/** 土方计算默认的单边采样数量。 */
+const DEFAULT_CUT_FILL_SAMPLES = 16
+
+/**
+ * 校验并解析土方计算参数。
+ * @param options - 调用方传入的采样数量、采样上限与设计高程。
+ * @returns 有效的单边采样数量与设计高程。
+ * @throws {Arc3DError} 任一参数不是有限数值或超出允许范围时抛出。
+ */
+function resolveCutFillParameters(options: {
+  samples?: number
+  maxSamples?: number
+  designHeight?: number
+}): { samples: number; designHeight?: number } {
+  const sampleCap = resolveSampleCount(
+    options.maxSamples,
+    DEFAULT_MAX_SAMPLES,
+    "maxSamples",
+  )
+  const requested = resolveSampleCount(
+    options.samples,
+    DEFAULT_CUT_FILL_SAMPLES,
+    "samples",
+  )
+  const designHeight = options.designHeight
+  if (designHeight !== undefined && !Number.isFinite(designHeight)) {
+    throw new Arc3DError(
+      "INVALID_ARGUMENT",
+      `designHeight must be a finite number: ${designHeight}`,
+    )
+  }
+  return {
+    samples: Math.min(requested, Math.floor(Math.sqrt(sampleCap))),
+    designHeight,
+  }
+}
+
+/**
+ * 确保计算结果中的数值字段均为有限数。
+ * @param result - 状态为 `computed` 的土方计算结果。
+ * @throws {Arc3DError} 任一数值字段不是有限数时抛出。
+ */
+function assertFiniteCutFillResult(result: CutFillResult): void {
+  const fields: Array<[string, number]> = [
+    ["cutCubicMeters", result.cutCubicMeters],
+    ["fillCubicMeters", result.fillCubicMeters],
+    ["designHeight", result.designHeight],
+    ["sampleCount", result.sampleCount],
+    ["resolutionMeters", result.resolutionMeters],
+    ["estimatedErrorCubicMeters", result.estimatedErrorCubicMeters],
+  ]
+  for (const [name, value] of fields) {
+    if (!Number.isFinite(value)) {
+      throw new Arc3DError(
+        "INVALID_ARGUMENT",
+        `Cut fill produced a non-finite ${name}`,
+      )
+    }
+  }
+}
 
 /** 土方计算状态，用于区分正常结果与非法/退化输入。 */
 export type CutFillStatus = "computed" | "invalid-polygon" | "empty-grid"
@@ -97,12 +163,13 @@ export class VolumeAnalysis {
     maxSamples?: number
   }): Promise<CutFillResult> {
     this.context.lifecycle.assertUsable("analyze cut fill")
+    const parameters = resolveCutFillParameters(options)
     const ring = options.positions.map(toMeasurePoint)
     if (ring.length < 3) {
       return {
         cutCubicMeters: 0,
         fillCubicMeters: 0,
-        designHeight: options.designHeight ?? 0,
+        designHeight: parameters.designHeight ?? 0,
         sampleCount: 0,
         resolutionMeters: 0,
         estimatedErrorCubicMeters: 0,
@@ -111,21 +178,16 @@ export class VolumeAnalysis {
       }
     }
 
-    const sampleCap = options.maxSamples ?? 10_000
-    const samples = Math.max(
-      1,
-      Math.min(options.samples ?? 16, Math.floor(Math.sqrt(sampleCap))),
-    )
     const grid = await this.buildGrid(
       options.positions,
-      samples,
+      parameters.samples,
       options.signal,
     )
     if (grid.cells.length === 0) {
       return {
         cutCubicMeters: 0,
         fillCubicMeters: 0,
-        designHeight: options.designHeight ?? 0,
+        designHeight: parameters.designHeight ?? 0,
         sampleCount: 0,
         resolutionMeters: grid.resolutionMeters,
         estimatedErrorCubicMeters: 0,
@@ -147,7 +209,7 @@ export class VolumeAnalysis {
     )
     const heights = sampled.map((item) => item.height)
     const designHeight =
-      options.designHeight ??
+      parameters.designHeight ??
       heights.reduce((sum, value) => sum + value, 0) / heights.length
     const deltas = heights.map((value) => value - designHeight)
     const { cut, fill } = accumulateCutFillWeighted(
@@ -156,7 +218,7 @@ export class VolumeAnalysis {
         area: grid.cells[index].areaSquareMeters,
       })),
     )
-    return {
+    const result: CutFillResult = {
       cutCubicMeters: cut,
       fillCubicMeters: fill,
       designHeight,
@@ -166,6 +228,8 @@ export class VolumeAnalysis {
       status: "computed",
       terrain: summarizeTerrain(sampled),
     }
+    assertFiniteCutFillResult(result)
+    return result
   }
 
   /**
@@ -197,6 +261,7 @@ export class VolumeAnalysis {
     onProgress?: AnalysisTaskOptions["onProgress"]
     maxSamples?: number
   }): Promise<AnalysisResult<CutFillResult>> {
+    resolveCutFillParameters(options)
     return this.runTask<typeof options, CutFillResult>({
       algorithm: "volume.cutFill",
       input: options,

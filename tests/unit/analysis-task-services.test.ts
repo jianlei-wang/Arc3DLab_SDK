@@ -213,6 +213,29 @@ describe("analysis task variants", () => {
     expect(afterDestroy.status).toBe("cancelled")
   })
 
+  it("exposes manager-owned job host diagnostics", async () => {
+    const manager = new AnalysisManager(baseContext(), {
+      maxWorkers: 2,
+      maxQueue: 3,
+      createWorker: () => new FakeWorker(),
+    })
+    const result = await manager.measure.areaTask({
+      positions: [
+        [120, 30],
+        [120.01, 30],
+        [120.01, 30.01],
+      ],
+    })
+    expect(result.status).toBe("succeeded")
+    expect(manager.getDiagnostics()).toMatchObject({
+      maxWorkers: 2,
+      maxQueue: 3,
+      completedJobs: 1,
+      timedJobs: 1,
+    })
+    manager.destroy()
+  })
+
   it("terminates the worker when a numeric task is cancelled", async () => {
     const workers: FakeWorker[] = []
     const manager = new AnalysisManager(baseContext(), {

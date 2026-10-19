@@ -3,12 +3,14 @@ import {
   geometryMatchesDistance,
   geometryMatchesPolygon,
   geometryMatchesRect,
+  geodesicDistanceMeters,
   headingDegrees,
   pointInPolygon,
   pointInRect,
   polygonAreaSquareMeters,
   splitRectAtAntimeridian,
 } from "@arc3dlab/analysis"
+import { WGS84_A } from "../../packages/analysis/src/units"
 
 const equatorSquare = [
   { longitude: 0, latitude: 0 },
@@ -82,6 +84,58 @@ describe("polygonAreaSquareMeters", () => {
     expect(area).toBeGreaterThan(1e11)
     expect(pointInPolygon({ longitude: 179, latitude: 0.5 }, ring)).toBe(true)
     expect(pointInPolygon({ longitude: 0, latitude: 0.5 }, ring)).toBe(false)
+  })
+})
+
+describe("numeric precision", () => {
+  it("matches the spherical cell reference at the equator and high latitude", () => {
+    const latitude = 80
+    const cell = [
+      { longitude: 0, latitude },
+      { longitude: 1, latitude },
+      { longitude: 1, latitude: latitude + 1 },
+      { longitude: 0, latitude: latitude + 1 },
+    ]
+    const radians = Math.PI / 180
+    const reference =
+      WGS84_A *
+      WGS84_A *
+      radians *
+      (Math.sin((latitude + 1) * radians) - Math.sin(latitude * radians))
+    expect(polygonAreaSquareMeters(cell)).toBeCloseTo(reference, 3)
+  })
+
+  it("matches the equatorial arc reference distance", () => {
+    const reference = (WGS84_A * Math.PI) / 180
+    expect(
+      geodesicDistanceMeters(
+        { longitude: 0, latitude: 0 },
+        { longitude: 1, latitude: 0 },
+      ),
+    ).toBeCloseTo(reference, 6)
+  })
+
+  it("keeps randomized small triangles finite and near planar", () => {
+    let seed = 42
+    const random = () => {
+      seed = (seed * 1664525 + 1013904223) % 0x100000000
+      return seed / 0x100000000
+    }
+    for (let index = 0; index < 100; index += 1) {
+      const baseLongitude = 120 + random() * 10
+      const baseLatitude = 20 + random() * 40
+      const ring = Array.from({ length: 3 }, () => ({
+        longitude: baseLongitude + (random() - 0.5) * 0.02,
+        latitude: baseLatitude + (random() - 0.5) * 0.02,
+      }))
+      const geodesic = polygonAreaSquareMeters(ring, [], "geodesic")
+      const planar = polygonAreaSquareMeters(ring, [], "planar")
+      expect(Number.isFinite(geodesic)).toBe(true)
+      expect(geodesic).toBeGreaterThanOrEqual(0)
+      if (planar > 1) {
+        expect(Math.abs(geodesic - planar) / planar).toBeLessThan(0.05)
+      }
+    }
   })
 })
 

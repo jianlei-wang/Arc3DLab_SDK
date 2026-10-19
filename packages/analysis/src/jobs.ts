@@ -17,7 +17,11 @@ import {
   type QueryRelation,
   type RectQuery,
 } from "./geometry"
-import { buildCutFillGrid, type CutFillGrid } from "./cutfill"
+import {
+  buildCutFillGrid,
+  buildCutFillGridAsync,
+  type CutFillGrid,
+} from "./cutfill"
 import {
   projectedDistanceMeters,
   slopeAngleDegrees,
@@ -25,6 +29,7 @@ import {
   triangleAreaSquareMeters,
 } from "./measure-tools"
 import type { AreaMode } from "./units"
+import { assertDistanceThreshold, assertRectQuery } from "./validation"
 
 /** 参与空间查询的图形，包含标识、类型与顶点。 */
 export interface QueryGraphic {
@@ -140,6 +145,7 @@ export type AnalysisJobResult =
  */
 export function executeAnalysisJob(job: AnalysisJob): AnalysisJobResult {
   if (job.type === "rect-query") {
+    assertRectQuery(job.rect)
     const relation = job.relation ?? "intersect"
     return {
       type: "query",
@@ -163,6 +169,7 @@ export function executeAnalysisJob(job: AnalysisJob): AnalysisJobResult {
     }
   }
   if (job.type === "distance-query") {
+    assertDistanceThreshold(job.meters)
     const center = toMeasurePoint(job.position)
     return {
       type: "query",
@@ -262,4 +269,48 @@ export function executeAnalysisJob(job: AnalysisJob): AnalysisJobResult {
     "INVALID_ARGUMENT",
     `Unknown analysis job: ${String((job as AnalysisJob).type)}`,
   )
+}
+
+/** 进程内协作式执行作业的选项。 */
+export interface CooperativeAnalysisJobOptions {
+  /** 取消信号，在分块边界与执行前后检查。 */
+  signal?: AbortSignal
+  /** 分块之间的让出回调。 */
+  yieldToEventLoop?: () => Promise<void>
+}
+
+/**
+ * 在主线程以协作方式执行分析作业。
+ *
+ * 可分块的 `cutfill-grid` 按行分块构建，并在块间检查取消、让出事件循环；
+ * 其余作业同步执行，只能在开始前与完成后观察取消，无法在执行中途被强制
+ * 中断。Worker 路径通过终止线程实现强制取消，两者语义不同。
+ *
+ * @param job - 待执行的分析作业。
+ * @param options - 取消信号与让出回调。
+ * @returns 作业执行结果。
+ * @throws {Arc3DError} 任务被取消时抛出。
+ */
+export async function executeAnalysisJobCooperatively(
+  job: AnalysisJob,
+  options: CooperativeAnalysisJobOptions = {},
+): Promise<AnalysisJobResult> {
+  if (options.signal?.aborted) {
+    throw new Arc3DError("CANCELLED", "Cancelled analysis job")
+  }
+  if (job.type === "cutfill-grid") {
+    return {
+      type: "cutfill-grid",
+      grid: await buildCutFillGridAsync(
+        job.polygon.map(parsePosition),
+        job.samples,
+        options,
+      ),
+    }
+  }
+  const result = executeAnalysisJob(job)
+  if (options.signal?.aborted) {
+    throw new Arc3DError("CANCELLED", "Cancelled analysis job")
+  }
+  return result
 }

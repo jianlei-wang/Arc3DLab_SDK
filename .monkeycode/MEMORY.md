@@ -128,21 +128,11 @@ Entries discovered by the Agent during task execution should follow this format:
 
 [Project Knowledge Summary]
 - Date: 2026-10-13
-- Context: Discovered by Agent while fixing Sandcastle「polygon/polyline 切到 primitive 模式报 TypeError: Cannot read properties of undefined (reading '_uniforms')」
+- Context: Discovered by Agent while debugging Sandcastle primitive 渲染与 glTF 资源加载
 - Category: Troubleshooting & Debugging
 - Instructions:
-  - 根因：`GroundPolylinePrimitive` / `Primitive` 渲染 `GroundPolylineGeometry` / `PolylineGeometry` 时，appearance 必须使用 `PolylineColorAppearance`（按 GeometryInstance 的 `color` 属性着色）；用 `PerInstanceColorAppearance` 会在 `GroundPolylinePrimitive.createCommands` 里读取 `material._uniforms`（`PerInstanceColorAppearance.material` 为 `undefined`）而崩溃。
-  - 适用位置：`packages/graphics/src/graphic-manager.ts` 的折线 primitive 分支与多边形轮廓 primitive 分支；`PolylineColorAppearance.VERTEX_FORMAT = POSITION_ONLY`，polyline/ground-polyline geometry 默认 vertexFormat 与之匹配，无需显式指定。
-  - verify 方式：`demo-vue3` 5173 预览里把 Polygon/Polyline 的「渲染模式」切到 primitive、并切换「贴地」开关，观察控制台不再报 `_uniforms`。
-
-[Project Knowledge Summary]
-- Date: 2026-10-13
-- Context: Discovered by Agent while fixing Sandcastle「Model / Graphic Style 示例在浏览器加载 glTF 模型报 404 与 CORS」
-- Category: Troubleshooting & Debugging
-- Instructions:
-  - Sandcastle 示例用 `app.graphics.addModel({url})` 加载的外部模型，必须来自带 `Access-Control-Allow-Origin` 的地址，否则浏览器跨域拦截（`http://localhost:5173`）。
-  - `https://sandcastle.cesium.com/SampleData/...` 可直连下载但**不带 CORS 头**，浏览器会 `blocked by CORS policy`；`cdn.jsdelivr.net/gh/CesiumGS/cesium@.../Apps/SampleData/...` 当前返回 404。
-  - 可用地址：`https://cesium.com/downloads/cesiumjs/releases/<version>/Apps/SampleData/models/CesiumAir/Cesium_Air.glb`（返回 `access-control-allow-origin: *`，`content-type: model/gltf-binary`），或 `https://raw.githubusercontent.com/CesiumGS/cesium/<tag>/Apps/SampleData/...`。
+  - `GroundPolylinePrimitive` / `Primitive` 渲染折线时 appearance 必须用 `PolylineColorAppearance`；`PerInstanceColorAppearance` 会在 `createCommands` 读取 `material._uniforms` 而崩溃。适用 `packages/graphics/src/graphic-manager.ts` 的折线 primitive 与多边形轮廓 primitive 分支。
+  - `app.graphics.addModel({url})` 的外部模型必须带 `Access-Control-Allow-Origin`；`sandcastle.cesium.com/SampleData/...` 无 CORS 头，可用 `cesium.com/downloads/cesiumjs/releases/<version>/Apps/SampleData/...` 或 raw.githubusercontent.com 对应 tag 路径。
 
 [User Instruction Summary]
 - Date: 2026-10-13
@@ -151,3 +141,11 @@ Entries discovered by the Agent during task execution should follow this format:
   - 示例缩略图统一为 `260×85`、`AVIF` 格式，并尽量压缩体积；编码参数可用 sharp：`avif({ quality: 40, effort: 9, chromaSubsampling: "4:2:0" })`。
   - 存放目录 `demo-vue3/src/assets/thumbnails/<id>.avif`，在 `catalog.ts` 的示例对象用可选字段 `thumbnail`（`import` 资源 URL）引用。
   - 未提供 `thumbnail` 的示例由 `ExampleGallery` 回退到渐变占位（`span.thumb`），有缩略图则渲染 `<img class="thumb">`（`object-fit: cover`、`loading="lazy"`）。
+
+[Project Knowledge Summary]
+- Date: 2026-10-18
+- Context: Discovered by Agent while adding the Firefox Playwright project and validating Cesium WebGL E2E
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - Firefox 无头模式不提供 WebGL/WebGL2，Cesium 初始化报 `WebGL initialization failed`；需在 `xvfb-run -a` 下以 `headless: false` 运行，并设置 `webgl.force-enabled` / `webgl2.force-enabled` / `gfx.webrender.software` 与 `LIBGL_ALWAYS_SOFTWARE=1`、`MOZ_WEBRENDER=1`。
+  - `npm run test:e2e` 固定跑 Chromium，Firefox 用 `npm run test:e2e:firefox`；CI 安装 `chromium firefox`，Firefox 步骤包一层 `xvfb-run -a`，perf 趋势只跑 Chromium。

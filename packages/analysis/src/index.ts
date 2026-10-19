@@ -25,7 +25,11 @@ import {
   type RunAnalysisTaskOptions,
 } from "./task"
 import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
-import { AnalysisJobHost, type AnalysisJobHostOptions } from "./worker-host"
+import {
+  AnalysisJobHost,
+  type AnalysisJobHostDiagnostics,
+  type AnalysisJobHostOptions,
+} from "./worker-host"
 import { BufferService } from "./buffer"
 import { RouteOverlay } from "./path"
 import { HeatmapOverlay } from "./heatmap-overlay"
@@ -626,6 +630,14 @@ export class AnalysisManager {
   }
 
   /**
+   * 获取管理器共享作业宿主的诊断快照。
+   * @returns Worker 活动数、队列深度、任务计数与执行耗时统计。
+   */
+  getDiagnostics(): AnalysisJobHostDiagnostics {
+    return this.jobHost.getDiagnostics()
+  }
+
+  /**
    * 以统一契约运行一次自定义分析任务。
    * @param options - 运行选项，不含上下文与注册表（由管理器提供）。
    * @returns 分析结果。
@@ -715,17 +727,26 @@ export {
   type AnalysisProgress,
   type YieldStrategy,
 } from "./scheduler"
-export { buildCutFillGrid, accumulateCutFillWeighted } from "./cutfill"
+export {
+  buildCutFillGrid,
+  buildCutFillGridAsync,
+  accumulateCutFillWeighted,
+  type CutFillGridChunkOptions,
+} from "./cutfill"
 export {
   executeAnalysisJob,
+  executeAnalysisJobCooperatively,
   type AnalysisJob,
   type AnalysisJobResult,
+  type CooperativeAnalysisJobOptions,
 } from "./jobs"
 export {
   AnalysisJobHost,
   serializeAnalysisError,
   restoreAnalysisError,
   type AnalysisJobHostOptions,
+  type AnalysisJobHostDiagnostics,
+  type CooperativeAnalysisExecutor,
   type AnalysisWorkerLike,
   type AnalysisWorkerFactory,
 } from "./worker-host"

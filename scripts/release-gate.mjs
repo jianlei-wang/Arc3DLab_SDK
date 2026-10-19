@@ -516,6 +516,32 @@ export function checkPublicExports(root = ROOT) {
     )
   } else {
     const expected = JSON.parse(readFileSync(manifestFile, "utf8"))
+    const expectedEntries = expected.entries ?? { ".": expected }
+    const declaredEntries = Object.keys(pkg.exports ?? {})
+    for (const key of declaredEntries) {
+      if (!(key in expectedEntries)) {
+        issues.push(
+          `package.json exports entry ${key} missing from ${MANIFEST_PATH}`,
+        )
+      }
+    }
+    for (const key of Object.keys(expectedEntries)) {
+      if (!declaredEntries.includes(key)) {
+        issues.push(
+          `${MANIFEST_PATH} entry ${key} missing from package.json exports`,
+        )
+      }
+    }
+    const rootEntry = expectedEntries["."]
+    if (
+      rootEntry &&
+      (JSON.stringify(rootEntry.values) !== JSON.stringify(expected.values) ||
+        JSON.stringify(rootEntry.types) !== JSON.stringify(expected.types))
+    ) {
+      issues.push(
+        `${MANIFEST_PATH} top-level values/types must match entries["."]`,
+      )
+    }
     issues.push(...diffManifest(collectPublicSurface(root), expected))
   }
   return issues

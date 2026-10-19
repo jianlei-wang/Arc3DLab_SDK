@@ -1,6 +1,11 @@
 import { defineConfig, devices } from "@playwright/test"
 
 const PORT = 4310
+const PROCESS_ENV: Record<string, string> = Object.fromEntries(
+  Object.entries(process.env).filter(
+    (entry): entry is [string, string] => entry[1] !== undefined,
+  ),
+)
 
 export default defineConfig({
   testDir: "./e2e",
@@ -27,6 +32,27 @@ export default defineConfig({
             "--use-angle=swiftshader",
             "--enable-unsafe-swiftshader",
           ],
+        },
+      },
+    },
+    {
+      name: "firefox",
+      use: {
+        ...devices["Desktop Firefox"],
+        headless: false,
+        launchOptions: {
+          env: {
+            ...PROCESS_ENV,
+            LIBGL_ALWAYS_SOFTWARE: "1",
+            MOZ_WEBRENDER: "1",
+          },
+          firefoxUserPrefs: {
+            "webgl.disabled": false,
+            "webgl.force-enabled": true,
+            "webgl2.force-enabled": true,
+            "layers.acceleration.force-enabled": true,
+            "gfx.webrender.software": true,
+          },
         },
       },
     },

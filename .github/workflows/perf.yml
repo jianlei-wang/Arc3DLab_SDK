@@ -9,13 +9,14 @@ on:
 permissions:
   contents: read
 
+# 所有 Actions 须使用 node24 运行时；checkout/setup-node/upload-artifact 均为 v7 起。
 jobs:
   perf:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -25,7 +26,7 @@ jobs:
         env:
           PERF: "1"
         run: npm run test:e2e -- e2e/perf.spec.ts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: perf-report

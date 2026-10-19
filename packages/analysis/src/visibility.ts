@@ -4,7 +4,7 @@ import {
   type Arc3DContext,
   type PositionInput,
 } from "@arc3dlab/core"
-import { getCesiumViewer, toCartesian3 } from "@arc3dlab/engine-cesium"
+import { getCesiumViewer } from "@arc3dlab/engine-cesium"
 import {
   Cartesian3,
   Cartographic,
@@ -23,6 +23,7 @@ import {
   viewshedEnvelope,
 } from "./math"
 import { sampleCartographics, toCartographic } from "./sampler"
+import { assertNonNegativeNumber, assertPositiveNumber } from "./validation"
 import {
   AnalysisSampleBudget,
   clampSampleCount,
@@ -139,8 +140,14 @@ export class VisibilityAnalysis {
       2,
       clampSampleCount(options.samples ?? 32, options.maxSamples),
     )
-    const start = toCartesian3(options.from)
-    const end = toCartesian3(options.to)
+    const from = toCartographic(options.from)
+    const to = toCartographic(options.to)
+    const start = Cartesian3.fromRadians(
+      from.longitude,
+      from.latitude,
+      from.height,
+    )
+    const end = Cartesian3.fromRadians(to.longitude, to.latitude, to.height)
     const cartos: Cartographic[] = []
     const lineHeights: number[] = []
     for (let i = 0; i < count; i += 1) {
@@ -203,12 +210,17 @@ export class VisibilityAnalysis {
     maxSamples?: number
   }): Promise<ViewshedResult> {
     this.context.lifecycle.assertUsable("analyze viewshed")
+    assertPositiveNumber(options.radius, "radius")
     const rayCount = Math.max(
       1,
       clampSampleCount(options.rays ?? 36, options.maxSamples),
     )
     const observerHeight = options.observerHeight ?? 2
-    const sampleCount = Math.max(2, options.samples ?? 16)
+    assertNonNegativeNumber(observerHeight, "observerHeight")
+    const sampleCount = Math.max(
+      2,
+      clampSampleCount(options.samples ?? 16, options.maxSamples),
+    )
     const budget = new AnalysisSampleBudget(
       options.maxSamples ?? DEFAULT_MAX_SAMPLES,
     )

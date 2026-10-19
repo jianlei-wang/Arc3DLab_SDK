@@ -7,6 +7,7 @@ import {
 } from "@arc3dlab/core"
 import { EllipsoidGeodesic } from "cesium"
 import { destinationLngLat, slopeFromHeights } from "./math"
+import { assertPositiveNumber } from "./validation"
 import {
   sampleCartographics,
   toCartographic,
@@ -104,6 +105,7 @@ export class TerrainAnalysis {
   }): Promise<SlopeResult> {
     this.context.lifecycle.assertUsable("sample terrain slope")
     const sampleMeters = options.sampleMeters ?? 20
+    assertPositiveNumber(sampleMeters, "sampleMeters")
     const center = await this.sampleHeight({
       position: options.position,
       signal: options.signal,

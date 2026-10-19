@@ -1,0 +1,69 @@
+name: Release Verify
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 要验证的发布 tag，例如 v2.0.0
+        required: true
+
+permissions:
+  contents: read
+
+# 发布验证只打包与归档，不自动执行 npm publish；发布凭据与人工确认留在发布流程中。
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Verify release metadata
+        run: node scripts/release-check.mjs --tag "$RELEASE_TAG"
+      - name: Run release gate
+        run: npm run gate:release
+      - run: npx playwright install --with-deps chromium firefox
+      - run: npm run test:e2e
+      - run: xvfb-run -a npm run test:e2e:firefox
+      - name: Install Sandcastle dependencies
+        run: npm ci
+        working-directory: demo-vue3
+      - name: Build Sandcastle from the same commit
+        run: npm run build
+        working-directory: demo-vue3
+      - name: Pack release tarball
+        run: |
+          mkdir -p release
+          npm pack --pack-destination release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-tarball
+          path: release/*.tgz
+          retention-days: 30
+      - uses: actions/upload-artifact@v7
+        with:
+          name: api-docs
+          path: api-docs/
+          retention-days: 30
+      - uses: actions/upload-artifact@v7
+        with:
+          name: guide-dist
+          path: guide/.vitepress/dist/
+          retention-days: 30
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sandcastle-dist
+          path: demo-vue3/dist/
+          retention-days: 30

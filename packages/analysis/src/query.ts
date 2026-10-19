@@ -1,4 +1,5 @@
 import {
+  assertPositions,
   WGS84_3D,
   type Arc3DContext,
   type LngLatHeight,
@@ -9,6 +10,7 @@ import type { QueryRelation, RectQuery } from "./geometry"
 import type { QueryGraphic } from "./jobs"
 import type { AnalysisResult } from "./task"
 import { createTaskExecutor, type AnalysisTaskExecutor } from "./task-executor"
+import { assertDistanceThreshold, assertRectQuery } from "./validation"
 
 const GRAPHIC_TYPES = new Set(["point", "polyline", "polygon", "model"])
 
@@ -49,6 +51,7 @@ export class SpatialQueryService {
     rect: RectQuery & { relation?: QueryRelation; signal?: AbortSignal },
   ): Promise<{ graphics: QueryHit[] }> {
     this.context.lifecycle.assertUsable("query rectangle")
+    assertRectQuery(rect)
     const { graphics } = await this.runTask.runJob<{
       type: "query"
       graphics: QueryHit[]
@@ -80,6 +83,7 @@ export class SpatialQueryService {
     signal?: AbortSignal
   }): Promise<{ graphics: QueryHit[] }> {
     this.context.lifecycle.assertUsable("query polygon")
+    assertPositions(options.positions, 3, "polygon")
     const { graphics } = await this.runTask.runJob<{
       type: "query"
       graphics: QueryHit[]
@@ -106,6 +110,7 @@ export class SpatialQueryService {
     signal?: AbortSignal
   }): Promise<{ graphics: QueryHit[] }> {
     this.context.lifecycle.assertUsable("query distance")
+    assertDistanceThreshold(options.meters)
     const { graphics } = await this.runTask.runJob<{
       type: "query"
       graphics: QueryHit[]

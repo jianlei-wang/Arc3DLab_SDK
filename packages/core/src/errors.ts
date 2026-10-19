@@ -13,6 +13,7 @@ export type Arc3DErrorCode =
   | "PROVIDER_UNAVAILABLE"
   | "MISSING_CREDENTIALS"
   | "INVALID_FORMAT"
+  | "QUEUE_FULL"
 
 /** Arc3D 统一错误类型，携带机器可读的 `code`。 */
 export class Arc3DError extends Error {

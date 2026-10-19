@@ -129,6 +129,7 @@ app.analysis.volume.clear()
 
 ### 适用边界与调用方责任
 
+- **数值输入校验**：位置坐标、矩形边界、查询距离阈值、坡度采样间距、可视域半径与观察高度、采样数量在进入数值计算前校验；非有限值、越界经纬度、倒置纬度或非正半径/间距以 `INVALID_ARGUMENT` 拒绝，不会静默降级为 0、空结果或 `NaN`。
 - **坐标参考**：输入统一为 WGS84 经纬度与椭球高。投影坐标反算、地方坐标系转换、正高/大地水准面转换由调用方在进入分析 API 前完成；`createCoordinateTransform` 仅在参考完全等价时返回恒等转换，其余情况抛 `UNSUPPORTED_CAPABILITY`。
 - **多边形拓扑**：环按简单多边形处理，不做自相交检测、拓扑修复或环方向归一化；孔洞面积始终从外环扣除。带自相交、重叠环或复杂洞的输入需要调用方预先清理。
 - **跨日界线**：面积计算使用 `unwrapRing` 连续化经度，矩形查询使用 `splitRectAtAntimeridian` 拆分。跨线处理集中在这些路径；其他输入若在 180° 两侧跳变，调用方应先规范化经度或分段，避免把跨线几何解释为长路径。
@@ -182,4 +183,8 @@ host.destroy()
 
 场景依赖操作保持主线程执行：`terrain.*` 与 `visibility.*` 需要 Viewer / 地形采样，`volume.cutFill` 的地形采样与 `excavate` 依赖 Globe 状态。它们不会把 Viewer、Primitive 或地形闭包送入 Worker。`app.destroy()` 终止 Worker、拒绝所有未完成作业，并清理消息与取消监听；销毁后再发起的数值作业以 `CANCELLED` 结束。
 
-宿主维护最多 4 个 Worker 的池，每个在途作业独占一个槽位，完成后槽位回到空闲池复用，超出容量的作业排队等待。宿主与 Worker 通过 `postMessage` 以作业标识匹配回复；作业与结果必须可结构化克隆，不可克隆的输入在投递前以 `Arc3DError("INVALID_FORMAT")` 拒绝；跨线程错误经 `serializeAnalysisError` / `restoreAnalysisError` 还原并保留错误码。取消一个作业只终止它独占的 Worker 并抛 `Arc3DError("CANCELLED")`，其他在途作业继续执行，排队作业由释放的槽位继续调度。运行环境不提供 `Worker` 或 Worker 创建失败时，宿主自动降级为进程内执行，调度、取消与错误契约不变。
+宿主默认维护最多 4 个 Worker（`maxWorkers` 可配置），每个在途作业独占一个槽位，完成后槽位回到空闲池复用；超出容量的作业进入队列，队列默认最多 128 项（`maxQueue` 可配置），达到上限后新作业以 `Arc3DError("QUEUE_FULL")` 拒绝，避免无界累积。空闲 Worker 默认保留 30 秒（`idleTimeoutMs` 可配置，`0` 表示禁用回收），超时未被复用时自动终止并移出池，降低多实例长时间驻留的内存占用；回收定时器在 Node.js 中调用 `unref()`，不会阻止进程退出。宿主与 Worker 通过 `postMessage` 以作业标识匹配回复；作业与结果必须可结构化克隆，不可克隆的输入在投递前以 `Arc3DError("INVALID_FORMAT")` 拒绝；跨线程错误经 `serializeAnalysisError` / `restoreAnalysisError` 还原并保留错误码。取消一个作业只终止它独占的 Worker 并抛 `Arc3DError("CANCELLED")`，其他在途作业继续执行，排队作业由释放的槽位继续调度。
+
+运行环境不提供 `Worker`、Worker 创建失败，或 Worker 异步加载/运行故障时，宿主自动降级为进程内执行，并把 Worker 缓存为不可用，避免后续请求重复创建失败实例。降级路径同样受 `maxWorkers` 与 `maxQueue` 约束，避免主线程被无界并发占满；可分块作业在块间协作式响应取消，无法分块的同步作业只能在开始前或完成后观察取消。目前 `cutfill-grid` 按网格行分块，其余面积、距离、矩形/多边形查询等纯数值作业在单次调用内同步完成，属于明确限定的不可中断操作。工作线程通过消息回传的业务错误原样返回，不做重试。
+
+`AnalysisJobHost.getDiagnostics()` 返回 Worker 活动数（`activeWorkers` / `idleWorkers` / `runningJobs`）、池容量与回收情况（`createdWorkers` / `reclaimedWorkers` / `peakWorkers` / `idleTimeoutMs`）、队列深度（`queuedJobs`）、任务计数（`startedJobs` / `completedJobs` / `cancelledJobs` / `failedJobs` / `rejectedJobs`）以及耗时统计（`timedJobs` / `totalExecutionMs` / `averageExecutionMs` / `maxExecutionMs` / `lastExecutionMs`）；`AnalysisManager.getDiagnostics()` 转发同一份快照。耗时从作业首次开始执行计到结束，包含成功、失败与已开始的取消；排队期间与从未开始的作业不产生耗时样本。

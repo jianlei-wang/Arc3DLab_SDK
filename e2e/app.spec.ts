@@ -112,6 +112,52 @@ test("cancels a long-running analysis task", async ({ page }) => {
   expect(report?.registeredStatus).toBe("cancelled")
 })
 
+test("falls back in-process when Worker is disabled or creation fails", async ({
+  page,
+}) => {
+  const pageErrors: string[] = []
+  page.on("pageerror", (error) => pageErrors.push(error.message))
+  await page.goto("/?scenario=worker-fallback")
+  const report = await waitForReport(page)
+  expect(report?.reportKind).toBe("worker-fallback")
+  expect(report?.disabledReady).toBe(true)
+  expect(report?.disabledDistanceMeters as number).toBeGreaterThan(0)
+  expect(report?.disabledWorkerUnavailable).toBe(true)
+  expect(report?.disabledCreatedWorkers).toBe(0)
+  expect(report?.disabledPendingJobs).toBe(0)
+  expect(report?.disabledCompletedJobs).toBe(1)
+
+  expect(report?.failingReady).toBe(true)
+  expect(report?.failingSquareMeters as number).toBeGreaterThan(0)
+  expect(report?.failingWorkerUnavailable).toBe(true)
+  expect(report?.failingCreatedWorkers).toBe(0)
+  expect(report?.failingPendingJobs).toBe(0)
+  expect(report?.failingCompletedJobs).toBe(1)
+  expect(pageErrors).toEqual([])
+})
+
+test("returns to the resource baseline across repeated create/destroy cycles", async ({
+  page,
+}) => {
+  await page.goto("/?scenario=lifecycle-baseline")
+  const report = await waitForReport(page)
+  expect(report?.reportKind).toBe("lifecycle-baseline")
+  const cycles = report?.cycles as Array<Record<string, unknown>>
+  expect(cycles).toHaveLength(3)
+  for (const cycle of cycles) {
+    expect(cycle.ready).toBe(true)
+    expect(cycle.graphics).toBe(0)
+    expect(cycle.registry).toBe(0)
+    expect(cycle.tracker).toBe(0)
+    expect(cycle.pendingJobsBefore).toBe(0)
+    expect(cycle.activeWorkersAfter).toBe(0)
+    expect(cycle.idleWorkersAfter).toBe(0)
+    expect(cycle.pendingJobsAfter).toBe(0)
+    expect(cycle.terminated).toBe(true)
+    expect(cycle.peakWorkersBefore).toBeLessThanOrEqual(1)
+  }
+})
+
 test("simulates external service failure and success", async ({ page }) => {
   await page.goto("/?scenario=external-service")
   const report = await waitForReport(page)

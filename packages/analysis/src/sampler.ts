@@ -1,5 +1,9 @@
-import type { Arc3DContext, PositionInput } from "@arc3dlab/core"
-import { getCesiumViewer, toCartesian3 } from "@arc3dlab/engine-cesium"
+import {
+  parsePosition,
+  type Arc3DContext,
+  type PositionInput,
+} from "@arc3dlab/core"
+import { getCesiumViewer } from "@arc3dlab/engine-cesium"
 import { Cartographic, Math as CesiumMath } from "cesium"
 import {
   afterAnalysisAwait,
@@ -64,7 +68,12 @@ export function resolveTerrainSample(input: {
  * @returns 对应的 Cesium 经纬度坐标。
  */
 export function toCartographic(input: PositionInput): Cartographic {
-  return Cartographic.fromCartesian(toCartesian3(input))
+  const point = parsePosition(input)
+  return Cartographic.fromRadians(
+    CesiumMath.toRadians(point.longitude),
+    CesiumMath.toRadians(point.latitude),
+    point.height,
+  )
 }
 
 /**
