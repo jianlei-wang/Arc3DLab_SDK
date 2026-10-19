@@ -40,7 +40,14 @@ describe("release metadata check", () => {
   })
 
   it("rejects tagging while Unreleased entries remain", () => {
-    const issues = checkReleaseState(state, { tag: "v2.0.0" })
+    const changes = stateFor(
+      "2.0.0",
+      "### Known Limitations\n\n- none",
+    ).changes.replace(
+      "## Unreleased\n",
+      "## Unreleased\n\n### feat\n\n- pending\n",
+    )
+    const issues = checkReleaseState({ ...state, changes }, { tag: "v2.0.0" })
     expect(issues).toContain(
       "CHANGES.md Unreleased entries must be moved into v2.0.0 before tagging v2.0.0",
     )
