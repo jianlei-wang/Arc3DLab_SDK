@@ -405,7 +405,7 @@ describe("AnalysisJobHost worker transport", () => {
         throw new Error("worker unavailable")
       },
       executeCooperative: async (job) => {
-        await new Promise((resolve) => setTimeout(resolve, 5))
+        await new Promise((resolve) => setTimeout(resolve, 20))
         return executeAnalysisJob(job)
       },
     })
@@ -413,12 +413,12 @@ describe("AnalysisJobHost worker transport", () => {
     await host.run(square)
     const diagnostics = host.getDiagnostics()
     expect(diagnostics.timedJobs).toBe(2)
-    expect(diagnostics.totalExecutionMs).toBeGreaterThanOrEqual(10)
+    expect(diagnostics.totalExecutionMs).toBeGreaterThanOrEqual(30)
     expect(diagnostics.averageExecutionMs).toBeCloseTo(
       diagnostics.totalExecutionMs / 2,
     )
-    expect(diagnostics.maxExecutionMs).toBeGreaterThanOrEqual(5)
-    expect(diagnostics.lastExecutionMs).toBeGreaterThanOrEqual(5)
+    expect(diagnostics.maxExecutionMs).toBeGreaterThanOrEqual(10)
+    expect(diagnostics.lastExecutionMs).toBeGreaterThanOrEqual(10)
     host.destroy()
   })
 
