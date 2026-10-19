@@ -14,46 +14,7 @@
 
 ## Unreleased
 
-### feat
-
-- `CutFillResult.terrain` 新增 `quality`（`complete` / `partial` / `degraded`），`cutFillTask` 对部分回退与无地形数据返回 `warnings`，调用方无需自行比较采样计数即可识别降级结果
-- 分析作业统一路由：`app.analysis` 的测量、空间查询、面积与土方网格等纯数值步骤经 `AnalysisManager` 持有的 `AnalysisJobHost` 调度，支持 `Worker` 时在独立线程执行，无 `Worker` 环境自动降级进程内；`terrain.*` / `visibility.*` 等依赖 Cesium 场景的操作保持主线程
-- 公共分析合同新增 `AnalysisJobHost` / `executeAnalysisJob` 与 `AnalysisJob` / `AnalysisJobResult` / `AnalysisJobHostOptions` / `AnalysisWorkerFactory` / `AnalysisWorkerLike` 导出，`createTaskExecutor` 支持注入共享注册表与作业宿主
-- `AnalysisJobHostOptions` 新增 `idleTimeoutMs`：空闲 Worker 默认保留 30 秒后自动回收，`0` 表示禁用；诊断新增 `createdWorkers` / `reclaimedWorkers` / `peakWorkers` / `idleTimeoutMs`，便于评估多实例内存与池复用效果
-- `AnalysisWorkerLike` 新增可选 `onmessageerror`，并让 `AnalysisJobHostDiagnostics` 增加 `protocolErrors`，用于区分消息反序列化故障与畸形响应
-- `app.destroy()` 终止分析 Worker、拒绝未完成作业并清理消息与取消监听；测量与空间查询方法新增可选 `signal` 取消信号
-
-### fix
-
-- `AnalysisSampleBudget` 显式拒绝 `NaN`、`Infinity`、负数、小数与非法类型，不再把非法上限或预留静默替换为默认值/0；上限与 `reserve()` 参数统一为采样点数量且要求非负安全整数，零预算与 `reserve(0)` 合法
-- 几何入口统一校验经纬度范围与高度量级：越界坐标、倒置矩形、超过 `1e9` 米的绝对高度及非有限高度以 `INVALID_ARGUMENT` 拒绝，避免地心坐标、面积与距离计算产生 `Infinity` / `NaN`
-- Worker 响应运行时校验：校验任务 `id`、`result` / `error` 二选一、错误码与结果类型，畸形响应以 `INVALID_FORMAT` 结算并终止槽位，无法归属的消息只计入 `protocolErrors`，不再让任务永久 pending 或把非法结果当作成功
-- `postMessage` 同步抛错以 `ENGINE_FAILURE` 稳定结算并立即释放槽位；`messageerror` 与 `error` 统一按 Worker 基础设施故障降级重放一次，降级失败只向调用方传播一次
-- 补充 Worker 故障、取消、销毁与队列背压竞争测试，锁定任务最多结算一次、队列不超过 `maxQueue` 与计数器一致性，并文档化取消请求、计算停止与结果不再交付三种状态
-- 分析作业快照契约：`AnalysisJobHost` 在缺少 `structuredClone` 时以 `UNSUPPORTED_CAPABILITY` 明确拒绝，不再把原作业对象放入队列；补充排队期间修改嵌套数组/对象的回归测试，确保计算只使用提交时快照
-- 空间查询在投递 Worker 前将图形注册表投影为 `{ id, type, positions }` 快照，避免把场景对象或闭包送入工作线程
-- 分析作业改为每个在途作业独占一个 Worker 槽位（最多 4 个，完成后复用），取消单个作业只终止它自己的 Worker，不再连带拒绝同一宿主上的其他并发作业
-- 场景形变完成监听器在恢复回调执行后立即注销，并兼容事件源在注册阶段同步触发的场景，避免多次形变后累积失效监听器
-- 浏览器 E2E 扩展 Firefox 与 Worker 降级场景：覆盖 `Worker` 禁用、Worker 构造失败时的进程内回退，以及连续创建/销毁后资源与分析 Worker 计数回归基线
-- 数据源加载失败保留 `failed` 图层与资产用于诊断，允许使用相同 ID 重置失败记录后重试；加载成功后登记失败或应用销毁会回滚目录记录，不再遗留 `loading` 状态
-- 土方 `cutFill` 新增 `terrain` 采样来源计数（`sampled` / `fallback` / `unavailable`），地形不可用时不再把回退的椭球高 0 无提示地计入体积
-- npm 发布包改为 `dist` 整树声明，排除 `dist/src` / `dist/packages` 声明中间文件与 `*.map`；Worker、静态资源与后续新增的嵌套 chunk 自动随构建发布，source map 仅保留在本地构建目录；`scripts/publish-manifest.mjs` 生成期望清单，pack smoke 断言全部产物与入口进入 tarball 与解压安装目录，并从安装后的包内启动 Worker 执行真实作业
-- 发布合同新增 ESM-only 与 Cesium 精确 peer 门禁：`lint:exports` 校验 `type: module`、无 `main` / `require` 出口、`peer` / `dev` Cesium 均为 `1.146.0`、Node `>=22` 与完整 `files` 策略
-
-### chore
-
-- 发布包验证：新增真实 Vite 消费者生产构建与浏览器 smoke（`test:consumer`），从 tarball 安装后触发默认 Worker 并验证消息往返，同时覆盖 `createWorker` 返回空的进程内降级；`test:pack` 增加缺失 Cesium peer、CJS 拒绝、NodeNext 类型解析与不兼容 Cesium 版本的安装冲突检查；跨平台 CI 增加 Linux / Windows / macOS 打包 smoke 矩阵
-- 发布治理：新增 `release:check`（已接入 `gate:release`）校验版本号、锁文件、`CHANGES.md` 已发布小节、兼容矩阵与破坏性变更迁移说明，并在打 tag 时拒绝残留的 `Unreleased` 条目；`test:pack` 增加许可证/NOTICE 归档一致性、安装后包合同（ESM-only、无运行时依赖、精确 `cesium` peer）与源码路径泄漏检查
-- 发布流程：新增 tag 触发的 `release.yml`，从同一提交运行发布门禁与 Chromium/Firefox E2E、构建 Sandcastle、打包 tarball 并归档 `api-docs` / `guide-dist` / `sandcastle-dist`；CI 新增独立 `sandcastle` job
-- CI 治理：`ci.yml`、`release.yml` 统一复用 `quality.yml`，固定 Node 22 与 action v7；补充 `master` 与 `jianlei_wang` 差异表、运行时分契约与 `scripts/configure-repo-governance.sh`
-- 最终产物同步：SDK 开发说明更新发布 `files` 整树策略、`test:pack` 与文档覆盖率现状；开发指南补充分析作业宿主公共导出与土方 `terrain` 字段；Sandcastle 土方示例输出地形采样来源计数；重新生成 API 文档站、开发指南与发布产物并跑通四类产物构建
-- API 稳定性治理：新增 `scripts/public-api-stability.json` 与 `lint:stability`，将根入口与 `arc3dlab/engine-cesium` 导出划分为 `stable` / `experimental` / `internal` / `deprecated`；新增 `api:review` 按已发布快照与版本位评估变更，新增 `api:snapshot` 写入 `scripts/api-history/v<version>.json`
-- 发布门禁：`release:check` 增加 `Known Limitations`、版本位与变更类型一致性、`### Deprecated` 周期与 tag 对应 API 快照检查；新增 `release:preflight` 校验干净工作区、tag 指向 HEAD 与发布元数据，新增 `release:verify` 核对 registry tarball 完整性、发布清单与安装导入路径
-- 发布流程：`release.yml` 增加 tag 提交校验、前置检查与 `SHA256SUMS` 归档；新增手动触发的 `release-verify.yml`；补充 `docs/guides/release-checklist.md` 与 `docs/releases/README.md`，并在 PR 模板中加入稳定性等级、弃用与架构证据检查
-- 架构演进：新增 `docs/architecture/15-architecture-evolution.md`，多渲染后端与共享全局 Worker 池按证据门槛暂缓，发布产物消费端验证登记为已接受项
-- 最终同步：从同一工作区重建 SDK dist、API 文档（540 页 / 527 符号）、开发指南与 Sandcastle；`test:consumer` 从最终 tarball 安装到 Vite 项目并完成生产构建与 Chromium Worker 往返验证
-
-## v2.0.0 - 2026-10-12
+## v2.0.0 - 2026-10-19
 
 ### Breaking Changes：:mega:
 
@@ -82,6 +43,20 @@
 - 数值分析定位与地形状态：`terrain.profile()` 的剖面点补齐 `source` / `status`，地形不可用时以 `unavailable` 标识而非仅表现为高程 0 米；`estimatedErrorCubicMeters` 明确为边界单元经验量级指标而非数学误差上界
 - 动态材质时间与相等性：动态扩散材质（`DynamicSpreadMaterialProperty`）与线尾迹材质（`PolylineTrailMaterialProperty`）的动画时间改用 `JulianDate.secondsDifference` 计算并以 `JulianDate.clone` 保存动画起点，跨过午夜的持续动画不再因 `secondsOfDay` 回绕而重置或倒退；两者 `equals()` 补齐 `duration` 比较，配置不同不再被判为相等
 - Credits 展示模式可逆且不隐藏归属：`compact` 不再把 Cesium 版权容器 `display: none`（会连同第三方数据源署名一起隐藏），改为保持可见并压缩占位；切换模式前先把版权容器移回原始父节点、恢复基线 `display` 并清除压缩样式，修复 `custom → default` 后原容器位置未恢复的问题；自定义容器判定改依据节点挂载能力，兼容非 `HTMLElement` 的 `Element`
+- `AnalysisSampleBudget` 显式拒绝 `NaN`、`Infinity`、负数、小数与非法类型，不再把非法上限或预留静默替换为默认值/0；上限与 `reserve()` 参数统一为采样点数量且要求非负安全整数，零预算与 `reserve(0)` 合法
+- 几何入口统一校验经纬度范围与高度量级：越界坐标、倒置矩形、超过 `1e9` 米的绝对高度及非有限高度以 `INVALID_ARGUMENT` 拒绝，避免地心坐标、面积与距离计算产生 `Infinity` / `NaN`
+- Worker 响应运行时校验：校验任务 `id`、`result` / `error` 二选一、错误码与结果类型，畸形响应以 `INVALID_FORMAT` 结算并终止槽位，无法归属的消息只计入 `protocolErrors`，不再让任务永久 pending 或把非法结果当作成功
+- `postMessage` 同步抛错以 `ENGINE_FAILURE` 稳定结算并立即释放槽位；`messageerror` 与 `error` 统一按 Worker 基础设施故障降级重放一次，降级失败只向调用方传播一次
+- 补充 Worker 故障、取消、销毁与队列背压竞争测试，锁定任务最多结算一次、队列不超过 `maxQueue` 与计数器一致性，并文档化取消请求、计算停止与结果不再交付三种状态
+- 分析作业快照契约：`AnalysisJobHost` 在缺少 `structuredClone` 时以 `UNSUPPORTED_CAPABILITY` 明确拒绝，不再把原作业对象放入队列；补充排队期间修改嵌套数组/对象的回归测试，确保计算只使用提交时快照
+- 空间查询在投递 Worker 前将图形注册表投影为 `{ id, type, positions }` 快照，避免把场景对象或闭包送入工作线程
+- 分析作业改为每个在途作业独占一个 Worker 槽位（最多 4 个，完成后复用），取消单个作业只终止它自己的 Worker，不再连带拒绝同一宿主上的其他并发作业
+- 场景形变完成监听器在恢复回调执行后立即注销，并兼容事件源在注册阶段同步触发的场景，避免多次形变后累积失效监听器
+- 浏览器 E2E 扩展 Firefox 与 Worker 降级场景：覆盖 `Worker` 禁用、Worker 构造失败时的进程内回退，以及连续创建/销毁后资源与分析 Worker 计数回归基线
+- 数据源加载失败保留 `failed` 图层与资产用于诊断，允许使用相同 ID 重置失败记录后重试；加载成功后登记失败或应用销毁会回滚目录记录，不再遗留 `loading` 状态
+- 土方 `cutFill` 新增 `terrain` 采样来源计数（`sampled` / `fallback` / `unavailable`），地形不可用时不再把回退的椭球高 0 无提示地计入体积
+- npm 发布包改为 `dist` 整树声明，排除 `dist/src` / `dist/packages` 声明中间文件与 `*.map`；Worker、静态资源与后续新增的嵌套 chunk 自动随构建发布，source map 仅保留在本地构建目录；`scripts/publish-manifest.mjs` 生成期望清单，pack smoke 断言全部产物与入口进入 tarball 与解压安装目录，并从安装后的包内启动 Worker 执行真实作业
+- 发布合同新增 ESM-only 与 Cesium 精确 peer 门禁：`lint:exports` 校验 `type: module`、无 `main` / `require` 出口、`peer` / `dev` Cesium 均为 `1.146.0`、Node `>=22` 与完整 `files` 策略
 
 ### feat
 
@@ -95,6 +70,12 @@
 - 新增真实浏览器性能趋势场景 `e2e/perf.spec.ts` 与 `.github/workflows/perf.yml`（每日定时 + 手动），时间数值仅归档、资源回收做结构性断言
 - `HeatmapOverlay.setGrid(grid, options)`：从已有 `HeatmapGrid` 直接渲染热力图，跳过网格计算，便于复用预计算结果；`setData` 保持不变并在内部委托 `setGrid`
 - 新增 `.github/PULL_REQUEST_TEMPLATE.md`，将公共 API/SemVer 影响、生命周期与资源契约纳入合并前置检查
+- `CutFillResult.terrain` 新增 `quality`（`complete` / `partial` / `degraded`），`cutFillTask` 对部分回退与无地形数据返回 `warnings`，调用方无需自行比较采样计数即可识别降级结果
+- 分析作业统一路由：`app.analysis` 的测量、空间查询、面积与土方网格等纯数值步骤经 `AnalysisManager` 持有的 `AnalysisJobHost` 调度，支持 `Worker` 时在独立线程执行，无 `Worker` 环境自动降级进程内；`terrain.*` / `visibility.*` 等依赖 Cesium 场景的操作保持主线程
+- 公共分析合同新增 `AnalysisJobHost` / `executeAnalysisJob` 与 `AnalysisJob` / `AnalysisJobResult` / `AnalysisJobHostOptions` / `AnalysisWorkerFactory` / `AnalysisWorkerLike` 导出，`createTaskExecutor` 支持注入共享注册表与作业宿主
+- `AnalysisJobHostOptions` 新增 `idleTimeoutMs`：空闲 Worker 默认保留 30 秒后自动回收，`0` 表示禁用；诊断新增 `createdWorkers` / `reclaimedWorkers` / `peakWorkers` / `idleTimeoutMs`，便于评估多实例内存与池复用效果
+- `AnalysisWorkerLike` 新增可选 `onmessageerror`，并让 `AnalysisJobHostDiagnostics` 增加 `protocolErrors`，用于区分消息反序列化故障与畸形响应
+- `app.destroy()` 终止分析 Worker、拒绝未完成作业并清理消息与取消监听；测量与空间查询方法新增可选 `signal` 取消信号
 
 ### chore
 
@@ -102,6 +83,16 @@
 - 登记自定义材质注册对 Cesium 内部入口 `Material._materialCache` 的依赖为升级高风险点（见 `COMPATIBILITY.md`），新增针对锁定版本的版本契约集成测试；升级 `cesium` 时须核查该内部结构
 - 文档与发布合同同步：修正 `README.md`、`docs/guides/sdk-development.md`、`docs/guides/migration.md`、`docs/architecture/12-engineering.md` 中与 2.0.0 合同不一致的旧版兼容入口、版本号与 Cesium 依赖边界描述，并将本日志版本头由 `Unreleased` 归入 `v2.0.0`
 - 最终产物同步：重生成 API 文档站并修正 `RadarNormalMaterialProperty.getValue` 的 JSDoc 告警；Sandcastle（`demo-vue3`）对齐身份为 `arc3dlab-sandcastle`、改为直接消费工作区 SDK 源码并移除过期的 `arc3dlab@^0.0.3` 依赖，重写其 README
+- 发布包验证：新增真实 Vite 消费者生产构建与浏览器 smoke（`test:consumer`），从 tarball 安装后触发默认 Worker 并验证消息往返，同时覆盖 `createWorker` 返回空的进程内降级；`test:pack` 增加缺失 Cesium peer、CJS 拒绝、NodeNext 类型解析与不兼容 Cesium 版本的安装冲突检查；跨平台 CI 增加 Linux / Windows / macOS 打包 smoke 矩阵
+- 发布治理：新增 `release:check`（已接入 `gate:release`）校验版本号、锁文件、`CHANGES.md` 已发布小节、兼容矩阵与破坏性变更迁移说明，并在打 tag 时拒绝残留的 `Unreleased` 条目；`test:pack` 增加许可证/NOTICE 归档一致性、安装后包合同（ESM-only、无运行时依赖、精确 `cesium` peer）与源码路径泄漏检查
+- 发布流程：新增 tag 触发的 `release.yml`，从同一提交运行发布门禁与 Chromium/Firefox E2E、构建 Sandcastle、打包 tarball 并归档 `api-docs` / `guide-dist` / `sandcastle-dist`；CI 新增独立 `sandcastle` job
+- CI 治理：`ci.yml`、`release.yml` 统一复用 `quality.yml`，固定 Node 22 与 action v7；补充 `master` 与 `jianlei_wang` 差异表、运行时分契约与 `scripts/configure-repo-governance.sh`
+- 最终产物同步：SDK 开发说明更新发布 `files` 整树策略、`test:pack` 与文档覆盖率现状；开发指南补充分析作业宿主公共导出与土方 `terrain` 字段；Sandcastle 土方示例输出地形采样来源计数；重新生成 API 文档站、开发指南与发布产物并跑通四类产物构建
+- API 稳定性治理：新增 `scripts/public-api-stability.json` 与 `lint:stability`，将根入口与 `arc3dlab/engine-cesium` 导出划分为 `stable` / `experimental` / `internal` / `deprecated`；新增 `api:review` 按已发布快照与版本位评估变更，新增 `api:snapshot` 写入 `scripts/api-history/v<version>.json`
+- 发布门禁：`release:check` 增加 `Known Limitations`、版本位与变更类型一致性、`### Deprecated` 周期与 tag 对应 API 快照检查；新增 `release:preflight` 校验干净工作区、tag 指向 HEAD 与发布元数据，新增 `release:verify` 核对 registry tarball 完整性、发布清单与安装导入路径
+- 发布流程：`release.yml` 增加 tag 提交校验、前置检查与 `SHA256SUMS` 归档；新增手动触发的 `release-verify.yml`；补充 `docs/guides/release-checklist.md` 与 `docs/releases/README.md`，并在 PR 模板中加入稳定性等级、弃用与架构证据检查
+- 架构演进：新增 `docs/architecture/15-architecture-evolution.md`，多渲染后端与共享全局 Worker 池按证据门槛暂缓，发布产物消费端验证登记为已接受项
+- 最终同步：从同一工作区重建 SDK dist、API 文档（540 页 / 527 符号）、开发指南与 Sandcastle；`test:consumer` 从最终 tarball 安装到 Vite 项目并完成生产构建与 Chromium Worker 往返验证
 
 ### Known Limitations
 
